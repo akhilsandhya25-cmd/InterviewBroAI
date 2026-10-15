@@ -1,7 +1,20 @@
 import { InterviewConfig, InterviewQuestion, FeedbackReport, ResumeAnalysis, QuestionEvaluation } from '../types';
 import { SAMPLE_FALLBACK_QUESTIONS } from '../data/presets';
+import { storage } from './storage';
 
 const API_BASE = '/api';
+
+function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...extraHeaders
+  };
+  const token = storage.getToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 function isClientDuplicate(candidate: string, history: string[]): boolean {
   const normCand = candidate.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
@@ -31,7 +44,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/ai/questions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ ...config, previousQuestions })
       });
       if (res.ok) {
@@ -85,7 +98,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/ai/evaluate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ question, answer, config })
       });
       if (res.ok) {
@@ -132,7 +145,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/ai/follow-up`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ question, answer, config, previousQuestions, previousScore })
       });
       if (res.ok) {
@@ -166,7 +179,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/ai/final-report`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ questions, config, candidateName })
       });
       if (res.ok) {
@@ -258,14 +271,23 @@ export const api = {
     formData.append('resume', file);
     formData.append('targetRole', targetRole);
 
+    const activeUid = storage.getActiveUserId() || 'usr-guest';
+    const headers: Record<string, string> = {};
+    const token = storage.getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/resume/parse`, {
         method: 'POST',
+        headers,
         body: formData
       });
       if (res.ok) {
         const data = await res.json();
         if (data.analysis) {
+          data.analysis.userId = activeUid;
           return data.analysis;
         }
       }
@@ -279,7 +301,7 @@ export const api = {
     
     return {
       id: `res-${Date.now()}`,
-      userId: 'usr-student-001',
+      userId: activeUid,
       fileName,
       fileSize: file.size,
       extractedSkills: ['JavaScript', 'React.js', 'Node.js', 'SQL', 'Git', 'Data Structures', 'REST APIs', 'HTML5/CSS3'],

@@ -77,11 +77,32 @@ export const authService = {
         updated_at: new Date().toISOString()
       };
 
+      if (data.user) {
+        try {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: email.trim().toLowerCase(),
+            full_name: fullName.trim(),
+            role_target: 'Full Stack Developer',
+            experience_level: 'fresher',
+            skills: ['JavaScript', 'React', 'Problem Solving'],
+            interviews_remaining: 9999,
+            total_interviews_taken: 0
+          });
+        } catch {
+          // Handled by Postgres trigger if present
+        }
+      }
+
       storage.setUser(newUser);
       if (data.session?.access_token) {
         storage.setToken(data.session.access_token);
       }
-      return { user: newUser, token: data.session?.access_token };
+      return { 
+        user: newUser, 
+        token: data.session?.access_token,
+        message: data.session ? 'Signup successful' : 'Account created. Please check your inbox to verify your email.' 
+      };
     }
 
     // 2. Local Secure Server Mode (Express API with salted hash)
@@ -179,6 +200,9 @@ export const authService = {
       try {
         const { data } = await supabase.auth.getSession();
         if (data?.session?.user) {
+          if (data.session.access_token) {
+            storage.setToken(data.session.access_token);
+          }
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')

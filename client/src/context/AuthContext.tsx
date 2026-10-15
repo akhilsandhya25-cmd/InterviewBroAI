@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UsageQuota } from '../types';
 import { storage } from '../services/storage';
 import { authService } from '../services/authService';
-import { isSupabaseConfigured } from '../services/supabase';
+import { isSupabaseConfigured, supabase } from '../services/supabase';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -41,6 +41,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(restoredUser);
           if (restoredUser) {
             setQuota(storage.getQuota(restoredUser.id));
+            // Hydrate cloud data if Supabase is active
+            storage.syncWithCloud(restoredUser.id);
           }
         }
       })
@@ -53,8 +55,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
+    // Listen for Supabase session changes and token refreshes
+    let authListener: { unsubscribe: () => void } | null = null;
+    if (isSupabaseConfigured && supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+        if (event === 'TOKEN_REFRESHED' && session?.access_token) {
+          storage.setToken(session.access_token);
+        } else if (event === 'SIGNED_IN' && session?.user) {
+          if (session.access_token) storage.setToken(session.access_token);
+          storage.syncWithCloud(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          storage.setUser(null);
+          storage.setToken(null);
+          if (isMounted) setUser(null);
+        }
+      });
+      authListener = subscription;
+    }
+
+    // Refresh quota when storage synchronizes with cloud
+    const handleStorageSynced = () => {
+      const activeUid = storage.getActiveUserId();
+      if (activeUid && isMounted) {
+        setQuota(storage.getQuota(activeUid));
+      }
+    };
+    window.addEventListener('interviewbro_storage_synced', handleStorageSynced);
+
     return () => {
       isMounted = false;
+      if (authListener) authListener.unsubscribe();
+      window.removeEventListener('interviewbro_storage_synced', handleStorageSynced);
     };
   }, []);
 
@@ -64,10 +95,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await authService.login(email, password);
       setUser(response.user);
       setQuota(storage.getQuota(response.user.id));
+      storage.syncWithCloud(response.user.id);
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const signup = async (email: string, password: string, confirmPassword?: string, fullName?: string) => {
     setIsLoading(true);

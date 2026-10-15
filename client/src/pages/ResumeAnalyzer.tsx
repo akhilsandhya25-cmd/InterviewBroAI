@@ -36,9 +36,14 @@ export const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({ onStartWithResum
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   React.useEffect(() => {
-    const list = storage.getResumes(user?.id);
-    setResumes(list);
-    setActiveAnalysis(list[0] || null);
+    const refresh = () => {
+      const list = storage.getResumes(user?.id);
+      setResumes(list);
+      setActiveAnalysis(prev => prev ? (list.find(r => r.id === prev.id) || list[0] || null) : (list[0] || null));
+    };
+    refresh();
+    window.addEventListener('interviewbro_storage_synced', refresh);
+    return () => window.removeEventListener('interviewbro_storage_synced', refresh);
   }, [user?.id]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

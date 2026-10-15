@@ -135,6 +135,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await forgotPassword(email);
       setEmailDeliveryConfigured(res.emailDeliveryConfigured ?? false);
       setSuccessMsg(res.message);
+      if (isSupabaseConnected) {
+        // Supabase sends a secure recovery link directly to candidate's inbox.
+        // Keep user on the confirmation message rather than asking for a fictitious local debug code.
+        return;
+      }
       if (res.resetCode) {
         setResetCode(res.resetCode);
       }

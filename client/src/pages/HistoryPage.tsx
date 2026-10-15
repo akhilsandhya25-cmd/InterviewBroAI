@@ -27,7 +27,10 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onNavigate }) => {
   const [search, setSearch] = useState<string>('');
 
   React.useEffect(() => {
-    setSessions(storage.getSessions(user?.id));
+    const refresh = () => setSessions(storage.getSessions(user?.id));
+    refresh();
+    window.addEventListener('interviewbro_storage_synced', refresh);
+    return () => window.removeEventListener('interviewbro_storage_synced', refresh);
   }, [user?.id]);
 
   const filteredSessions = sessions.filter(s => 

@@ -1,21 +1,20 @@
 import { Router, Request, Response } from 'express';
 import { serverAuthService } from '../services/authService.js';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth.js';
+import { 
+  isServerSupabaseConfigured, 
+  getSupabaseProfile, 
+  updateSupabaseProfile 
+} from '../services/supabaseService.js';
 
 export const authRouter = Router();
 
 // GET /api/auth/status - Check auth service configuration
 authRouter.get('/status', (_req: Request, res: Response) => {
-  const isSupabaseConfigured = Boolean(
-    process.env.VITE_SUPABASE_URL &&
-    process.env.VITE_SUPABASE_ANON_KEY &&
-    !process.env.VITE_SUPABASE_URL.includes('your-project-id')
-  );
-
   return res.json({
     status: 'ok',
-    provider: isSupabaseConfigured ? 'supabase' : 'local-secure',
-    isSupabaseConfigured,
+    provider: isServerSupabaseConfigured ? 'supabase' : 'local-secure',
+    isSupabaseConfigured: isServerSupabaseConfigured,
     supportsPasswordReset: true,
     supportsUserIsolation: true
   });
@@ -24,6 +23,13 @@ authRouter.get('/status', (_req: Request, res: Response) => {
 // POST /api/auth/signup
 authRouter.post('/signup', async (req: Request, res: Response) => {
   try {
+    if (isServerSupabaseConfigured) {
+      return res.status(400).json({
+        error: 'Cloud authentication active',
+        message: 'Supabase Auth is active. Please register directly using Supabase Auth.'
+      });
+    }
+
     const { email, password, confirmPassword, fullName } = req.body;
 
     if (!email || !password || !fullName) {
@@ -71,6 +77,13 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
 // POST /api/auth/login
 authRouter.post('/login', async (req: Request, res: Response) => {
   try {
+    if (isServerSupabaseConfigured) {
+      return res.status(400).json({
+        error: 'Cloud authentication active',
+        message: 'Supabase Auth is active. Please log in directly using Supabase Auth.'
+      });
+    }
+
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -97,25 +110,62 @@ authRouter.post('/login', async (req: Request, res: Response) => {
 });
 
 // GET /api/auth/me - Validate session and get current profile
-authRouter.get('/me', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const user = serverAuthService.getUserById(req.user!.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    // 1. Check local session engine
+    const localUser = serverAuthService.getUserById(req.user!.id);
+    if (localUser) {
+      const { password_hash, password_salt, ...safeUser } = localUser;
+      return res.json({ success: true, user: safeUser });
     }
-    const { password_hash, password_salt, ...safeUser } = user;
-    return res.json({ success: true, user: safeUser });
+
+    // 2. Check Supabase profile table
+    if (isServerSupabaseConfigured) {
+      const supabaseProfile = await getSupabaseProfile(req.user!.id);
+      if (supabaseProfile) {
+        return res.json({ success: true, user: supabaseProfile });
+      }
+    }
+
+    // 3. Fallback profile from authenticated Bearer token claims
+    return res.json({
+      success: true,
+      user: {
+        id: req.user!.id,
+        email: req.user!.email,
+        full_name: req.user!.full_name,
+        role_target: 'Full Stack Developer',
+        experience_level: 'fresher',
+        skills: ['JavaScript', 'React', 'Problem Solving'],
+        interviews_remaining: 9999,
+        total_interviews_taken: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
 });
 
 // PUT /api/auth/profile - Update candidate profile
-authRouter.put('/profile', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+authRouter.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const updated = serverAuthService.updateProfile(req.user!.id, req.body);
-    const { password_hash, password_salt, ...safeUser } = updated;
-    return res.json({ success: true, user: safeUser });
+    // 1. Check local engine
+    const localUser = serverAuthService.getUserById(req.user!.id);
+    if (localUser) {
+      const updated = serverAuthService.updateProfile(req.user!.id, req.body);
+      const { password_hash, password_salt, ...safeUser } = updated;
+      return res.json({ success: true, user: safeUser });
+    }
+
+    // 2. Check Supabase
+    if (isServerSupabaseConfigured) {
+      const updated = await updateSupabaseProfile(req.user!.id, req.body);
+      return res.json({ success: true, user: updated });
+    }
+
+    return res.status(404).json({ error: 'User profile not found' });
   } catch (error: any) {
     return res.status(400).json({ error: error.message });
   }
@@ -130,6 +180,7 @@ authRouter.post('/logout', (req: Request, res: Response) => {
   }
   return res.json({ success: true, message: 'Logged out successfully' });
 });
+
 
 // POST /api/auth/forgot-password
 authRouter.post('/forgot-password', (req: Request, res: Response) => {
