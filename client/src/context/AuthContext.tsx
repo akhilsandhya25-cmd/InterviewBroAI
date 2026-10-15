@@ -80,9 +80,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const existingUser = storage.getUser();
       const updated: UserProfile = {
-        ...existingUser,
+        id: existingUser?.id || `usr-${Date.now()}`,
         email,
-        full_name: fullName || existingUser.full_name || email.split('@')[0],
+        full_name: fullName || existingUser?.full_name || email.split('@')[0],
+        role_target: existingUser?.role_target || 'Full Stack Developer',
+        experience_level: existingUser?.experience_level || 'fresher',
+        skills: existingUser?.skills || ['JavaScript', 'React', 'Problem Solving'],
+        interviews_remaining: existingUser?.interviews_remaining ?? 5,
+        total_interviews_taken: existingUser?.total_interviews_taken ?? 0,
+        college: existingUser?.college,
+        graduation_year: existingUser?.graduation_year,
+        career_goals: existingUser?.career_goals,
+        created_at: existingUser?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
       storage.setUser(updated);
