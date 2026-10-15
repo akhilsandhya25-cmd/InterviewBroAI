@@ -3,14 +3,36 @@ import { SAMPLE_FALLBACK_QUESTIONS } from '../data/presets';
 
 const API_BASE = '/api';
 
+function isClientDuplicate(candidate: string, history: string[]): boolean {
+  const normCand = candidate.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+  const candWords = new Set(normCand.split(/\s+/).filter(w => w.length > 2));
+  if (candWords.size === 0) return false;
+
+  for (const prev of history) {
+    if (!prev) continue;
+    const normPrev = prev.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+    if (normPrev === normCand) return true;
+    const prevWords = new Set(normPrev.split(/\s+/).filter(w => w.length > 2));
+    let intersection = 0;
+    for (const w of candWords) {
+      if (prevWords.has(w)) intersection++;
+    }
+    const union = new Set([...candWords, ...prevWords]).size;
+    if (union > 0 && (intersection / union) > 0.55) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export const api = {
-  // Generate interview questions
-  async generateQuestions(config: InterviewConfig): Promise<InterviewQuestion[]> {
+  // Generate interview questions strictly without repetition
+  async generateQuestions(config: InterviewConfig, previousQuestions: string[] = []): Promise<InterviewQuestion[]> {
     try {
       const res = await fetch(`${API_BASE}/ai/questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
+        body: JSON.stringify({ ...config, previousQuestions })
       });
       if (res.ok) {
         const data = await res.json();
@@ -22,36 +44,37 @@ export const api = {
       console.warn('Backend /api/ai/questions not reachable or errored, using tailored client fallback bank:', e);
     }
 
-    // Client fallback: generate tailored questions based on selected type and company
-    const typeQuestions = SAMPLE_FALLBACK_QUESTIONS[config.interviewType] || SAMPLE_FALLBACK_QUESTIONS.mixed;
-    const questions: InterviewQuestion[] = [];
-    
-    // Customize questions to mention role and company
-    for (let i = 0; i < Math.min(config.questionCount, typeQuestions.length); i++) {
-      const base = typeQuestions[i];
-      let text = base.text;
-      if (i === 0 && config.companyName) {
-        text = `Welcome to this ${config.companyName} interview for the ${config.role} position. ${text}`;
-      }
-      questions.push({
-        id: `q-${Date.now()}-${i}`,
-        orderIndex: i,
-        questionText: text,
-        category: base.category,
-        contextOrHints: base.hints
-      });
-    }
+    // Client fallback: generate tailored, non-repeating questions
+    const primaryPool = SAMPLE_FALLBACK_QUESTIONS[config.interviewType] || SAMPLE_FALLBACK_QUESTIONS.mixed;
+    const allPools = [
+      ...primaryPool,
+      ...SAMPLE_FALLBACK_QUESTIONS.technical,
+      ...SAMPLE_FALLBACK_QUESTIONS.system_design,
+      ...SAMPLE_FALLBACK_QUESTIONS.behavioral,
+      ...SAMPLE_FALLBACK_QUESTIONS.mixed,
+      ...SAMPLE_FALLBACK_QUESTIONS.hr,
+      ...SAMPLE_FALLBACK_QUESTIONS.managerial
+    ];
 
-    // If user requested more questions than base sample bank, add dynamic role-relevant questions
-    while (questions.length < config.questionCount) {
-      const idx = questions.length;
-      questions.push({
-        id: `q-${Date.now()}-${idx}`,
-        orderIndex: idx,
-        questionText: `In a production environment for a ${config.role} at ${config.companyName}, how would you ensure system reliability, comprehensive automated testing, and zero-downtime deployment?`,
-        category: 'technical',
-        contextOrHints: 'Discuss CI/CD pipelines, blue-green deployment, unit vs integration testing, and production monitoring metrics.'
-      });
+    const questions: InterviewQuestion[] = [];
+    const trackingList: string[] = [...(previousQuestions || [])];
+
+    for (const item of allPools) {
+      if (questions.length >= config.questionCount) break;
+      const text = (questions.length === 0 && config.companyName && trackingList.length === 0)
+        ? `Welcome to this ${config.companyName} interview for the ${config.role} position. ${item.text}`
+        : item.text;
+
+      if (!isClientDuplicate(text, trackingList)) {
+        questions.push({
+          id: `q-${Date.now()}-${questions.length}`,
+          orderIndex: questions.length,
+          questionText: text,
+          category: item.category,
+          contextOrHints: item.hints
+        });
+        trackingList.push(text);
+      }
     }
 
     return questions;
@@ -99,12 +122,18 @@ export const api = {
   },
 
   // Generate follow-up question
-  async generateFollowUp(question: InterviewQuestion, answer: string, config: InterviewConfig): Promise<InterviewQuestion | null> {
+  async generateFollowUp(
+    question: InterviewQuestion, 
+    answer: string, 
+    config: InterviewConfig,
+    previousQuestions: string[] = [],
+    previousScore?: number
+  ): Promise<InterviewQuestion | null> {
     try {
       const res = await fetch(`${API_BASE}/ai/follow-up`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, answer, config })
+        body: JSON.stringify({ question, answer, config, previousQuestions, previousScore })
       });
       if (res.ok) {
         const data = await res.json();
@@ -116,12 +145,16 @@ export const api = {
       console.warn('Backend /api/ai/follow-up not reachable, using intelligent fallback follow-up:', e);
     }
 
-    // Fallback follow-up
+    // Dynamic fallback follow-up referencing actual answer
+    const snippets = answer.split(/[.?!]/).filter(s => s.trim().length > 15);
+    const focus = snippets[0] ? `Regarding your mention of "${snippets[0].trim().slice(0, 50)}...", ` : '';
+    const followUpText = `${focus}how would this architecture behave if traffic suddenly surged by 25x or network latency spiked? What fault-tolerance and fallback mechanisms would you put in place?`;
+
     return {
       id: `q-followup-${Date.now()}`,
       orderIndex: question.orderIndex + 1,
-      questionText: `That's an interesting approach. If user traffic suddenly spiked 20x or the external dependency started timing out, how would your proposed solution hold up, and what fallback mechanisms would you put in place?`,
-      category: 'system_design',
+      questionText: followUpText,
+      category: question.category || 'system_design',
       contextOrHints: 'Discuss circuit breakers, exponential backoff, rate limiting, and graceful degradation.',
       isFollowUp: true,
       followUpToQuestionId: question.id

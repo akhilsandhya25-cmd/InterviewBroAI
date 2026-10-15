@@ -203,10 +203,15 @@ class NaturalTTS {
   private voices: SpeechSynthesisVoice[] = [];
   private selectedVoice: SpeechSynthesisVoice | null = null;
   private isSpeakingNow = false;
+  private currentAudio: HTMLAudioElement | null = null;
+  private activeElevenLabsVoiceId: string = typeof localStorage !== 'undefined'
+    ? localStorage.getItem('interviewbro_voice_id') || '21m00Tcm4TlvDq8ikWAM'
+    : '21m00Tcm4TlvDq8ikWAM';
+  private useElevenLabs = true;
 
   constructor() {
-    this.isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-    if (this.isSupported) {
+    this.isSupported = typeof window !== 'undefined';
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       this.loadVoices();
       if (window.speechSynthesis.onvoiceschanged !== undefined) {
         window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
@@ -215,7 +220,7 @@ class NaturalTTS {
   }
 
   private loadVoices(): void {
-    if (!this.isSupported) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     try {
       this.voices = window.speechSynthesis.getVoices();
       this.selectedVoice = this.pickBestInterviewerVoice(this.voices);
@@ -225,7 +230,7 @@ class NaturalTTS {
   }
 
   public getAvailableVoices(): SpeechSynthesisVoice[] {
-    if (this.voices.length === 0 && this.isSupported) {
+    if (this.voices.length === 0 && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       this.voices = window.speechSynthesis.getVoices();
     }
     return this.voices;
@@ -235,15 +240,30 @@ class NaturalTTS {
     if (!this.selectedVoice) {
       this.selectedVoice = this.pickBestInterviewerVoice(this.getAvailableVoices());
     }
-    return this.selectedVoice ? `${this.selectedVoice.name} (${this.selectedVoice.lang})` : 'Default Browser Voice';
+    return this.selectedVoice ? `${this.selectedVoice.name} (${this.selectedVoice.lang})` : 'Default System Voice';
+  }
+
+  public setElevenLabsVoice(voiceId: string): void {
+    this.activeElevenLabsVoiceId = voiceId;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('interviewbro_voice_id', voiceId);
+    }
+  }
+
+  public getElevenLabsVoice(): string {
+    return this.activeElevenLabsVoiceId;
+  }
+
+  public setUseElevenLabs(enabled: boolean): void {
+    this.useElevenLabs = enabled;
+  }
+
+  public getUseElevenLabs(): boolean {
+    return this.useElevenLabs;
   }
 
   /**
    * Selects the highest quality natural, conversational interviewer voice.
-   * Priority:
-   * 1. High-tier neural/natural voices (Google US English, Microsoft Online/Natural voices like Jenny, Guy, Aria, Christopher)
-   * 2. High-quality system English voices (Samantha, Alex, Karen, Daniel, Victoria)
-   * 3. Any standard en-US or en voice
    */
   public pickBestInterviewerVoice(voiceList: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
     if (!voiceList || voiceList.length === 0) return null;
@@ -274,7 +294,6 @@ class NaturalTTS {
 
   /**
    * Sanitizes text for conversational speech.
-   * Removes markdown syntax (e.g. *, **, #, `, backticks) and expands abbreviations.
    */
   public sanitizeTextForSpeech(text: string): string {
     if (!text) return '';
@@ -295,26 +314,87 @@ class NaturalTTS {
   }
 
   /**
-   * Speaks the interview question aloud.
-   * Cancels any ongoing audio first, handles natural rate (0.95x for professional clarity),
-   * and fires onEnd when speaking completes.
+   * Speaks the interview question aloud using ElevenLabs if available,
+   * with automatic fallback to Web Speech API.
    */
-  public speak(text: string, options: TTSOptions = {}): void {
-    if (!this.isSupported) {
+  public async speak(text: string, options: TTSOptions = {}): Promise<void> {
+    this.stop(); // Stop any pending utterances or audio
+
+    const cleaned = this.sanitizeTextForSpeech(text);
+    if (!cleaned) {
+      if (options.onEnd) options.onEnd();
+      return;
+    }
+
+    // Try ElevenLabs backend TTS if enabled
+    if (this.useElevenLabs) {
+      try {
+        const response = await fetch('/api/voice/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: cleaned,
+            voiceId: this.activeElevenLabsVoiceId
+          })
+        });
+
+        if (response.ok) {
+          const contentType = response.headers.get('Content-Type') || '';
+          if (contentType.includes('audio')) {
+            const blob = await response.blob();
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            this.currentAudio = audio;
+            this.isSpeakingNow = true;
+
+            audio.onplay = () => {
+              if (options.onStart) options.onStart();
+            };
+
+            audio.onended = () => {
+              this.isSpeakingNow = false;
+              this.currentAudio = null;
+              URL.revokeObjectURL(audioUrl);
+              if (options.onEnd) options.onEnd();
+            };
+
+            audio.onerror = (e) => {
+              console.warn('Audio playback error, falling back to Web Speech API:', e);
+              this.currentAudio = null;
+              URL.revokeObjectURL(audioUrl);
+              this.speakWithWebSpeech(cleaned, options);
+            };
+
+            try {
+              await audio.play();
+              return; // Successfully played ElevenLabs audio
+            } catch (playErr) {
+              console.warn('Audio autoplay blocked or failed, falling back:', playErr);
+              // continue to Web Speech fallback
+            }
+          }
+        }
+      } catch (networkErr) {
+        console.warn('ElevenLabs TTS network issue, falling back to Web Speech API:', networkErr);
+      }
+    }
+
+    // Default Web Speech API Fallback
+    this.speakWithWebSpeech(cleaned, options);
+  }
+
+  /**
+   * Free Browser / OS Web Speech API Speech Synthesis
+   */
+  public speakWithWebSpeech(cleaned: string, options: TTSOptions = {}): void {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       if (options.onEnd) options.onEnd();
       return;
     }
 
     try {
-      this.stop(); // Stop any pending utterances
-      const cleaned = this.sanitizeTextForSpeech(text);
-      if (!cleaned) {
-        if (options.onEnd) options.onEnd();
-        return;
-      }
-
       const utterance = new SpeechSynthesisUtterance(cleaned);
-      utterance.rate = options.rate !== undefined ? options.rate : 0.98; // natural, articulate interview cadence
+      utterance.rate = options.rate !== undefined ? options.rate : 0.98;
       utterance.pitch = options.pitch !== undefined ? options.pitch : 1.0;
 
       if (!this.selectedVoice) {
@@ -352,36 +432,51 @@ class NaturalTTS {
   }
 
   public stop(): void {
-    if (!this.isSupported) return;
-    try {
-      this.isSpeakingNow = false;
-      window.speechSynthesis.cancel();
-    } catch (e) {
-      console.warn('TTS cancel notice:', e);
+    this.isSpeakingNow = false;
+
+    // Stop HTML5 Audio if playing
+    if (this.currentAudio) {
+      try {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+        this.currentAudio = null;
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // Stop Web Speech Synthesis
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        console.warn('TTS cancel notice:', e);
+      }
     }
   }
 
   public pause(): void {
-    if (!this.isSupported) return;
-    try {
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.pause();
-    } catch (e) {
-      // ignore
     }
   }
 
   public resume(): void {
-    if (!this.isSupported) return;
-    try {
+    if (this.currentAudio) {
+      this.currentAudio.play().catch(() => {});
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.resume();
-    } catch (e) {
-      // ignore
     }
   }
 
   public isSpeaking(): boolean {
-    if (!this.isSupported) return false;
-    return this.isSpeakingNow || window.speechSynthesis.speaking;
+    const isAudioPlaying = Boolean(this.currentAudio && !this.currentAudio.paused);
+    const isUtteranceSpeaking = typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking;
+    return this.isSpeakingNow || isAudioPlaying || isUtteranceSpeaking;
   }
 }
 

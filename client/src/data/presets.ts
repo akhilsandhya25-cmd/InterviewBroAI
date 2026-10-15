@@ -138,7 +138,7 @@ export const SAMPLE_FALLBACK_QUESTIONS: Record<InterviewType, Array<{ text: stri
       hints: "Discuss call stack, Web APIs, Promise callbacks (microtask) vs setTimeout/setInterval (macrotask), and execution order."
     },
     {
-      text: "How would you design a database schema to handle high-frequency order placements during a flash sale without deadlocks?",
+      text: "How would you design a database schema and indexing strategy to handle high-frequency order placements during a flash sale without deadlocks?",
       category: "technical",
       hints: "Mention optimistic vs pessimistic locking, queuing with Redis/Kafka, read-write replicas, and database indexing."
     },
@@ -146,6 +146,26 @@ export const SAMPLE_FALLBACK_QUESTIONS: Record<InterviewType, Array<{ text: stri
       text: "Walk me through the difference between SQL and NoSQL databases. When would you choose MongoDB or Cassandra over PostgreSQL?",
       category: "technical",
       hints: "Discuss ACID vs BASE, relational integrity, horizontal scaling vs vertical scaling, schema flexibility, and read/write access patterns."
+    },
+    {
+      text: "How does React reconciliation and Virtual DOM diffing work internally? Why are array indices strongly discouraged as keys in dynamic lists?",
+      category: "technical",
+      hints: "Explain fiber architecture, component lifecycle updates, key stability, and child re-rendering efficiency."
+    },
+    {
+      text: "Explain how connection pooling functions in backend applications, and how you diagnose connection pool starvation under sudden traffic spikes.",
+      category: "technical",
+      hints: "Discuss pool sizing, connection acquisition timeouts, leak detection, database CPU usage, and circuit breaking."
+    },
+    {
+      text: "What are the trade-offs between JWT authentication and server-side session cookies in distributed multi-service systems?",
+      category: "technical",
+      hints: "Cover stateless verification, instant token revocation, CSRF vs XSS attack surfaces, and HttpOnly cookie attributes."
+    },
+    {
+      text: "What is the difference between concurrency and parallelism? How does your primary backend runtime handle thread scheduling and memory safety?",
+      category: "technical",
+      hints: "Discuss thread pools, coroutines/event loop, race condition detection, atomic primitives, and memory garbage collection."
     }
   ],
   behavioral: [
@@ -160,9 +180,19 @@ export const SAMPLE_FALLBACK_QUESTIONS: Record<InterviewType, Array<{ text: stri
       hints: "Focus on data-driven decision making, respectful communication, listening to alternative viewpoints, and committing to the final choice."
     },
     {
-      text: "Give an example of a failure in a past project or academic assignment. What caused the failure, and what concrete steps did you take to prevent it in the future?",
+      text: "Give an example of a failure in a past project or production deployment. What caused the failure, and what concrete steps did you take to prevent it in the future?",
       category: "behavioral",
       hints: "Take genuine ownership without deflecting blame. Detail the post-mortem analysis and changes implemented."
+    },
+    {
+      text: "Describe a scenario where you had to quickly learn an unfamiliar technology, library, or framework to unblock a project milestone.",
+      category: "behavioral",
+      hints: "Detail your rapid learning strategy, prototyping, seeking guidance, and delivering the milestone on time."
+    },
+    {
+      text: "Tell me about a time you noticed technical debt or a security vulnerability that was not assigned to you, and took the initiative to resolve it.",
+      category: "behavioral",
+      hints: "Explain how you quantified the risk, obtained stakeholder support, and safely tested and deployed the refactor."
     }
   ],
   hr: [
@@ -180,6 +210,11 @@ export const SAMPLE_FALLBACK_QUESTIONS: Record<InterviewType, Array<{ text: stri
       text: "How do you stay updated with rapidly evolving technology trends, such as generative AI, new cloud architectures, or framework updates?",
       category: "hr",
       hints: "Mention newsletters, tech blogs, building proof-of-concept repositories, and participating in tech communities."
+    },
+    {
+      text: "Describe a work environment or team culture where you feel most productive, challenged, and motivated to do your best engineering work.",
+      category: "hr",
+      hints: "Discuss psychological safety, collaborative code reviews, autonomy, clear product vision, and continuous learning."
     }
   ],
   mixed: [
@@ -197,6 +232,16 @@ export const SAMPLE_FALLBACK_QUESTIONS: Record<InterviewType, Array<{ text: stri
       text: "If you had to rewrite that project today with 100x user traffic, what parts of the system would break first and what would you re-architect?",
       category: "system_design",
       hints: "Analyze database bottlenecks, caching layers, load balancing, stateless servers, and async processing."
+    },
+    {
+      text: "Tell me about a situation during that project where project requirements suddenly changed mid-cycle. How did you adapt your architecture?",
+      category: "behavioral",
+      hints: "Discuss agile flexibility, modular code structure, proactive communication, and preventing scope creep."
+    },
+    {
+      text: "How did you ensure test coverage, code quality, and continuous integration before deploying that project?",
+      category: "technical",
+      hints: "Discuss unit, integration, and E2E testing strategies, mock services, and automated CI/CD pipelines."
     }
   ],
   system_design: [
@@ -209,6 +254,16 @@ export const SAMPLE_FALLBACK_QUESTIONS: Record<InterviewType, Array<{ text: stri
       text: "Design a notification service that sends real-time push, SMS, and email notifications reliably without dropping messages during peak events.",
       category: "system_design",
       hints: "Discuss message brokers (Kafka/RabbitMQ), retry mechanisms, idempotency keys, third-party vendor fallbacks, and priority queues."
+    },
+    {
+      text: "How would you design a distributed rate limiter that operates across multiple application server instances?",
+      category: "system_design",
+      hints: "Compare token bucket vs sliding window log algorithms, centralized Redis vs local memory with sync, and race condition mitigations."
+    },
+    {
+      text: "Design a real-time collaborative document editor like Google Docs or Notion. How do you handle simultaneous edits by multiple users?",
+      category: "system_design",
+      hints: "Discuss Operational Transformation (OT) vs Conflict-free Replicated Data Types (CRDTs), WebSockets, and state synchronization."
     }
   ],
   managerial: [
@@ -216,6 +271,16 @@ export const SAMPLE_FALLBACK_QUESTIONS: Record<InterviewType, Array<{ text: stri
       text: "Suppose you are leading a sprint and discover halfway through that a critical third-party dependency is deprecated and unstable. What actions do you take immediately?",
       category: "managerial",
       hints: "Cover risk assessment, immediate stakeholder communication, feasibility of alternatives, scope readjustment, and mitigation."
+    },
+    {
+      text: "How do you handle a team scenario where one engineer consistently misses deadlines or delivers code with recurring regressions?",
+      category: "managerial",
+      hints: "Discuss private 1-on-1 feedback, identifying root causes (clarity, skill gap, personal), pairing/mentorship, and setting clear checkpoints."
+    },
+    {
+      text: "How do you balance product managers pushing for rapid feature delivery against engineering needs for technical debt refactoring?",
+      category: "managerial",
+      hints: "Explain how to quantify technical debt risk, allocate 20% capacity per sprint to debt, and align engineering health with product stability."
     }
   ]
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Bot, Sparkles, User, Video, ShieldCheck, Flame, Menu, X } from 'lucide-react';
+import { Sparkles, User, Video, ShieldCheck, Flame, Menu, X } from 'lucide-react';
+import { BrandLogo } from './brand/BrandLogo';
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -25,27 +26,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen, 
             {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
-          <div 
+          <BrandLogo 
             onClick={() => onNavigate('dashboard')} 
-            className="flex items-center gap-2.5 cursor-pointer group select-none"
-          >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform duration-200">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-lg tracking-tight text-white group-hover:text-blue-300 transition-colors">
-                  Interview<span className="text-violet-400">Bro</span>
-                </span>
-                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-md">
-                  AI
-                </span>
-              </div>
-              <p className="hidden sm:block text-[10px] text-slate-400 tracking-wider uppercase font-medium">
-                Practice Smarter • Get Hired
-              </p>
-            </div>
-          </div>
+            size="md"
+            showTagline={true}
+          />
         </div>
 
         {/* Center: Quick navigation links for Landing view */}

@@ -21,6 +21,7 @@ import { useInterview } from '../context/InterviewContext';
 import { storage } from '../services/storage';
 import { COMPANY_PRESETS } from '../data/presets';
 import { InterviewSession } from '../types';
+import { BrandIcon } from '../components/brand/BrandIcon';
 
 interface DashboardProps {
   onNavigate: (route: string) => void;
@@ -74,17 +75,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
         <div className="absolute top-0 right-0 w-80 h-80 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-semibold mb-3">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Campus & Placement Readiness Mode</span>
+          <div className="flex items-start gap-4">
+            <BrandIcon size="lg" glow={true} className="mt-1 hidden sm:inline-flex" />
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-semibold mb-2">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Campus & Placement Readiness Mode</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                Welcome back, {user?.full_name || 'Candidate'}!
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
+                Targeting: <strong className="text-slate-200">{user?.role_target || 'Full Stack Developer'}</strong> • Track your performance metrics, identify skill gaps, and practice under realistic conditions.
+              </p>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Welcome back, {user?.full_name || 'Candidate'}!
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
-              Targeting: <strong className="text-slate-200">{user?.role_target || 'Full Stack Developer'}</strong> • Track your performance metrics, identify skill gaps, and practice under realistic conditions.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">

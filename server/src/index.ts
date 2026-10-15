@@ -4,7 +4,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { aiRouter } from './routes/ai.js';
 import { resumeRouter } from './routes/resume.js';
+import { voiceRouter } from './routes/voice.js';
 import { isGeminiConfigured } from './services/geminiService.js';
+import { elevenlabsService } from './services/elevenlabsService.js';
 
 // Load environment configurations from root and server directories
 dotenv.config();
@@ -42,6 +44,7 @@ app.get('/api/health', (_req, res) => {
 // Mount Routes
 app.use('/api/ai', aiRouter);
 app.use('/api/resume', resumeRouter);
+app.use('/api/voice', voiceRouter);
 
 // Global Error Handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -56,4 +59,5 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 app.listen(PORT, () => {
   console.log(`🚀 InterviewBro AI Server listening on http://localhost:${PORT}`);
   console.log(`🔑 Google Gemini Integration: ${isGeminiConfigured ? 'Active (GEMINI_API_KEY loaded)' : 'Offline / Local fallback mode (GEMINI_API_KEY not configured)'}`);
+  console.log(`🎙️ ElevenLabs Voice Integration: ${elevenlabsService.isConfigured() ? 'Active (ELEVENLABS_API_KEY loaded)' : 'Web Speech API automatic fallback mode'}`);
 });

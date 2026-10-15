@@ -6,9 +6,10 @@ export const aiRouter = Router();
 // POST /api/ai/questions
 aiRouter.post('/questions', async (req: Request, res: Response) => {
   try {
-    const config = req.body;
+    const { previousQuestions, adaptiveContext, ...config } = req.body;
     if (isGeminiConfigured) {
-      const questions = await geminiService.generateInterviewQuestions(config);
+      const mergedConfig = { ...config, adaptiveContext };
+      const questions = await geminiService.generateInterviewQuestions(mergedConfig, previousQuestions || []);
       return res.json({ success: true, questions, source: 'gemini' });
     }
     // Return flag to let client use its curated fallback bank
@@ -71,9 +72,15 @@ aiRouter.post('/evaluate', async (req: Request, res: Response) => {
 // POST /api/ai/follow-up
 aiRouter.post('/follow-up', async (req: Request, res: Response) => {
   try {
-    const { question, answer, config } = req.body;
+    const { question, answer, config, previousQuestions, previousScore } = req.body;
     if (isGeminiConfigured) {
-      const followUp = await geminiService.generateFollowUpQuestion(question, answer, config || {});
+      const followUp = await geminiService.generateFollowUpQuestion(
+        question, 
+        answer, 
+        config || {}, 
+        previousQuestions || [], 
+        previousScore
+      );
       return res.json({ success: true, followUp, source: 'gemini' });
     }
     return res.json({ success: true, followUp: null });

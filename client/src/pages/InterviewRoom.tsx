@@ -28,6 +28,8 @@ import {
 import { useInterview } from '../context/InterviewContext';
 import { createSpeechRecognition, tts } from '../services/speech';
 import { AudioVisualizer } from '../components/AudioVisualizer';
+import { VoiceInterviewerOrb, OrbState } from '../components/VoiceInterviewerOrb';
+import { BrandIcon } from '../components/brand/BrandIcon';
 
 interface InterviewRoomProps {
   onComplete: () => void;
@@ -76,6 +78,14 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   // Pre-interview check gate
   const [preflightPassed, setPreflightPassed] = useState<boolean>(false);
   const [consentAcknowledged, setConsentAcknowledged] = useState<boolean>(isRecordingConsented);
+
+  const orbState: OrbState = isEvaluating 
+    ? 'thinking' 
+    : isSpeakingQuestion 
+    ? 'speaking' 
+    : isListening 
+    ? 'listening' 
+    : 'idle';
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const preflightVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -571,9 +581,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       {/* Top Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-300 font-bold text-xs">
-            {activeSession.config.companyName.charAt(0)}
-          </div>
+          <BrandIcon size="sm" glow={false} />
           <div>
             <h2 className="text-xs font-bold text-white">
               {activeSession.config.companyName} • {activeSession.config.role}
@@ -653,31 +661,22 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 </span>
               </div>
 
-              {/* Central Voice Waveform Graphic */}
-              <div className="py-6 flex flex-col items-center justify-center space-y-4">
-                <div className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isSpeakingQuestion 
-                    ? 'bg-violet-600/20 border-2 border-violet-500 shadow-lg shadow-violet-500/20 scale-105'
-                    : isListening
-                    ? 'bg-rose-600/20 border-2 border-rose-500 shadow-lg shadow-rose-500/20 scale-105'
-                    : 'bg-slate-900 border border-slate-800'
-                }`}>
-                  {isSpeakingQuestion ? (
-                    <Bot className="w-10 h-10 text-violet-400 animate-bounce" />
-                  ) : isListening ? (
-                    <Mic className="w-10 h-10 text-rose-400 animate-pulse" />
-                  ) : (
-                    <Headphones className="w-10 h-10 text-slate-500" />
-                  )}
-                </div>
+              {/* Central Voice Interviewer Orb */}
+              <div className="py-4 flex flex-col items-center justify-center space-y-4">
+                <VoiceInterviewerOrb
+                  state={orbState}
+                  size="xl"
+                  interviewerName="AI Principal Interviewer"
+                  company={activeSession.config.companyName}
+                />
 
                 <div className="w-full max-w-xs space-y-1 text-center">
-                  <AudioVisualizer stream={videoStream} isActive={isMicOn && !isPaused} />
+                  <AudioVisualizer stream={videoStream} isActive={isMicOn && !isPaused && isListening} />
                   <div className="text-[11px] text-slate-400 pt-1">
                     {isSpeakingQuestion 
-                      ? 'Listen to the question... (Mic paused to prevent echo)' 
+                      ? 'Listen to the question... (Mic muted during interviewer speech)' 
                       : isListening 
-                      ? 'Speak clearly into your microphone' 
+                      ? 'Listening to your microphone — speak your answer clearly' 
                       : 'Microphone on standby'}
                   </div>
                 </div>
@@ -722,7 +721,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               </div>
             </div>
           ) : (
-            /* Video Mode Webcam Box */
+            /* Video Mode Webcam Box with AI Interviewer Overlay */
             <>
               <div className="relative aspect-video rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl flex flex-col items-center justify-center">
                 {videoStream && isCameraOn ? (
@@ -745,7 +744,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   </div>
                 )}
 
-                {/* Overlaid Badges */}
+                {/* Overlaid Candidate Badges */}
                 <div className="absolute top-3 left-3 flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-white text-[10px] font-medium border border-white/10 flex items-center gap-1.5">
                     <span className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`}></span>
@@ -756,6 +755,16 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                       REC
                     </span>
                   )}
+                </div>
+
+                {/* AI Interviewer Picture-in-Picture Avatar */}
+                <div className="absolute top-3 right-3 p-2 rounded-2xl bg-slate-950/85 backdrop-blur-md border border-slate-700/80 shadow-2xl flex flex-col items-center">
+                  <VoiceInterviewerOrb
+                    state={orbState}
+                    size="sm"
+                    interviewerName="AI Interviewer"
+                    company={activeSession.config.companyName}
+                  />
                 </div>
 
                 {/* Floating AV Controls */}

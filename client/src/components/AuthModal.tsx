@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Bot, X, Mail, User, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { X, Mail, User, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { BrandIcon } from './brand/BrandIcon';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -52,15 +53,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         </button>
 
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-            <Bot className="w-5 h-5 text-white" />
-          </div>
+          <BrandIcon size="md" glow={true} />
           <div>
-            <h2 className="text-base font-bold text-white">
-              {isSignUp ? 'Create InterviewBro Account' : 'Welcome to InterviewBro AI'}
+            <h2 className="text-base font-bold text-white flex items-center gap-1.5">
+              <span>{isSignUp ? 'Create' : 'Sign in to'}</span>
+              <span>Interview<span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">Bro</span></span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/20 text-cyan-300 border border-cyan-500/30">AI</span>
             </h2>
             <p className="text-xs text-slate-400">
-              {isSignUp ? 'Get your 5 free mock interview sessions' : 'Sign in to access your interview history'}
+              {isSignUp ? 'Claim your unlimited student practice sessions' : 'Sign in to access your interview reports & history'}
             </p>
           </div>
         </div>

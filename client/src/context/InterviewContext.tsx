@@ -119,8 +119,21 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // Record session without blocking
       decrementInterviewQuota();
 
-      // Generate questions from API or smart fallback
-      const generatedQuestions = await api.generateQuestions(config);
+      // Collect previously asked questions to enforce non-repetition across sessions
+      const pastSessions = storage.getSessions();
+      const previousQuestions: string[] = [];
+      pastSessions.forEach(s => {
+        if (s.questions) {
+          s.questions.forEach(q => {
+            if (q.questionText && !previousQuestions.includes(q.questionText)) {
+              previousQuestions.push(q.questionText);
+            }
+          });
+        }
+      });
+
+      // Generate questions strictly avoiding previously asked questions
+      const generatedQuestions = await api.generateQuestions(config, previousQuestions);
 
       const session: InterviewSession = {
         id: `sess-${Date.now()}`,
@@ -250,7 +263,14 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setIsEvaluating(true);
     try {
-      const followUp = await api.generateFollowUp(currentQ, currentQ.candidateAnswer, activeSession.config);
+      const sessionQuestions = activeSession.questions.map(q => q.questionText);
+      const followUp = await api.generateFollowUp(
+        currentQ, 
+        currentQ.candidateAnswer, 
+        activeSession.config,
+        sessionQuestions,
+        currentQ.evaluation?.score
+      );
       if (followUp) {
         const updatedQuestions = [...activeSession.questions];
         // Insert follow up right after current question
