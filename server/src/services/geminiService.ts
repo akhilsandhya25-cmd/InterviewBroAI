@@ -10,14 +10,24 @@ dotenv.config({ path: path.resolve(process.cwd(), 'server/.env.local') });
 dotenv.config({ path: path.resolve(process.cwd(), 'server/.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
-const rawKey = process.env.GEMINI_API_KEY || '';
-export const isGeminiConfigured = Boolean(
-  rawKey &&
-  !rawKey.includes('your-gemini-api-key') &&
-  rawKey.trim().length > 10
-);
+export const getIsGeminiConfigured = (): boolean => {
+  const rawKey = (process.env.GEMINI_API_KEY || '').trim();
+  return Boolean(
+    rawKey &&
+    !rawKey.includes('your-gemini-api-key') &&
+    rawKey.length > 10
+  );
+};
 
-const ai = isGeminiConfigured ? new GoogleGenAI({ apiKey: rawKey.trim() }) : null;
+export const isGeminiConfigured = getIsGeminiConfigured();
+
+function getGeminiClient(): GoogleGenAI | null {
+  const rawKey = (process.env.GEMINI_API_KEY || '').trim();
+  if (!rawKey || rawKey.includes('your-gemini-api-key') || rawKey.length < 10) {
+    return null;
+  }
+  return new GoogleGenAI({ apiKey: rawKey });
+}
 
 /**
  * Safely strips markdown code blocks and parses JSON output
@@ -50,6 +60,7 @@ function cleanAndParseJson<T>(rawText: string, fallback: T): T {
  * Executes a Gemini prompt with automatic model fallback across supported models
  */
 async function callGemini(prompt: string, temperature = 0.4): Promise<string> {
+  const ai = getGeminiClient();
   if (!ai) {
     throw new Error(
       'GEMINI_API_KEY is not configured on the server. Please add your Gemini API key to server/.env.local or .env.local (Get a free key at https://aistudio.google.com/app/apikey)'
@@ -57,9 +68,11 @@ async function callGemini(prompt: string, temperature = 0.4): Promise<string> {
   }
 
   const candidateModels = [
-    process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
+    process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
+    'gemini-flash-lite-latest',
+    'gemini-flash-latest',
+    'gemini-3.8-flash',
+    'gemma-4-26b-a4b-it'
   ];
   const uniqueModels = Array.from(new Set(candidateModels));
 
@@ -79,7 +92,7 @@ async function callGemini(prompt: string, temperature = 0.4): Promise<string> {
         return response.text;
       }
     } catch (err: any) {
-      console.warn(`Gemini model ${model} request note:`, err.message || err);
+      console.warn(`Gemini model [${model}] request notice:`, err.message?.slice(0, 120) || err);
       lastError = err;
       // If the API key is explicitly invalid, do not try other models
       if (err.message && (err.message.includes('API_KEY_INVALID') || err.message.includes('API key not valid'))) {
@@ -88,7 +101,7 @@ async function callGemini(prompt: string, temperature = 0.4): Promise<string> {
     }
   }
 
-  throw lastError || new Error('Google Gemini API request failed across all candidate models.');
+  throw lastError || new Error('Google Gemini API request failed across candidate models.');
 }
 
 export const geminiService = {
