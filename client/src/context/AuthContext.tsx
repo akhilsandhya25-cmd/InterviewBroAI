@@ -127,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
     }
-    // We don't wipe data so user can log right back in demo mode
+    storage.setUser(null);
     setUser(null);
   };
 

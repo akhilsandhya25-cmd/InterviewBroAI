@@ -114,8 +114,10 @@ const DEFAULT_SESSIONS: InterviewSession[] = [
 ];
 
 export const storage = {
-  getUser(): UserProfile {
+  getUser(): UserProfile | null {
     try {
+      const loggedOut = localStorage.getItem('interviewbro_logged_out');
+      if (loggedOut === 'true') return null;
       const data = localStorage.getItem(USER_KEY);
       return data ? JSON.parse(data) : DEFAULT_USER;
     } catch {
@@ -123,9 +125,15 @@ export const storage = {
     }
   },
 
-  setUser(user: UserProfile): void {
+  setUser(user: UserProfile | null): void {
     try {
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      if (!user) {
+        localStorage.removeItem(USER_KEY);
+        localStorage.setItem('interviewbro_logged_out', 'true');
+      } else {
+        localStorage.removeItem('interviewbro_logged_out');
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+      }
     } catch (e) {
       console.error('Failed to save user', e);
     }
@@ -157,9 +165,11 @@ export const storage = {
     try {
       localStorage.setItem(QUOTA_KEY, JSON.stringify(quota));
       const user = this.getUser();
-      user.interviews_remaining = 9999;
-      user.total_interviews_taken = quota.interviewsUsed;
-      this.setUser(user);
+      if (user) {
+        user.interviews_remaining = 9999;
+        user.total_interviews_taken = quota.interviewsUsed;
+        this.setUser(user);
+      }
     } catch (e) {
       console.error('Failed to update quota', e);
     }
