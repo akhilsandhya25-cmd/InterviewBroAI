@@ -9,7 +9,6 @@ import {
   Clock, 
   Sparkles, 
   Send, 
-  HelpCircle, 
   ChevronRight, 
   ChevronLeft, 
   CheckCircle2, 
@@ -19,9 +18,11 @@ import {
   Bot,
   Video,
   Shield,
-  FileText,
-  CornerDownRight,
-  Maximize2
+  RotateCcw,
+  Check,
+  AlertCircle,
+  Headphones,
+  UserCheck
 } from 'lucide-react';
 import { useInterview } from '../context/InterviewContext';
 import { createSpeechRecognition, tts } from '../services/speech';
@@ -56,103 +57,180 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     setConsentToRecord
   } = useInterview();
 
-  const [textAnswer, setTextAnswer] = useState<string>('');
+  // Voice & Transcript State
+  const [spokenTranscript, setSpokenTranscript] = useState<string>('');
+  const [interimText, setInterimText] = useState<string>('');
   const [isListening, setIsListening] = useState<boolean>(false);
   const [isSpeakingQuestion, setIsSpeakingQuestion] = useState<boolean>(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
+  const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState<boolean>(true);
+  const [detectedVoiceName, setDetectedVoiceName] = useState<string>('');
+  
+  // Pre-interview check gate
+  const [preflightPassed, setPreflightPassed] = useState<boolean>(false);
   const [consentAcknowledged, setConsentAcknowledged] = useState<boolean>(isRecordingConsented);
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const preflightVideoRef = useRef<HTMLVideoElement | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Sync candidateAnswer to textAnswer when moving between questions
+  // Sync candidateAnswer to spokenTranscript when moving between questions
   useEffect(() => {
     if (currentQuestion?.candidateAnswer) {
-      setTextAnswer(currentQuestion.candidateAnswer);
+      setSpokenTranscript(currentQuestion.candidateAnswer);
+      setInterimText('');
     } else {
-      setTextAnswer('');
+      setSpokenTranscript('');
+      setInterimText('');
     }
+    setSpeechError(null);
   }, [currentQuestionIndex, currentQuestion]);
 
-  // Hook up video stream to local HTML video element
+  // Hook up video stream to local HTML video elements
   useEffect(() => {
     if (videoRef.current && videoStream) {
       videoRef.current.srcObject = videoStream;
     }
-  }, [videoStream, isCameraOn]);
+    if (preflightVideoRef.current && videoStream) {
+      preflightVideoRef.current.srcObject = videoStream;
+    }
+  }, [videoStream, isCameraOn, preflightPassed]);
 
-  // Speech Recognition listener
+  // Initialize Speech Recognition & TTS voices
   useEffect(() => {
     const recognition = createSpeechRecognition();
     recognitionRef.current = recognition;
+    setSpeechRecognitionSupported(recognition.isSupported);
+    setDetectedVoiceName(tts.getSelectedVoiceName());
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        recognitionRef.current.abort();
       }
       tts.stop();
     };
   }, []);
 
-  const handleToggleSpeechRecognition = () => {
-    if (!recognitionRef.current?.isSupported) {
-      setSpeechError('Speech recognition is not supported in this browser. You can type your answer below.');
-      return;
-    }
+  // Automatically speak the question aloud when question changes (after preflight check is passed)
+  useEffect(() => {
+    if (!preflightPassed || !currentQuestion || isPaused) return;
 
-    if (isListening) {
+    // Small delay so candidate perceives the turn
+    const timer = setTimeout(() => {
+      speakCurrentQuestion();
+    }, 600);
+
+    return () => {
+      clearTimeout(timer);
+      tts.stop();
+    };
+  }, [currentQuestionIndex, preflightPassed, isPaused]);
+
+  const speakCurrentQuestion = () => {
+    if (!currentQuestion) return;
+    
+    // Stop candidate mic while interviewer is speaking to prevent echo/overlap
+    if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
-    } else {
-      setSpeechError(null);
-      setIsListening(true);
-      recognitionRef.current.start(
-        (transcript: string, isFinal: boolean) => {
-          setTextAnswer(prev => {
-            const trimmed = prev.trim();
-            if (isFinal) {
-              return trimmed ? `${trimmed} ${transcript}` : transcript;
-            }
-            return prev; // keep stable until final chunk or update
-          });
-        },
-        (err: string) => {
-          setSpeechError(`Microphone notice: ${err}. You can type directly in the answer box.`);
-          setIsListening(false);
-        }
-      );
     }
+
+    setIsSpeakingQuestion(true);
+    tts.speak(currentQuestion.questionText, {
+      rate: 0.96, // natural, articulate interview cadence
+      onStart: () => setIsSpeakingQuestion(true),
+      onEnd: () => {
+        setIsSpeakingQuestion(false);
+        // Prompt candidate to speak after question finishes
+        if (!currentQuestion.candidateAnswer) {
+          startSpeechCapture();
+        }
+      },
+      onError: () => setIsSpeakingQuestion(false)
+    });
   };
 
-  const handleSpeakQuestion = () => {
-    if (!currentQuestion) return;
+  const handleToggleQuestionAudio = () => {
     if (isSpeakingQuestion) {
       tts.stop();
       setIsSpeakingQuestion(false);
     } else {
-      setIsSpeakingQuestion(true);
-      tts.speak(currentQuestion.questionText, () => {
-        setIsSpeakingQuestion(false);
-      });
+      speakCurrentQuestion();
     }
+  };
+
+  const startSpeechCapture = () => {
+    if (!recognitionRef.current?.isSupported) {
+      setSpeechError('Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.');
+      return;
+    }
+
+    // Stop interviewer speech if candidate interrupts to answer
+    if (isSpeakingQuestion) {
+      tts.stop();
+      setIsSpeakingQuestion(false);
+    }
+
+    setSpeechError(null);
+    setIsListening(true);
+
+    recognitionRef.current.start(
+      (fullText: string, interimChunk: string, isFinal: boolean) => {
+        setSpokenTranscript(fullText);
+        setInterimText(interimChunk);
+        if (isFinal) {
+          setInterimText('');
+        }
+      },
+      (errType: string, userMsg: string) => {
+        setSpeechError(userMsg);
+        if (errType !== 'no-speech') {
+          setIsListening(false);
+        }
+      },
+      (status: string) => {
+        if (status === 'stopped') {
+          setIsListening(false);
+        }
+      }
+    );
+  };
+
+  const stopSpeechCapture = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsListening(false);
+    setInterimText('');
+  };
+
+  const handleClearAndRespeak = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+    }
+    setSpokenTranscript('');
+    setInterimText('');
+    setSpeechError(null);
+    startSpeechCapture();
   };
 
   const handleSubmit = async () => {
-    if (!textAnswer.trim()) {
-      alert('Please enter or speak your answer before submitting.');
+    const combinedAnswer = (spokenTranscript + ' ' + interimText).trim();
+    const wordCount = combinedAnswer.split(/\s+/).filter(Boolean).length;
+
+    if (wordCount < 4) {
+      setSpeechError('Spoken response is too short. Please speak a complete answer explaining your reasoning before submitting.');
       return;
     }
-    if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    }
-    await submitAnswer(textAnswer);
+
+    stopSpeechCapture();
+    tts.stop();
+    await submitAnswer(combinedAnswer);
   };
 
   const handleFinishEarly = async () => {
-    if (confirm('Are you sure you want to finish the interview and generate your performance report?')) {
-      if (isListening && recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
+    if (confirm('Finish this interview and generate your performance report?')) {
+      stopSpeechCapture();
       tts.stop();
       const report = await endInterview();
       if (report) {
@@ -183,15 +261,157 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     );
   }
 
+  // PRE-FLIGHT CHECK: Mandatory Camera & Microphone check before interview begins
+  if (!preflightPassed) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-semibold">
+            <Headphones className="w-3.5 h-3.5 text-violet-400" />
+            <span>Voice-First Interview Pre-Flight Check</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+            Camera & Microphone Readiness
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
+            In InterviewBro AI video interviews, both the AI interviewer questions and your candidate responses are conducted by voice. Please verify your equipment below.
+          </p>
+        </div>
+
+        {/* Device Check Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Camera Preview */}
+          <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white flex items-center gap-2">
+                <Camera className="w-4 h-4 text-violet-400" />
+                <span>Webcam Check</span>
+              </span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                isCameraOn ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+              }`}>
+                {isCameraOn ? 'Camera Active' : 'Camera Off'}
+              </span>
+            </div>
+
+            <div className="relative aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden flex items-center justify-center">
+              {videoStream && isCameraOn ? (
+                <video
+                  ref={preflightVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover -scale-x-100"
+                />
+              ) : (
+                <div className="text-center p-4">
+                  <CameraOff className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                  <p className="text-xs text-slate-400">Webcam stream inactive</p>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={toggleCamera}
+              className="w-full py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            >
+              {isCameraOn ? 'Disable Camera' : 'Enable Camera'}
+            </button>
+          </div>
+
+          {/* Microphone & Voice Engine Check */}
+          <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-cyan-400" />
+                  <span>Microphone & Voice Engine</span>
+                </span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                  speechRecognitionSupported ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                }`}>
+                  {speechRecognitionSupported ? 'STT Supported' : 'STT Unsupported'}
+                </span>
+              </div>
+
+              {/* Live Audio Level Meter */}
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                  <span>Microphone Input Level:</span>
+                  <span className={isMicOn ? 'text-emerald-400' : 'text-slate-500'}>
+                    {isMicOn ? 'Listening' : 'Muted'}
+                  </span>
+                </div>
+                <AudioVisualizer stream={videoStream} isActive={isMicOn} />
+                <p className="text-[10px] text-slate-500">
+                  Speak a few words to confirm the frequency bars respond to your voice.
+                </p>
+              </div>
+
+              {/* AI Voice Info */}
+              <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs space-y-1">
+                <div className="text-slate-400 text-[11px]">Interviewer Voice:</div>
+                <div className="font-semibold text-violet-300 truncate">
+                  {detectedVoiceName || 'Browser Natural Speech Synthesis'}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={toggleMic}
+              className="w-full py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            >
+              {isMicOn ? 'Mute Microphone' : 'Unmute Microphone'}
+            </button>
+          </div>
+        </div>
+
+        {!speechRecognitionSupported && (
+          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <strong className="block font-bold">Browser Speech-to-Text Not Supported</strong>
+              Your current browser does not support the Web Speech API required for voice-first interviews. Please switch to Google Chrome, Microsoft Edge, or Safari on desktop.
+            </div>
+          </div>
+        )}
+
+        {/* Start Button */}
+        <div className="p-6 rounded-2xl bg-gradient-to-r from-violet-950/50 via-slate-900 to-blue-950/50 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-bold text-white">Ready for your mock interview?</div>
+            <div className="text-xs text-slate-400">
+              {activeSession.config.companyName} • {activeSession.config.role} ({activeSession.questions.length} questions)
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setPreflightPassed(true)}
+            className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-xs gradient-button flex items-center justify-center gap-2 shadow-lg"
+          >
+            <span>Enter Live Video Room</span>
+            <Check className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const combinedCandidateText = (spokenTranscript + (interimText ? ' ' + interimText : '')).trim();
+  const wordCount = combinedCandidateText.split(/\s+/).filter(Boolean).length;
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
-      {/* Privacy & Recording Consent Notice Modal */}
+      {/* Privacy & Recording Consent Notice */}
       {!consentAcknowledged && (
         <div className="p-4 rounded-2xl bg-slate-900 border border-violet-500/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <Shield className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
             <div className="text-xs text-slate-300">
-              <strong className="text-white">Privacy & Local Processing:</strong> Your camera and microphone are processed strictly in your local browser. No facial emotion or personality score is collected. Would you like to enable local session recording for self-review?
+              <strong className="text-white">Privacy & Local Processing:</strong> Your webcam and audio are processed locally in your browser. Would you like to enable local session recording for self-review playback?
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -233,7 +453,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               <span className="capitalize">{activeSession.config.difficulty}</span>
               {currentQuestion.isFollowUp && (
                 <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold text-[10px]">
-                  Follow-Up Question
+                  Follow-Up Challenge
                 </span>
               )}
             </div>
@@ -353,45 +573,47 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             </span>
           </div>
 
-          {/* Interviewer Guidelines Tip */}
+          {/* Voice Interview Rules Tip */}
           <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400 space-y-1.5">
             <div className="text-slate-300 font-semibold flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-              <span>Recommended Strategy:</span>
+              <span>Voice Interview Protocol:</span>
             </div>
             <p className="leading-relaxed">
-              For behavioral questions, use <strong>STAR</strong> (Situation, Task, Action, Result). For technical questions, explain your thought process out loud before reaching the conclusion.
+              Listen to the AI question spoken aloud. When it finishes, speak your response clearly. The system transcribes your words in real time.
             </p>
           </div>
         </div>
 
-        {/* Right Column: AI Interviewer Question & Candidate Response (7 cols) */}
+        {/* Right Column: AI Spoken Question & Candidate Voice Transcription (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
           {/* AI Question Box */}
-          <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-[#121929] border border-violet-500/30 shadow-lg space-y-3">
+          <div className={`p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-[#121929] border shadow-lg space-y-3 transition-colors ${
+            isSpeakingQuestion ? 'border-violet-500/80 ring-2 ring-violet-500/20' : 'border-violet-500/30'
+          }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-violet-300">
                   <Bot className="w-4 h-4" />
                 </div>
                 <span className="text-xs font-bold text-violet-300 uppercase tracking-wider">
-                  AI Interviewer
+                  AI Interviewer {isSpeakingQuestion && '(Speaking...)'}
                 </span>
               </div>
 
-              {/* Text-to-speech speaker button */}
+              {/* Replay Question Button */}
               <button
                 type="button"
-                onClick={handleSpeakQuestion}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                onClick={handleToggleQuestionAudio}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                   isSpeakingQuestion
-                    ? 'bg-violet-600 text-white border-violet-500 animate-pulse'
-                    : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:text-white'
+                    ? 'bg-rose-600/30 text-rose-300 border-rose-500/50'
+                    : 'bg-violet-600 hover:bg-violet-500 text-white border-violet-500 shadow'
                 }`}
-                title="Read question aloud"
+                title="Replay spoken question"
               >
-                {isSpeakingQuestion ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-                <span>{isSpeakingQuestion ? 'Stop Audio' : 'Speak Question'}</span>
+                {isSpeakingQuestion ? <VolumeX className="w-3.5 h-3.5" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                <span>{isSpeakingQuestion ? 'Stop Audio' : 'Replay Question'}</span>
               </button>
             </div>
 
@@ -407,112 +629,164 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             )}
           </div>
 
-          {/* Response Box */}
-          <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-3">
+          {/* Voice Response & Real-Time Transcription Panel */}
+          <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-2">
-                <span>Your Response</span>
-                <span className="text-slate-500 font-normal">(Speak or type)</span>
-              </label>
+              <div>
+                <label className="text-xs font-bold text-white flex items-center gap-2">
+                  <span>Candidate Spoken Answer</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                    Voice Mandatory
+                  </span>
+                </label>
+                <div className="text-[11px] text-slate-400 mt-0.5">
+                  Answer using your microphone. Speech recognition converts your response in real time.
+                </div>
+              </div>
 
-              {/* Voice Input Toggle Button */}
+              {/* Primary Voice Action Button */}
               <button
                 type="button"
-                onClick={handleToggleSpeechRecognition}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                onClick={isListening ? stopSpeechCapture : startSpeechCapture}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md ${
                   isListening
-                    ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30 animate-pulse'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 animate-pulse'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
                 }`}
               >
-                <Mic className="w-3.5 h-3.5" />
-                <span>{isListening ? 'Listening (Click to stop)' : 'Voice Input (STT)'}</span>
+                <Mic className="w-4 h-4" />
+                <span>{isListening ? 'Done Speaking (Pause)' : 'Start Speaking Answer'}</span>
               </button>
             </div>
 
+            {/* Error / Recovery Notification */}
             {speechError && (
-              <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
-                {speechError}
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{speechError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={startSpeechCapture}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-semibold shrink-0"
+                >
+                  Try Speaking Again
+                </button>
               </div>
             )}
 
-            <textarea
-              rows={5}
-              value={textAnswer}
-              onChange={(e) => setTextAnswer(e.target.value)}
-              placeholder="Structure your answer clearly. Speak aloud with the Voice Input button or type here..."
-              className="w-full p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500 leading-relaxed font-sans"
-            />
+            {/* Real-time Spoken Transcript Display */}
+            <div className="relative min-h-[140px] max-h-[220px] p-4 rounded-xl bg-slate-950 border border-slate-800 overflow-y-auto font-sans">
+              {combinedCandidateText ? (
+                <div className="text-sm text-slate-100 leading-relaxed">
+                  <span>{spokenTranscript}</span>
+                  {interimText && (
+                    <span className="text-violet-400 italic"> {interimText}</span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center py-6 text-slate-500 space-y-2">
+                  <Mic className={`w-8 h-8 ${isListening ? 'text-violet-400 animate-pulse' : 'text-slate-600'}`} />
+                  <p className="text-xs">
+                    {isListening 
+                      ? 'Listening to your speech... Speak clearly into your microphone.' 
+                      : 'Click "Start Speaking Answer" to begin recording your spoken answer.'}
+                  </p>
+                </div>
+              )}
+            </div>
 
-            {/* Answer Action Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            {/* Transcript Footer & Validation */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-800/80 text-xs">
+              <div className="flex items-center gap-3">
+                <span className={`text-[11px] font-medium ${
+                  wordCount >= 5 ? 'text-emerald-400' : 'text-slate-500'
+                }`}>
+                  Spoken: <strong>{wordCount} words</strong> (min. 5)
+                </span>
+
+                {combinedCandidateText && (
+                  <button
+                    type="button"
+                    onClick={handleClearAndRespeak}
+                    className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Clear & Re-speak</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Submit & Follow-Up Buttons */}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  disabled={isEvaluating || !textAnswer.trim()}
+                  disabled={isEvaluating || wordCount < 5}
                   onClick={handleSubmit}
-                  className="px-5 py-2.5 rounded-xl font-bold text-xs gradient-button flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs gradient-button flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+                  title={wordCount < 5 ? 'Speak an answer of at least 5 words to submit' : 'Submit your spoken answer for evaluation'}
                 >
                   {isEvaluating ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Evaluating Answer...</span>
+                      <span>Evaluating Spoken Answer...</span>
                     </>
                   ) : (
                     <>
                       <Send className="w-3.5 h-3.5" />
-                      <span>Submit Answer for Evaluation</span>
+                      <span>Submit Spoken Answer</span>
                     </>
                   )}
                 </button>
 
-                {/* Intelligent Follow-Up probe */}
+                {/* Follow-Up Probe */}
                 {currentQuestion.candidateAnswer && !currentQuestion.isFollowUp && (
                   <button
                     type="button"
                     disabled={isEvaluating}
                     onClick={requestFollowUp}
                     className="px-3.5 py-2.5 rounded-xl font-medium text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors flex items-center gap-1.5"
-                    title="Ask the AI to challenge your answer with a realistic follow-up question"
+                    title="Challenge this answer with a realistic follow-up question"
                   >
-                    <CornerDownRight className="w-3.5 h-3.5 text-amber-400" />
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                     <span>Challenge with Follow-Up</span>
                   </button>
                 )}
               </div>
+            </div>
 
-              {/* Navigation Arrows */}
-              <div className="flex items-center gap-2">
+            {/* Navigation Arrows */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={previousQuestion}
+                disabled={currentQuestionIndex === 0}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed hover:text-white text-xs flex items-center gap-1"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Previous</span>
+              </button>
+
+              {currentQuestionIndex < totalQuestions - 1 ? (
                 <button
                   type="button"
-                  onClick={previousQuestion}
-                  disabled={currentQuestionIndex === 0}
-                  className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed hover:text-white"
-                  title="Previous Question"
+                  onClick={nextQuestion}
+                  className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs font-semibold flex items-center gap-1"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <span>Next Question</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
-
-                {currentQuestionIndex < totalQuestions - 1 ? (
-                  <button
-                    type="button"
-                    onClick={nextQuestion}
-                    className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs font-semibold flex items-center gap-1"
-                  >
-                    <span>Next</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleFinishEarly}
-                    disabled={isEvaluating}
-                    className="px-4 py-2 rounded-lg font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
-                  >
-                    Finish Interview
-                  </button>
-                )}
-              </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleFinishEarly}
+                  disabled={isEvaluating}
+                  className="px-4 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+                >
+                  Finish Interview
+                </button>
+              )}
             </div>
           </div>
 
