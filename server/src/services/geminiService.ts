@@ -1,19 +1,99 @@
-import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import path from 'path';
+
+// Load environment variables from standard local locations
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), 'server/.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), 'server/.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
-const apiKey = process.env.OPENAI_API_KEY || '';
-export const isOpenAIConfigured = Boolean(apiKey && !apiKey.includes('your-openai-api-key'));
+const rawKey = process.env.GEMINI_API_KEY || '';
+export const isGeminiConfigured = Boolean(
+  rawKey &&
+  !rawKey.includes('your-gemini-api-key') &&
+  rawKey.trim().length > 10
+);
 
-const openai = isOpenAIConfigured ? new OpenAI({ apiKey }) : null;
+const ai = isGeminiConfigured ? new GoogleGenAI({ apiKey: rawKey.trim() }) : null;
 
-export const openaiService = {
+/**
+ * Safely strips markdown code blocks and parses JSON output
+ */
+function cleanAndParseJson<T>(rawText: string, fallback: T): T {
+  if (!rawText) return fallback;
+  try {
+    const cleaned = rawText
+      .trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+    return JSON.parse(cleaned) as T;
+  } catch (e) {
+    const firstBrace = rawText.indexOf('{');
+    const lastBrace = rawText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        return JSON.parse(rawText.slice(firstBrace, lastBrace + 1)) as T;
+      } catch (err2) {
+        console.warn('Regex fallback JSON parse failed:', err2);
+      }
+    }
+    return fallback;
+  }
+}
+
+/**
+ * Executes a Gemini prompt with automatic model fallback across supported models
+ */
+async function callGemini(prompt: string, temperature = 0.4): Promise<string> {
+  if (!ai) {
+    throw new Error(
+      'GEMINI_API_KEY is not configured on the server. Please add your Gemini API key to server/.env.local or .env.local (Get a free key at https://aistudio.google.com/app/apikey)'
+    );
+  }
+
+  const candidateModels = [
+    process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
+  ];
+  const uniqueModels = Array.from(new Set(candidateModels));
+
+  let lastError: any = null;
+  for (const model of uniqueModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          temperature,
+          responseMimeType: 'application/json'
+        }
+      });
+
+      if (response && response.text) {
+        return response.text;
+      }
+    } catch (err: any) {
+      console.warn(`Gemini model ${model} request note:`, err.message || err);
+      lastError = err;
+      // If the API key is explicitly invalid, do not try other models
+      if (err.message && (err.message.includes('API_KEY_INVALID') || err.message.includes('API key not valid'))) {
+        throw new Error(`Invalid GEMINI_API_KEY: ${err.message}`);
+      }
+    }
+  }
+
+  throw lastError || new Error('Google Gemini API request failed across all candidate models.');
+}
+
+export const geminiService = {
   // Generate structured interview questions
   async generateInterviewQuestions(config: any): Promise<any[]> {
-    if (!openai) {
-      throw new Error('OPENAI_API_KEY not configured on server');
-    }
-
     const prompt = `You are a senior technical interviewer and hiring manager conducting an interview for ${config.companyName || 'a top tech company'}.
 Candidate Target Role: ${config.role}
 Experience Level: ${config.experienceLevel} (student / fresher / junior / senior)
@@ -25,7 +105,7 @@ ${config.jobDescription ? `Target Job Description: ${config.jobDescription}` : '
 ${config.resumeText ? `Candidate Resume / Projects: ${config.resumeText}` : ''}
 
 Generate exactly ${config.questionCount || 3} realistic, challenging interview questions specifically relevant to this role, experience level, and company standards.
-Respond ONLY with a JSON object in this format:
+Respond ONLY with a JSON object in this exact format:
 {
   "questions": [
     {
@@ -37,16 +117,10 @@ Respond ONLY with a JSON object in this format:
   ]
 }`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      temperature: 0.7
-    });
-
-    const parsed = JSON.parse(completion.choices[0].message.content || '{"questions": []}');
+    const raw = await callGemini(prompt, 0.7);
+    const parsed = cleanAndParseJson<{ questions: any[] }>(raw, { questions: [] });
     return (parsed.questions || []).map((q: any, i: number) => ({
-      id: `q-ai-${Date.now()}-${i}`,
+      id: `q-gemini-${Date.now()}-${i}`,
       orderIndex: i,
       questionText: q.questionText,
       category: q.category || 'technical',
@@ -56,15 +130,11 @@ Respond ONLY with a JSON object in this format:
 
   // Evaluate candidate answer with strict 5-category rubric and verified claims
   async evaluateCandidateAnswer(question: any, answer: string, config: any): Promise<any> {
-    if (!openai) {
-      throw new Error('OPENAI_API_KEY not configured on server');
-    }
-
     const prompt = `You are a Principal Software Engineer and Bar Raiser evaluating a candidate's answer for the position of "${config.role || 'Software Engineer'}" at "${config.companyName || 'Tech Company'}" (${config.difficulty || 'intermediate'} level).
 Question Asked: "${question.questionText}"
 Question Category: ${question.category}
 Context / Expected Competencies: "${question.contextOrHints || 'Demonstrate technical correctness, practical engineering tradeoffs, and structured communication.'}"
-Candidate Transcribed Answer: "${answer}"
+Candidate Transcribed Spoken Answer: "${answer}"
 
 EVALUATION RUBRIC & INSTRUCTIONS:
 Evaluate strictly on content, technical depth, and actual problem-solving, NOT on length or superficial fluency.
@@ -130,30 +200,21 @@ Respond ONLY with valid JSON in this exact schema:
   "feedback": "2-3 sentences of clear constructive feedback directly to the candidate.",
   "strengths": ["Strength 1 with short quote", "Strength 2 with short quote"],
   "missedPoints": ["Missed point 1", "Missed point 2"],
-  "betterAnswerExample": "How a top 1% candidate would formulate this answer concisely with concrete metrics and architecture.",
+  "betterAnswerExample": "How a top candidate would formulate this answer concisely with concrete metrics and architecture.",
   "starMethodologyUsed": true
 }`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      temperature: 0.3
-    });
-
-    const parsed = JSON.parse(completion.choices[0].message.content || '{}');
+    const raw = await callGemini(prompt, 0.3);
+    const parsed = cleanAndParseJson<any>(raw, {});
     return {
       status: 'evaluated',
+      source: 'gemini',
       ...parsed
     };
   },
 
   // Generate follow-up probing question
   async generateFollowUpQuestion(question: any, answer: string, config: any): Promise<any> {
-    if (!openai) {
-      throw new Error('OPENAI_API_KEY not configured on server');
-    }
-
     const prompt = `You are an interviewer listening to this candidate answer for ${config.role} at ${config.companyName}.
 Initial Question: "${question.questionText}"
 Candidate's Answer: "${answer}"
@@ -166,14 +227,8 @@ Respond ONLY with a JSON object:
   "contextOrHints": "What the interviewer is testing"
 }`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      temperature: 0.7
-    });
-
-    const parsed = JSON.parse(completion.choices[0].message.content || '{}');
+    const raw = await callGemini(prompt, 0.7);
+    const parsed = cleanAndParseJson<any>(raw, {});
     return {
       id: `q-followup-${Date.now()}`,
       orderIndex: question.orderIndex + 1,
@@ -181,16 +236,13 @@ Respond ONLY with a JSON object:
       category: parsed.category || question.category,
       contextOrHints: parsed.contextOrHints || '',
       isFollowUp: true,
-      followUpToQuestionId: question.id
+      followUpToQuestionId: question.id,
+      source: 'gemini'
     };
   },
 
   // Generate comprehensive final report
   async generateComprehensiveReport(questions: any[], config: any, candidateName: string): Promise<any> {
-    if (!openai) {
-      throw new Error('OPENAI_API_KEY not configured on server');
-    }
-
     const transcriptSummary = questions.map((q, i) => `
 Question ${i + 1}: ${q.questionText}
 Candidate Answer: ${q.candidateAnswer || 'No answer provided'}
@@ -248,14 +300,8 @@ Respond ONLY with a JSON object matching this schema:
   ]
 }`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      temperature: 0.4
-    });
-
-    const parsed = JSON.parse(completion.choices[0].message.content || '{}');
+    const raw = await callGemini(prompt, 0.4);
+    const parsed = cleanAndParseJson<any>(raw, {});
     return {
       ...parsed,
       id: `rep-${Date.now()}`,
@@ -265,6 +311,7 @@ Respond ONLY with a JSON object matching this schema:
       company: config.companyName,
       interviewType: config.interviewType,
       questionsEvaluated: questions,
+      source: 'gemini',
       createdAt: new Date().toISOString()
     };
   }

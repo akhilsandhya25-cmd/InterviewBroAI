@@ -1,11 +1,18 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import { aiRouter } from './routes/ai.js';
 import { resumeRouter } from './routes/resume.js';
-import { isOpenAIConfigured } from './services/openaiService.js';
+import { isGeminiConfigured } from './services/geminiService.js';
 
+// Load environment configurations from root and server directories
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), 'server/.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), 'server/.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,7 +32,8 @@ app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'InterviewBro AI Backend',
-    isOpenAIConfigured,
+    provider: 'Google Gemini',
+    isGeminiConfigured,
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
@@ -47,5 +55,5 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 InterviewBro AI Server listening on http://localhost:${PORT}`);
-  console.log(`🔑 OpenAI Integration: ${isOpenAIConfigured ? 'Active (API Key loaded)' : 'Offline/Fallback mode'}`);
+  console.log(`🔑 Google Gemini Integration: ${isGeminiConfigured ? 'Active (GEMINI_API_KEY loaded)' : 'Offline / Local fallback mode (GEMINI_API_KEY not configured)'}`);
 });

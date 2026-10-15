@@ -62,13 +62,13 @@ export const SettingsPage: React.FC = () => {
           <span>AI Engine & Backend Architecture</span>
         </h2>
         <p className="text-xs text-slate-400 leading-relaxed">
-          InterviewBro AI connects to a secure Express server proxying requests to OpenAI (GPT-4o / GPT-4o-mini). If no API key is set in <code className="text-violet-300 bg-slate-950 px-1 py-0.5 rounded">.env</code>, it transparently uses the built-in intelligent placement question bank and heuristic STAR evaluation.
+          InterviewBro AI connects to a secure Express server proxying requests to Google Gemini API (gemini-2.5-flash / gemini-2.0-flash). If no API key is set in <code className="text-violet-300 bg-slate-950 px-1 py-0.5 rounded">.env.local</code> (via <code className="text-violet-300 bg-slate-950 px-1 py-0.5 rounded">GEMINI_API_KEY</code>), it transparently uses the built-in intelligent placement question bank and heuristic STAR evaluation.
         </p>
 
         <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
           <div>
-            <div className="font-semibold text-slate-200">OpenAI API Key (Server-Side)</div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Configured via server/.env (never exposed to client)</div>
+            <div className="font-semibold text-slate-200">Google Gemini API Key (Server-Side)</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Configured via server/.env.local (never exposed to client)</div>
           </div>
           <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase bg-violet-500/20 text-violet-300 border border-violet-500/30">
             Secure Backend Proxy

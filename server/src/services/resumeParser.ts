@@ -1,7 +1,7 @@
 import pdf from 'pdf-parse';
 // @ts-ignore
 import mammoth from 'mammoth';
-import { openaiService, isOpenAIConfigured } from './openaiService.js';
+import { geminiService, isGeminiConfigured } from './geminiService.js';
 
 export const resumeParser = {
   // Extract text from buffer (PDF, DOCX, or Plaintext)
