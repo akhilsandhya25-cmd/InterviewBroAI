@@ -54,30 +54,84 @@ Respond ONLY with a JSON object in this format:
     }));
   },
 
-  // Evaluate candidate answer with STAR methodology
+  // Evaluate candidate answer with strict 5-category rubric and verified claims
   async evaluateCandidateAnswer(question: any, answer: string, config: any): Promise<any> {
     if (!openai) {
       throw new Error('OPENAI_API_KEY not configured on server');
     }
 
-    const prompt = `You are an expert technical interviewer evaluating a candidate's answer for the position of ${config.role} at ${config.companyName}.
+    const prompt = `You are a Principal Software Engineer and Bar Raiser evaluating a candidate's answer for the position of "${config.role || 'Software Engineer'}" at "${config.companyName || 'Tech Company'}" (${config.difficulty || 'intermediate'} level).
 Question Asked: "${question.questionText}"
 Question Category: ${question.category}
-Candidate Answer: "${answer}"
+Context / Expected Competencies: "${question.contextOrHints || 'Demonstrate technical correctness, practical engineering tradeoffs, and structured communication.'}"
+Candidate Transcribed Answer: "${answer}"
 
-Provide an objective, constructive evaluation. For behavioral answers, grade whether the STAR method (Situation, Task, Action, Result) was utilized.
-Respond ONLY with a valid JSON object in this format:
+EVALUATION RUBRIC & INSTRUCTIONS:
+Evaluate strictly on content, technical depth, and actual problem-solving, NOT on length or superficial fluency.
+Do not fabricate facts or award points for unsupported buzzwords. If a candidate makes incorrect or unsupported technical claims, penalize them explicitly and explain why.
+
+Evaluate across exactly 5 criteria (each scored 0 to 100):
+1. technicalCorrectness: Technical accuracy, depth of concepts, correct terminology, absence of technical hallucinations.
+2. relevance: How directly and specifically the answer addresses the question asked without rambling.
+3. problemSolvingReasoning: Logical reasoning, architectural tradeoffs (latency vs memory, consistency vs availability, complexity), handling edge cases.
+4. completenessAndExamples: Concrete real-world implementation details, metrics, edge cases, or STAR structure (for behavioral/situational questions).
+5. communicationClarity: Articulation, structure, conciseness, avoiding rambles.
+
+Composite Score calculation:
+score = Math.round(technicalCorrectness * 0.35 + relevance * 0.20 + problemSolvingReasoning * 0.20 + completenessAndExamples * 0.15 + communicationClarity * 0.10).
+
+Identify:
+- verifiedClaims: 1-3 specific technical facts or valid arguments verified in their answer.
+- unverifiedOrQuestionableClaims: Any incorrect, dubious, or unsupported claims (or empty array if none).
+- strengths: 2-3 specific strengths citing the candidate's actual words.
+- missedPoints: 2-3 essential missing concepts or deeper edge cases.
+- betterAnswerExample: A concise, high-impact model answer demonstrating senior-level competence with concrete numbers/tradeoffs.
+
+Respond ONLY with valid JSON in this exact schema:
 {
-  "score": 85,
-  "accuracyScore": 88,
-  "communicationScore": 82,
-  "structureScore": 85,
-  "completenessScore": 85,
-  "starMethodologyUsed": true,
+  "status": "evaluated",
+  "score": 82,
+  "technicalDepthScore": 85,
+  "relevanceScore": 90,
+  "reasoningScore": 78,
+  "completenessScore": 75,
+  "communicationScore": 85,
+  "accuracyScore": 85,
+  "structureScore": 80,
+  "rubricBreakdown": {
+    "technicalCorrectness": {
+      "score": 85,
+      "reasoning": "Direct explanation of why this score was awarded or deducted.",
+      "evidenceQuote": "Short quote from candidate's answer"
+    },
+    "relevance": {
+      "score": 90,
+      "reasoning": "Direct explanation of why this score was awarded or deducted.",
+      "evidenceQuote": "Short quote from candidate's answer"
+    },
+    "problemSolvingReasoning": {
+      "score": 78,
+      "reasoning": "Direct explanation of why this score was awarded or deducted.",
+      "evidenceQuote": "Short quote from candidate's answer"
+    },
+    "completenessAndExamples": {
+      "score": 75,
+      "reasoning": "Direct explanation of why this score was awarded or deducted.",
+      "evidenceQuote": "Short quote from candidate's answer"
+    },
+    "communicationClarity": {
+      "score": 85,
+      "reasoning": "Direct explanation of why this score was awarded or deducted.",
+      "evidenceQuote": "Short quote from candidate's answer"
+    }
+  },
+  "verifiedClaims": ["Verified technical fact 1"],
+  "unverifiedOrQuestionableClaims": ["Unverified or incorrect claim 1"],
   "feedback": "2-3 sentences of clear constructive feedback directly to the candidate.",
-  "strengths": ["Strength 1", "Strength 2"],
-  "missedPoints": ["Concept or detail candidate failed to mention", "Production edge case"],
-  "betterAnswerExample": "How a top 1% candidate would formulate this answer concisely and with concrete metrics."
+  "strengths": ["Strength 1 with short quote", "Strength 2 with short quote"],
+  "missedPoints": ["Missed point 1", "Missed point 2"],
+  "betterAnswerExample": "How a top 1% candidate would formulate this answer concisely with concrete metrics and architecture.",
+  "starMethodologyUsed": true
 }`;
 
     const completion = await openai.chat.completions.create({
@@ -87,7 +141,11 @@ Respond ONLY with a valid JSON object in this format:
       temperature: 0.3
     });
 
-    return JSON.parse(completion.choices[0].message.content || '{}');
+    const parsed = JSON.parse(completion.choices[0].message.content || '{}');
+    return {
+      status: 'evaluated',
+      ...parsed
+    };
   },
 
   // Generate follow-up probing question

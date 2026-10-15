@@ -37,6 +37,8 @@ export interface CompanyPreset {
   interviewStructure: string[];
 }
 
+export type InterviewDeliveryMode = 'video' | 'voice_only';
+
 export interface InterviewConfig {
   role: string;
   experienceLevel: ExperienceLevel;
@@ -47,17 +49,38 @@ export interface InterviewConfig {
   durationMinutes: number;
   questionCount: number;
   language: string;
+  mode?: InterviewDeliveryMode;
   jobDescription?: string;
   resumeFileName?: string;
   resumeText?: string;
 }
 
-export interface QuestionEvaluation {
+export interface RubricCategoryScore {
   score: number; // 0 - 100
-  accuracyScore: number;
-  communicationScore: number;
-  structureScore: number;
-  completenessScore: number;
+  reasoning: string;
+  evidenceQuote?: string;
+}
+
+export interface QuestionEvaluation {
+  status?: 'evaluated' | 'unavailable';
+  unavailableReason?: string;
+  score: number; // 0 - 100
+  technicalDepthScore?: number;
+  relevanceScore?: number;
+  reasoningScore?: number;
+  completenessScore?: number;
+  communicationScore?: number;
+  accuracyScore?: number;
+  structureScore?: number;
+  rubricBreakdown?: {
+    technicalCorrectness: RubricCategoryScore;
+    relevance: RubricCategoryScore;
+    problemSolvingReasoning: RubricCategoryScore;
+    completenessAndExamples: RubricCategoryScore;
+    communicationClarity: RubricCategoryScore;
+  };
+  verifiedClaims?: string[];
+  unverifiedOrQuestionableClaims?: string[];
   feedback: string;
   strengths: string[];
   missedPoints: string[];

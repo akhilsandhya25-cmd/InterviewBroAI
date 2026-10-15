@@ -70,42 +70,31 @@ export const api = {
         if (data.evaluation) {
           return data.evaluation;
         }
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Evaluation request failed with HTTP ${res.status}`);
       }
-    } catch (e) {
-      console.warn('Backend /api/ai/evaluate not reachable, using heuristic fallback evaluator:', e);
+    } catch (e: any) {
+      console.warn('Backend /api/ai/evaluate connection issue:', e);
+      return {
+        status: 'unavailable',
+        unavailableReason: e.message || 'Evaluation service could not be reached. Scores will not be fabricated.',
+        score: 0,
+        feedback: 'Evaluation service is currently unavailable. Your transcribed response has been safely recorded in your interview session.',
+        strengths: ['Answer transcribed and logged.'],
+        missedPoints: ['Automated scoring is currently unavailable.'],
+        betterAnswerExample: 'Review your answer against standard system design and STAR principles.'
+      };
     }
 
-    // Heuristic fallback evaluator
-    const wordCount = answer.trim().split(/\s+/).filter(Boolean).length;
-    let baseScore = 65;
-    if (wordCount >= 20) baseScore += 10;
-    if (wordCount >= 50) baseScore += 10;
-    if (wordCount >= 100) baseScore += 5;
-
-    const hasTechnicalKeywords = /data structure|algorithm|complexity|scalability|database|microservice|concurrency|latency|cache|testing|async|promise/i.test(answer);
-    if (hasTechnicalKeywords) baseScore += 5;
-
-    const score = Math.min(95, Math.max(50, baseScore));
-
     return {
-      score,
-      accuracyScore: Math.min(96, score + 2),
-      communicationScore: Math.min(94, score - 1),
-      structureScore: Math.min(92, score - 2),
-      completenessScore: score,
-      feedback: wordCount < 25 
-        ? "Your answer was a bit brief. While your point was valid, interviewers expect more elaboration with specific technical choices, constraints, and real-world examples."
-        : "Good response! You demonstrated solid clarity and practical awareness of the problem. Structuring your answer with clear problem statements and measurable outcomes will make it even stronger.",
-      strengths: [
-        "Directly addressed the core of the interviewer's question",
-        "Clear and confident communication style",
-        wordCount >= 50 ? "Provided adequate technical explanation" : "Good conceptual foundation"
-      ],
-      missedPoints: [
-        "Could mention real-world trade-offs (e.g. latency vs consistency, memory vs CPU overhead)",
-        "Could provide specific metrics or concrete tools used in production"
-      ],
-      betterAnswerExample: `A top-percentile response would structure this clearly: 1. Core definition and architectural principle. 2. Real-world scenario demonstrating implementation. 3. Practical trade-offs and error handling strategies.`
+      status: 'unavailable',
+      unavailableReason: 'Evaluation service returned an empty response.',
+      score: 0,
+      feedback: 'Evaluation is unavailable for this response.',
+      strengths: [],
+      missedPoints: [],
+      betterAnswerExample: ''
     };
   },
 

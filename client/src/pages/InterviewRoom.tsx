@@ -22,7 +22,8 @@ import {
   Check,
   AlertCircle,
   Headphones,
-  UserCheck
+  Radio,
+  FileText
 } from 'lucide-react';
 import { useInterview } from '../context/InterviewContext';
 import { createSpeechRecognition, tts } from '../services/speech';
@@ -57,14 +58,20 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     setConsentToRecord
   } = useInterview();
 
+  const isVoiceOnly = activeSession?.config.mode === 'voice_only';
+
   // Voice & Transcript State
   const [spokenTranscript, setSpokenTranscript] = useState<string>('');
   const [interimText, setInterimText] = useState<string>('');
+  const [candidateTypedText, setCandidateTypedText] = useState<string>('');
   const [isListening, setIsListening] = useState<boolean>(false);
   const [isSpeakingQuestion, setIsSpeakingQuestion] = useState<boolean>(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState<boolean>(true);
   const [detectedVoiceName, setDetectedVoiceName] = useState<string>('');
+  const [isTestingSpeaker, setIsTestingSpeaker] = useState<boolean>(false);
   
   // Pre-interview check gate
   const [preflightPassed, setPreflightPassed] = useState<boolean>(false);
@@ -74,27 +81,32 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const preflightVideoRef = useRef<HTMLVideoElement | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Sync candidateAnswer to spokenTranscript when moving between questions
+  // Sync candidateAnswer to state when moving between questions
   useEffect(() => {
     if (currentQuestion?.candidateAnswer) {
       setSpokenTranscript(currentQuestion.candidateAnswer);
+      setCandidateTypedText(currentQuestion.candidateAnswer);
       setInterimText('');
     } else {
       setSpokenTranscript('');
+      setCandidateTypedText('');
       setInterimText('');
     }
     setSpeechError(null);
+    setSubmissionError(null);
   }, [currentQuestionIndex, currentQuestion]);
 
-  // Hook up video stream to local HTML video elements
+  // Hook up video stream to local HTML video elements (only in video mode)
   useEffect(() => {
-    if (videoRef.current && videoStream) {
-      videoRef.current.srcObject = videoStream;
+    if (!isVoiceOnly) {
+      if (videoRef.current && videoStream) {
+        videoRef.current.srcObject = videoStream;
+      }
+      if (preflightVideoRef.current && videoStream) {
+        preflightVideoRef.current.srcObject = videoStream;
+      }
     }
-    if (preflightVideoRef.current && videoStream) {
-      preflightVideoRef.current.srcObject = videoStream;
-    }
-  }, [videoStream, isCameraOn, preflightPassed]);
+  }, [videoStream, isCameraOn, preflightPassed, isVoiceOnly]);
 
   // Initialize Speech Recognition & TTS voices
   useEffect(() => {
@@ -115,7 +127,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   useEffect(() => {
     if (!preflightPassed || !currentQuestion || isPaused) return;
 
-    // Small delay so candidate perceives the turn
+    // Small natural delay so candidate perceives conversational turn
     const timer = setTimeout(() => {
       speakCurrentQuestion();
     }, 600);
@@ -129,7 +141,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const speakCurrentQuestion = () => {
     if (!currentQuestion) return;
     
-    // Stop candidate mic while interviewer is speaking to prevent echo/overlap
+    // Stop candidate mic while interviewer is speaking to prevent acoustic feedback / overlap
     if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -137,7 +149,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
     setIsSpeakingQuestion(true);
     tts.speak(currentQuestion.questionText, {
-      rate: 0.96, // natural, articulate interview cadence
+      rate: 0.96, // natural conversational cadence
       onStart: () => setIsSpeakingQuestion(true),
       onEnd: () => {
         setIsSpeakingQuestion(false);
@@ -159,24 +171,39 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     }
   };
 
+  const testSpeaker = () => {
+    if (isTestingSpeaker) return;
+    setIsTestingSpeaker(true);
+    tts.speak('Audio check. The AI interviewer voice is working properly.', {
+      rate: 1.0,
+      onEnd: () => setIsTestingSpeaker(false),
+      onError: () => setIsTestingSpeaker(false)
+    });
+  };
+
   const startSpeechCapture = () => {
     if (!recognitionRef.current?.isSupported) {
       setSpeechError('Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.');
       return;
     }
 
-    // Stop interviewer speech if candidate interrupts to answer
+    // Stop interviewer speech if candidate begins speaking
     if (isSpeakingQuestion) {
       tts.stop();
       setIsSpeakingQuestion(false);
     }
 
     setSpeechError(null);
+    setSubmissionError(null);
     setIsListening(true);
 
     recognitionRef.current.start(
       (fullText: string, interimChunk: string, isFinal: boolean) => {
         setSpokenTranscript(fullText);
+        // In video mode, update typed text as well if candidate isn't actively typing
+        if (!isVoiceOnly && !candidateTypedText) {
+          setCandidateTypedText(fullText);
+        }
         setInterimText(interimChunk);
         if (isFinal) {
           setInterimText('');
@@ -209,24 +236,63 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       recognitionRef.current.abort();
     }
     setSpokenTranscript('');
+    setCandidateTypedText('');
     setInterimText('');
     setSpeechError(null);
+    setSubmissionError(null);
     startSpeechCapture();
   };
 
+  // Compute effective answer based on mode
+  const effectiveAnswer = (
+    isVoiceOnly 
+      ? (spokenTranscript + (interimText ? ' ' + interimText : '')) 
+      : (candidateTypedText || spokenTranscript + (interimText ? ' ' + interimText : ''))
+  ).trim();
+
+  const wordCount = effectiveAnswer.split(/\s+/).filter(Boolean).length;
+
   const handleSubmit = async () => {
-    const combinedAnswer = (spokenTranscript + ' ' + interimText).trim();
-    const wordCount = combinedAnswer.split(/\s+/).filter(Boolean).length;
+    if (isEvaluating || isSubmitting) return;
 
     if (wordCount < 4) {
-      setSpeechError('Spoken response is too short. Please speak a complete answer explaining your reasoning before submitting.');
+      const msg = isVoiceOnly
+        ? 'Your spoken response is too short. Please speak a complete answer (at least 4 words) explaining your technical reasoning before submitting.'
+        : 'Please provide a complete answer (at least 4 words) explaining your reasoning before submitting.';
+      setSubmissionError(msg);
       return;
     }
 
+    setSubmissionError(null);
+    setIsSubmitting(true);
     stopSpeechCapture();
     tts.stop();
-    await submitAnswer(combinedAnswer);
+
+    try {
+      const res = await submitAnswer(effectiveAnswer);
+      if (!res.success) {
+        setSubmissionError(res.error || 'Evaluation failed. Please try submitting again.');
+      } else {
+        setSubmissionError(null);
+      }
+    } catch (e: any) {
+      setSubmissionError(e.message || 'An unexpected error occurred during submission.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  // Support Ctrl+Enter / Cmd+Enter keyboard shortcut for answer submission
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [effectiveAnswer, isEvaluating, isSubmitting, isVoiceOnly, wordCount]);
 
   const handleFinishEarly = async () => {
     if (confirm('Finish this interview and generate your performance report?')) {
@@ -261,64 +327,68 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     );
   }
 
-  // PRE-FLIGHT CHECK: Mandatory Camera & Microphone check before interview begins
+  // PRE-FLIGHT CHECK GATE
   if (!preflightPassed) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-semibold">
-            <Headphones className="w-3.5 h-3.5 text-violet-400" />
-            <span>Voice-First Interview Pre-Flight Check</span>
+            {isVoiceOnly ? <Mic className="w-3.5 h-3.5 text-violet-400" /> : <Headphones className="w-3.5 h-3.5 text-violet-400" />}
+            <span>{isVoiceOnly ? 'Dedicated Voice-Only Pre-Flight Readiness' : 'Video Interview Pre-Flight Readiness'}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-            Camera & Microphone Readiness
+            {isVoiceOnly ? 'Audio & Microphone Readiness' : 'Camera & Microphone Readiness'}
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
-            In InterviewBro AI video interviews, both the AI interviewer questions and your candidate responses are conducted by voice. Please verify your equipment below.
+            {isVoiceOnly 
+              ? 'In this dedicated voice mode, all questions are spoken aloud and you answer verbally via microphone. Please verify your microphone and speakers below.'
+              : 'In InterviewBro AI video interviews, verify your camera stream and microphone input before entering the live session.'}
           </p>
         </div>
 
         {/* Device Check Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Camera Preview */}
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white flex items-center gap-2">
-                <Camera className="w-4 h-4 text-violet-400" />
-                <span>Webcam Check</span>
-              </span>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                isCameraOn ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-              }`}>
-                {isCameraOn ? 'Camera Active' : 'Camera Off'}
-              </span>
-            </div>
+        <div className={`grid grid-cols-1 ${isVoiceOnly ? 'max-w-xl mx-auto' : 'md:grid-cols-2'} gap-6`}>
+          {/* Camera Preview (Video Mode Only) */}
+          {!isVoiceOnly && (
+            <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-violet-400" />
+                  <span>Webcam Check</span>
+                </span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                  isCameraOn ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                }`}>
+                  {isCameraOn ? 'Camera Active' : 'Camera Off'}
+                </span>
+              </div>
 
-            <div className="relative aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden flex items-center justify-center">
-              {videoStream && isCameraOn ? (
-                <video
-                  ref={preflightVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover -scale-x-100"
-                />
-              ) : (
-                <div className="text-center p-4">
-                  <CameraOff className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                  <p className="text-xs text-slate-400">Webcam stream inactive</p>
-                </div>
-              )}
-            </div>
+              <div className="relative aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden flex items-center justify-center">
+                {videoStream && isCameraOn ? (
+                  <video
+                    ref={preflightVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover -scale-x-100"
+                  />
+                ) : (
+                  <div className="text-center p-4">
+                    <CameraOff className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                    <p className="text-xs text-slate-400">Webcam stream inactive</p>
+                  </div>
+                )}
+              </div>
 
-            <button
-              type="button"
-              onClick={toggleCamera}
-              className="w-full py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
-            >
-              {isCameraOn ? 'Disable Camera' : 'Enable Camera'}
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={toggleCamera}
+                className="w-full py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+              >
+                {isCameraOn ? 'Disable Camera' : 'Enable Camera'}
+              </button>
+            </div>
+          )}
 
           {/* Microphone & Voice Engine Check */}
           <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4 flex flex-col justify-between">
@@ -331,7 +401,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                   speechRecognitionSupported ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                 }`}>
-                  {speechRecognitionSupported ? 'STT Supported' : 'STT Unsupported'}
+                  {speechRecognitionSupported ? 'STT Active' : 'STT Unsupported'}
                 </span>
               </div>
 
@@ -339,8 +409,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                 <div className="text-[11px] text-slate-400 flex items-center justify-between">
                   <span>Microphone Input Level:</span>
-                  <span className={isMicOn ? 'text-emerald-400' : 'text-slate-500'}>
-                    {isMicOn ? 'Listening' : 'Muted'}
+                  <span className={isMicOn ? 'text-emerald-400 font-semibold' : 'text-slate-500'}>
+                    {isMicOn ? 'Listening to voice' : 'Muted'}
                   </span>
                 </div>
                 <AudioVisualizer stream={videoStream} isActive={isMicOn} />
@@ -349,9 +419,20 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 </p>
               </div>
 
-              {/* AI Voice Info */}
-              <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs space-y-1">
-                <div className="text-slate-400 text-[11px]">Interviewer Voice:</div>
+              {/* AI Voice Info & Speaker Test */}
+              <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px]">Interviewer Voice:</span>
+                  <button
+                    type="button"
+                    onClick={testSpeaker}
+                    disabled={isTestingSpeaker}
+                    className="text-[11px] text-violet-400 hover:text-violet-300 font-semibold flex items-center gap-1"
+                  >
+                    <Volume2 className="w-3 h-3" />
+                    <span>{isTestingSpeaker ? 'Testing...' : 'Test Speaker Audio'}</span>
+                  </button>
+                </div>
                 <div className="font-semibold text-violet-300 truncate">
                   {detectedVoiceName || 'Browser Natural Speech Synthesis'}
                 </div>
@@ -372,8 +453,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-3">
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
             <div>
-              <strong className="block font-bold">Browser Speech-to-Text Not Supported</strong>
-              Your current browser does not support the Web Speech API required for voice-first interviews. Please switch to Google Chrome, Microsoft Edge, or Safari on desktop.
+              <strong className="block font-bold">Browser Speech Recognition Not Supported</strong>
+              Your current browser does not support the Web Speech API required for speech recognition. Please open InterviewBro AI in Google Chrome or Microsoft Edge.
             </div>
           </div>
         )}
@@ -381,7 +462,9 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
         {/* Start Button */}
         <div className="p-6 rounded-2xl bg-gradient-to-r from-violet-950/50 via-slate-900 to-blue-950/50 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <div className="text-sm font-bold text-white">Ready for your mock interview?</div>
+            <div className="text-sm font-bold text-white">
+              {isVoiceOnly ? 'Ready for your voice interview?' : 'Ready for your video interview?'}
+            </div>
             <div className="text-xs text-slate-400">
               {activeSession.config.companyName} • {activeSession.config.role} ({activeSession.questions.length} questions)
             </div>
@@ -392,16 +475,13 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             onClick={() => setPreflightPassed(true)}
             className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-xs gradient-button flex items-center justify-center gap-2 shadow-lg"
           >
-            <span>Enter Live Video Room</span>
+            <span>{isVoiceOnly ? 'Enter Dedicated Voice Room' : 'Enter Live Video Room'}</span>
             <Check className="w-4 h-4" />
           </button>
         </div>
       </div>
     );
   }
-
-  const combinedCandidateText = (spokenTranscript + (interimText ? ' ' + interimText : '')).trim();
-  const wordCount = combinedCandidateText.split(/\s+/).filter(Boolean).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
@@ -411,7 +491,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           <div className="flex items-start gap-3">
             <Shield className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
             <div className="text-xs text-slate-300">
-              <strong className="text-white">Privacy & Local Processing:</strong> Your webcam and audio are processed locally in your browser. Would you like to enable local session recording for self-review playback?
+              <strong className="text-white">Privacy & Local Processing:</strong> Your audio is processed locally in your browser. Would you like to enable local session recording for self-review playback?
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -449,6 +529,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             </h2>
             <div className="text-[11px] text-slate-400 flex items-center gap-2">
               <span className="capitalize">{activeSession.config.interviewType} Round</span>
+              <span>•</span>
+              <span className="capitalize">{isVoiceOnly ? 'Voice-Only' : 'Video'} Mode</span>
               <span>•</span>
               <span className="capitalize">{activeSession.config.difficulty}</span>
               {currentQuestion.isFollowUp && (
@@ -497,95 +579,175 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
         </div>
       </div>
 
-      {/* Main Split Layout: Left Video/Cam Feed, Right AI Question & Answering */}
+      {/* Main Split Layout: Left Interaction Column, Right AI Question & Response Column */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left Column: Candidate Camera & Mic Status (5 cols) */}
+        {/* Left Column (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
-          {/* Webcam Box */}
-          <div className="relative aspect-video rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl flex flex-col items-center justify-center">
-            {videoStream && isCameraOn ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover -scale-x-100"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center text-center p-6 space-y-3">
-                <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
-                  <CameraOff className="w-8 h-8" />
+          {isVoiceOnly ? (
+            /* Dedicated Voice-Only Interface Hub */
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-[#101728] to-slate-950 border border-violet-500/30 shadow-2xl space-y-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-violet-300 flex items-center gap-2 uppercase tracking-wider">
+                  <Radio className="w-4 h-4 text-violet-400 animate-pulse" />
+                  <span>Voice Interview Channel</span>
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                  isSpeakingQuestion 
+                    ? 'bg-violet-500/20 text-violet-300 border-violet-500/40 animate-pulse'
+                    : isListening 
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}>
+                  {isSpeakingQuestion ? 'Interviewer Speaking' : isListening ? 'Listening to You' : 'Mic Ready'}
+                </span>
+              </div>
+
+              {/* Central Voice Waveform Graphic */}
+              <div className="py-6 flex flex-col items-center justify-center space-y-4">
+                <div className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  isSpeakingQuestion 
+                    ? 'bg-violet-600/20 border-2 border-violet-500 shadow-lg shadow-violet-500/20 scale-105'
+                    : isListening
+                    ? 'bg-rose-600/20 border-2 border-rose-500 shadow-lg shadow-rose-500/20 scale-105'
+                    : 'bg-slate-900 border border-slate-800'
+                }`}>
+                  {isSpeakingQuestion ? (
+                    <Bot className="w-10 h-10 text-violet-400 animate-bounce" />
+                  ) : isListening ? (
+                    <Mic className="w-10 h-10 text-rose-400 animate-pulse" />
+                  ) : (
+                    <Headphones className="w-10 h-10 text-slate-500" />
+                  )}
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-300">Camera is turned off</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Click below to toggle camera access</p>
+
+                <div className="w-full max-w-xs space-y-1 text-center">
+                  <AudioVisualizer stream={videoStream} isActive={isMicOn && !isPaused} />
+                  <div className="text-[11px] text-slate-400 pt-1">
+                    {isSpeakingQuestion 
+                      ? 'Listen to the question... (Mic paused to prevent echo)' 
+                      : isListening 
+                      ? 'Speak clearly into your microphone' 
+                      : 'Microphone on standby'}
+                  </div>
                 </div>
               </div>
-            )}
 
-            {/* Overlaid Badges */}
-            <div className="absolute top-3 left-3 flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-white text-[10px] font-medium border border-white/10 flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`}></span>
-                {isPaused ? 'Paused' : 'Live Interview'}
-              </span>
-              {isRecordingConsented && (
-                <span className="px-2 py-0.5 rounded-md bg-rose-500/80 backdrop-blur-md text-white text-[10px] font-bold flex items-center gap-1">
-                  REC
+              {/* Voice Actions Toolbar */}
+              <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={isListening ? stopSpeechCapture : startSpeechCapture}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md ${
+                    isListening
+                      ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
+                  }`}
+                >
+                  <Mic className="w-3.5 h-3.5" />
+                  <span>{isListening ? 'Done Speaking (Pause Mic)' : 'Start Speaking Answer'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleMic}
+                  className={`p-2 rounded-xl border text-xs font-semibold transition-colors ${
+                    isMicOn ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                  }`}
+                  title={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+                >
+                  {isMicOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {/* Voice Mode Rules Banner */}
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                <div className="text-white font-semibold flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                  <span>Voice-Only Mode Rules</span>
+                </div>
+                <p className="leading-relaxed">
+                  Text typing is disabled as an answer substitute. The AI evaluates your verbal explanation, technical terminology, and reasoning.
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Video Mode Webcam Box */
+            <>
+              <div className="relative aspect-video rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl flex flex-col items-center justify-center">
+                {videoStream && isCameraOn ? (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover -scale-x-100"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center p-6 space-y-3">
+                    <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
+                      <CameraOff className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-300">Camera is turned off</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Click below to toggle camera access</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Overlaid Badges */}
+                <div className="absolute top-3 left-3 flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-white text-[10px] font-medium border border-white/10 flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`}></span>
+                    {isPaused ? 'Paused' : 'Live Interview'}
+                  </span>
+                  {isRecordingConsented && (
+                    <span className="px-2 py-0.5 rounded-md bg-rose-500/80 backdrop-blur-md text-white text-[10px] font-bold flex items-center gap-1">
+                      REC
+                    </span>
+                  )}
+                </div>
+
+                {/* Floating AV Controls */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10">
+                  <button
+                    type="button"
+                    onClick={toggleCamera}
+                    className={`p-2 rounded-full transition-colors ${
+                      isCameraOn ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    }`}
+                    title={isCameraOn ? 'Turn camera off' : 'Turn camera on'}
+                  >
+                    {isCameraOn ? <Camera className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={toggleMic}
+                    className={`p-2 rounded-full transition-colors ${
+                      isMicOn ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    }`}
+                    title={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+                  >
+                    {isMicOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Audio Waveform Visualizer */}
+              <div className="flex items-center justify-between">
+                <AudioVisualizer stream={videoStream} isActive={isMicOn && !isPaused} />
+                <span className={`text-[11px] font-medium flex items-center gap-1.5 ${
+                  isMicOn ? 'text-emerald-400' : 'text-slate-500'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${isMicOn && !isPaused ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+                  {isMicOn ? 'Microphone Active' : 'Microphone Muted'}
                 </span>
-              )}
-            </div>
-
-            {/* Floating AV Controls */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10">
-              <button
-                type="button"
-                onClick={toggleCamera}
-                className={`p-2 rounded-full transition-colors ${
-                  isCameraOn ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                }`}
-                title={isCameraOn ? 'Turn camera off' : 'Turn camera on'}
-              >
-                {isCameraOn ? <Camera className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
-              </button>
-
-              <button
-                type="button"
-                onClick={toggleMic}
-                className={`p-2 rounded-full transition-colors ${
-                  isMicOn ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                }`}
-                title={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
-              >
-                {isMicOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Audio Waveform Visualizer & Level Indicator */}
-          <div className="flex items-center justify-between">
-            <AudioVisualizer stream={videoStream} isActive={isMicOn && !isPaused} />
-            <span className={`text-[11px] font-medium flex items-center gap-1.5 ${
-              isMicOn ? 'text-emerald-400' : 'text-slate-500'
-            }`}>
-              <span className={`w-2 h-2 rounded-full ${isMicOn && !isPaused ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-              {isMicOn ? 'Microphone Active' : 'Microphone Muted'}
-            </span>
-          </div>
-
-          {/* Voice Interview Rules Tip */}
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400 space-y-1.5">
-            <div className="text-slate-300 font-semibold flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-              <span>Voice Interview Protocol:</span>
-            </div>
-            <p className="leading-relaxed">
-              Listen to the AI question spoken aloud. When it finishes, speak your response clearly. The system transcribes your words in real time.
-            </p>
-          </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Right Column: AI Spoken Question & Candidate Voice Transcription (7 cols) */}
+        {/* Right Column: AI Question & Response Interface (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
           {/* AI Question Box */}
           <div className={`p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-[#121929] border shadow-lg space-y-3 transition-colors ${
@@ -623,43 +785,49 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
             {currentQuestion.contextOrHints && (
               <div className="pt-2 text-xs text-slate-400 flex items-start gap-1.5 border-t border-slate-800/60">
-                <span className="text-slate-500 uppercase font-semibold text-[10px]">Context / Hints:</span>
+                <span className="text-slate-500 uppercase font-semibold text-[10px]">Context / Key Competencies:</span>
                 <span>{currentQuestion.contextOrHints}</span>
               </div>
             )}
           </div>
 
-          {/* Voice Response & Real-Time Transcription Panel */}
+          {/* Response Panel */}
           <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <label className="text-xs font-bold text-white flex items-center gap-2">
-                  <span>Candidate Spoken Answer</span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                    Voice Mandatory
+                  <span>Candidate Response</span>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                    isVoiceOnly
+                      ? 'bg-violet-500/20 text-violet-300 border-violet-500/30'
+                      : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                  }`}>
+                    {isVoiceOnly ? 'Voice Mandatory' : 'Voice / Text Hybrid'}
                   </span>
                 </label>
                 <div className="text-[11px] text-slate-400 mt-0.5">
-                  Answer using your microphone. Speech recognition converts your response in real time.
+                  {isVoiceOnly 
+                    ? 'Speak your answer verbally. Speech recognition transcribes your words in real time.'
+                    : 'Speak your answer using the microphone or edit directly in the response box.'}
                 </div>
               </div>
 
-              {/* Primary Voice Action Button */}
+              {/* Dictation Toggle Button */}
               <button
                 type="button"
                 onClick={isListening ? stopSpeechCapture : startSpeechCapture}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md ${
                   isListening
                     ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 animate-pulse'
                     : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
                 }`}
               >
-                <Mic className="w-4 h-4" />
-                <span>{isListening ? 'Done Speaking (Pause)' : 'Start Speaking Answer'}</span>
+                <Mic className="w-3.5 h-3.5" />
+                <span>{isListening ? 'Done Speaking' : 'Start Speaking'}</span>
               </button>
             </div>
 
-            {/* Error / Recovery Notification */}
+            {/* Speech Recognition Error Notification */}
             {speechError && (
               <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -676,37 +844,73 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               </div>
             )}
 
-            {/* Real-time Spoken Transcript Display */}
-            <div className="relative min-h-[140px] max-h-[220px] p-4 rounded-xl bg-slate-950 border border-slate-800 overflow-y-auto font-sans">
-              {combinedCandidateText ? (
-                <div className="text-sm text-slate-100 leading-relaxed">
-                  <span>{spokenTranscript}</span>
-                  {interimText && (
-                    <span className="text-violet-400 italic"> {interimText}</span>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center py-6 text-slate-500 space-y-2">
-                  <Mic className={`w-8 h-8 ${isListening ? 'text-violet-400 animate-pulse' : 'text-slate-600'}`} />
-                  <p className="text-xs">
-                    {isListening 
-                      ? 'Listening to your speech... Speak clearly into your microphone.' 
-                      : 'Click "Start Speaking Answer" to begin recording your spoken answer.'}
-                  </p>
-                </div>
-              )}
-            </div>
+            {/* Answer Display: Voice-Only Transparent Transcript vs Video Editable Textarea */}
+            {isVoiceOnly ? (
+              /* Voice-Only Mode: Live Spoken Transcript (Typing disabled) */
+              <div className="relative min-h-[140px] max-h-[220px] p-4 rounded-xl bg-slate-950 border border-slate-800 overflow-y-auto font-sans">
+                {effectiveAnswer ? (
+                  <div className="text-sm text-slate-100 leading-relaxed">
+                    <span>{spokenTranscript}</span>
+                    {interimText && (
+                      <span className="text-violet-400 italic"> {interimText}</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-center py-6 text-slate-500 space-y-2">
+                    <Mic className={`w-8 h-8 ${isListening ? 'text-violet-400 animate-pulse' : 'text-slate-600'}`} />
+                    <p className="text-xs">
+                      {isListening 
+                        ? 'Listening to your microphone... Speak clearly.' 
+                        : 'Click "Start Speaking" or use microphone to dictate your verbal answer.'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Video Mode: Editable Textarea (Speech + Text Fallback) */
+              <div className="space-y-1">
+                <textarea
+                  rows={5}
+                  value={candidateTypedText || spokenTranscript}
+                  onChange={(e) => setCandidateTypedText(e.target.value)}
+                  placeholder="Speak via microphone or type your technical answer here..."
+                  className="w-full p-4 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-violet-500 leading-relaxed"
+                />
+                {interimText && (
+                  <div className="text-xs text-violet-400 italic px-2">
+                    Transcribing: {interimText}...
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* Transcript Footer & Validation */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-800/80 text-xs">
+            {/* Inline Submission Error Banner */}
+            {submissionError && (
+              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{submissionError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 text-[11px] font-semibold shrink-0"
+                >
+                  Retry Submit
+                </button>
+              </div>
+            )}
+
+            {/* Actions & Submit Row */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80 text-xs">
               <div className="flex items-center gap-3">
                 <span className={`text-[11px] font-medium ${
-                  wordCount >= 5 ? 'text-emerald-400' : 'text-slate-500'
+                  wordCount >= 4 ? 'text-emerald-400' : 'text-slate-500'
                 }`}>
-                  Spoken: <strong>{wordCount} words</strong> (min. 5)
+                  Answer: <strong>{wordCount} words</strong> {wordCount < 4 && '(min. 4 required)'}
                 </span>
 
-                {combinedCandidateText && (
+                {effectiveAnswer && (
                   <button
                     type="button"
                     onClick={handleClearAndRespeak}
@@ -722,20 +926,23 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  disabled={isEvaluating || wordCount < 5}
+                  disabled={isEvaluating || isSubmitting}
                   onClick={handleSubmit}
-                  className="px-5 py-2.5 rounded-xl font-bold text-xs gradient-button flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
-                  title={wordCount < 5 ? 'Speak an answer of at least 5 words to submit' : 'Submit your spoken answer for evaluation'}
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs gradient-button flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-transform active:scale-[0.98]"
+                  title="Submit your answer for evaluation (Ctrl+Enter)"
                 >
-                  {isEvaluating ? (
+                  {isEvaluating || isSubmitting ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Evaluating Spoken Answer...</span>
+                      <span>Evaluating Answer...</span>
                     </>
                   ) : (
                     <>
                       <Send className="w-3.5 h-3.5" />
-                      <span>Submit Spoken Answer</span>
+                      <span>{isVoiceOnly ? 'Submit Spoken Answer' : 'Submit Answer'}</span>
+                      <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono bg-black/30 border border-white/20 rounded text-slate-200 ml-1">
+                        Ctrl+↵
+                      </kbd>
                     </>
                   )}
                 </button>
@@ -744,7 +951,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 {currentQuestion.candidateAnswer && !currentQuestion.isFollowUp && (
                   <button
                     type="button"
-                    disabled={isEvaluating}
+                    disabled={isEvaluating || isSubmitting}
                     onClick={requestFollowUp}
                     className="px-3.5 py-2.5 rounded-xl font-medium text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors flex items-center gap-1.5"
                     title="Challenge this answer with a realistic follow-up question"
@@ -790,50 +997,205 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             </div>
           </div>
 
-          {/* Immediate Evaluation Feedback Box (if question was evaluated) */}
+          {/* Evaluation Feedback Panel */}
           {currentQuestion.evaluation && (
-            <div className="p-5 rounded-2xl bg-slate-900/90 border border-emerald-500/40 shadow-xl space-y-3 transition-all">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-bold text-white">AI Evaluation Score</span>
+            <div className="p-5 rounded-2xl bg-slate-900/90 border border-emerald-500/40 shadow-xl space-y-4 transition-all">
+              {currentQuestion.evaluation.status === 'unavailable' ? (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>AI Evaluation Unavailable (Local / Unconfigured Mode)</span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {currentQuestion.evaluation.unavailableReason || currentQuestion.evaluation.feedback}
+                  </p>
+                  <p className="text-[11px] text-slate-400 italic">
+                    Your transcribed response has been safely recorded into the session history. InterviewBro AI will not fabricate an arbitrary score.
+                  </p>
                 </div>
-                <div className="text-base font-extrabold text-emerald-400">
-                  {currentQuestion.evaluation.score}<span className="text-xs text-slate-500">/100</span>
-                </div>
-              </div>
+              ) : (
+                <>
+                  {/* Scorecard Header */}
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Evaluation Scorecard</span>
+                    </div>
+                    <div className="text-xl font-black text-emerald-400">
+                      {currentQuestion.evaluation.score}<span className="text-xs text-slate-500">/100</span>
+                    </div>
+                  </div>
 
-              <p className="text-xs text-slate-300 leading-relaxed">
-                {currentQuestion.evaluation.feedback}
-              </p>
+                  {/* 5-Pillar Rubric Breakdown Grid */}
+                  {currentQuestion.evaluation.rubricBreakdown && (
+                    <div className="space-y-2 pt-1">
+                      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        5-Pillar Structured Evaluation Rubric:
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        {/* Pillar 1: Technical Depth & Accuracy */}
+                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-blue-300">Technical Depth & Accuracy</span>
+                            <span className="font-bold text-blue-400">
+                              {currentQuestion.evaluation.rubricBreakdown.technicalCorrectness.score}%
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-snug">
+                            {currentQuestion.evaluation.rubricBreakdown.technicalCorrectness.reasoning}
+                          </p>
+                          {currentQuestion.evaluation.rubricBreakdown.technicalCorrectness.evidenceQuote && (
+                            <div className="text-[10px] text-slate-500 italic">
+                              Quote: &ldquo;{currentQuestion.evaluation.rubricBreakdown.technicalCorrectness.evidenceQuote}&rdquo;
+                            </div>
+                          )}
+                        </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
-                <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                  <div className="font-semibold text-emerald-400 mb-1">Key Strengths:</div>
-                  <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[11px]">
-                    {currentQuestion.evaluation.strengths.map((s, idx) => (
-                      <li key={idx}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
+                        {/* Pillar 2: Question Relevance */}
+                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-emerald-300">Question Relevance</span>
+                            <span className="font-bold text-emerald-400">
+                              {currentQuestion.evaluation.rubricBreakdown.relevance.score}%
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-snug">
+                            {currentQuestion.evaluation.rubricBreakdown.relevance.reasoning}
+                          </p>
+                          {currentQuestion.evaluation.rubricBreakdown.relevance.evidenceQuote && (
+                            <div className="text-[10px] text-slate-500 italic">
+                              Quote: &ldquo;{currentQuestion.evaluation.rubricBreakdown.relevance.evidenceQuote}&rdquo;
+                            </div>
+                          )}
+                        </div>
 
-                <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                  <div className="font-semibold text-amber-400 mb-1">Points to Improve:</div>
-                  <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[11px]">
-                    {currentQuestion.evaluation.missedPoints.map((m, idx) => (
-                      <li key={idx}>{m}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+                        {/* Pillar 3: Problem Solving & Reasoning */}
+                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-violet-300">Problem-Solving & Reasoning</span>
+                            <span className="font-bold text-violet-400">
+                              {currentQuestion.evaluation.rubricBreakdown.problemSolvingReasoning.score}%
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-snug">
+                            {currentQuestion.evaluation.rubricBreakdown.problemSolvingReasoning.reasoning}
+                          </p>
+                          {currentQuestion.evaluation.rubricBreakdown.problemSolvingReasoning.evidenceQuote && (
+                            <div className="text-[10px] text-slate-500 italic">
+                              Quote: &ldquo;{currentQuestion.evaluation.rubricBreakdown.problemSolvingReasoning.evidenceQuote}&rdquo;
+                            </div>
+                          )}
+                        </div>
 
-              {currentQuestion.evaluation.betterAnswerExample && (
-                <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800 text-xs">
-                  <span className="font-semibold text-violet-400">Example High-Scoring Answer: </span>
-                  <span className="text-slate-300 text-[11px] leading-relaxed">
-                    {currentQuestion.evaluation.betterAnswerExample}
-                  </span>
-                </div>
+                        {/* Pillar 4: Completeness & Examples */}
+                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-amber-300">Completeness & Examples</span>
+                            <span className="font-bold text-amber-400">
+                              {currentQuestion.evaluation.rubricBreakdown.completenessAndExamples.score}%
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-snug">
+                            {currentQuestion.evaluation.rubricBreakdown.completenessAndExamples.reasoning}
+                          </p>
+                          {currentQuestion.evaluation.rubricBreakdown.completenessAndExamples.evidenceQuote && (
+                            <div className="text-[10px] text-slate-500 italic">
+                              Quote: &ldquo;{currentQuestion.evaluation.rubricBreakdown.completenessAndExamples.evidenceQuote}&rdquo;
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Pillar 5: Communication Clarity */}
+                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1 md:col-span-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-cyan-300">Communication Clarity</span>
+                            <span className="font-bold text-cyan-400">
+                              {currentQuestion.evaluation.rubricBreakdown.communicationClarity.score}%
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-snug">
+                            {currentQuestion.evaluation.rubricBreakdown.communicationClarity.reasoning}
+                          </p>
+                          {currentQuestion.evaluation.rubricBreakdown.communicationClarity.evidenceQuote && (
+                            <div className="text-[10px] text-slate-500 italic">
+                              Quote: &ldquo;{currentQuestion.evaluation.rubricBreakdown.communicationClarity.evidenceQuote}&rdquo;
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Verified Technical Facts vs Questionable Claims */}
+                  {((currentQuestion.evaluation.verifiedClaims && currentQuestion.evaluation.verifiedClaims.length > 0) ||
+                    (currentQuestion.evaluation.unverifiedOrQuestionableClaims && currentQuestion.evaluation.unverifiedOrQuestionableClaims.length > 0)) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                      {currentQuestion.evaluation.verifiedClaims && currentQuestion.evaluation.verifiedClaims.length > 0 && (
+                        <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-xs">
+                          <div className="font-bold text-emerald-400 mb-1 flex items-center gap-1.5">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Verified Technical Points:</span>
+                          </div>
+                          <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
+                            {currentQuestion.evaluation.verifiedClaims.map((claim, idx) => (
+                              <li key={idx}>{claim}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {currentQuestion.evaluation.unverifiedOrQuestionableClaims && currentQuestion.evaluation.unverifiedOrQuestionableClaims.length > 0 && (
+                        <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 text-xs">
+                          <div className="font-bold text-amber-400 mb-1 flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            <span>Unverified / Questionable Claims:</span>
+                          </div>
+                          <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
+                            {currentQuestion.evaluation.unverifiedOrQuestionableClaims.map((claim, idx) => (
+                              <li key={idx}>{claim}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Constructive Feedback */}
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {currentQuestion.evaluation.feedback}
+                  </p>
+
+                  {/* Strengths & Points to Improve */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <div className="font-semibold text-emerald-400 mb-1">Key Strengths:</div>
+                      <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[11px]">
+                        {currentQuestion.evaluation.strengths.map((s, idx) => (
+                          <li key={idx}>{s}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                      <div className="font-semibold text-amber-400 mb-1">Points to Improve:</div>
+                      <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[11px]">
+                        {currentQuestion.evaluation.missedPoints.map((m, idx) => (
+                          <li key={idx}>{m}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Better Answer Example */}
+                  {currentQuestion.evaluation.betterAnswerExample && (
+                    <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs">
+                      <span className="font-semibold text-violet-400">Example High-Scoring Response: </span>
+                      <p className="text-slate-300 text-[11px] leading-relaxed mt-1">
+                        {currentQuestion.evaluation.betterAnswerExample}
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

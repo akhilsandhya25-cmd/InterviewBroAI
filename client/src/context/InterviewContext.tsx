@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { InterviewConfig, InterviewSession, InterviewQuestion, FeedbackReport } from '../types';
+import { InterviewConfig, InterviewSession, InterviewQuestion, FeedbackReport, QuestionEvaluation } from '../types';
 import { storage } from '../services/storage';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
@@ -24,7 +24,7 @@ interface InterviewContextType {
   recordedVideoUrl: string | null;
   activeReport: FeedbackReport | null;
   startNewSession: (config: InterviewConfig) => Promise<boolean>;
-  submitAnswer: (answerText: string) => Promise<void>;
+  submitAnswer: (answerText: string) => Promise<{ success: boolean; error?: string; evaluation?: QuestionEvaluation }>;
   requestFollowUp: () => Promise<void>;
   nextQuestion: () => void;
   previousQuestion: () => void;
@@ -139,15 +139,17 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         elapsedSeconds: 0
       };
 
-      // Request camera stream if available in browser
+      // Request camera/mic stream if available in browser
       try {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: true
-          });
+          const isVoiceOnly = config.mode === 'voice_only';
+          const stream = await navigator.mediaDevices.getUserMedia(
+            isVoiceOnly
+              ? { audio: true, video: false }
+              : { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true }
+          );
           setVideoStream(stream);
-          setIsCameraOn(true);
+          setIsCameraOn(!isVoiceOnly);
           setIsMicOn(true);
 
           // If consented to local recording, initialize MediaRecorder
@@ -196,19 +198,35 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const submitAnswer = async (answerText: string) => {
-    if (!activeSession) return;
+  const submitAnswer = async (answerText: string): Promise<{ success: boolean; error?: string; evaluation?: any }> => {
+    if (!activeSession) {
+      return { success: false, error: 'No active interview session found.' };
+    }
     const currentQ = activeSession.questions[currentQuestionIndex];
-    if (!currentQ) return;
+    if (!currentQ) {
+      return { success: false, error: 'Current question is unavailable.' };
+    }
+
+    const trimmedAnswer = (answerText || '').trim();
+    if (!trimmedAnswer) {
+      return { success: false, error: 'Please provide an answer before submitting.' };
+    }
+
+    if (isEvaluating) {
+      return { success: false, error: 'An answer evaluation is already in progress. Please wait.' };
+    }
 
     setIsEvaluating(true);
     try {
-      const evaluation = await api.evaluateAnswer(currentQ, answerText, activeSession.config);
+      const evaluation = await api.evaluateAnswer(currentQ, trimmedAnswer, activeSession.config);
+      if (!evaluation) {
+        throw new Error('Evaluation service was unable to generate a score. Please retry.');
+      }
       
       const updatedQuestions = [...activeSession.questions];
       updatedQuestions[currentQuestionIndex] = {
         ...currentQ,
-        candidateAnswer: answerText,
+        candidateAnswer: trimmedAnswer,
         evaluation
       };
 
@@ -220,8 +238,11 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       storage.saveSession(updatedSession);
       setActiveSession(updatedSession);
-    } catch (e) {
+      return { success: true, evaluation };
+    } catch (e: any) {
       console.error('Error evaluating answer:', e);
+      const errMsg = e.message || 'Evaluation request failed. Please check your connection and try again.';
+      return { success: false, error: errMsg };
     } finally {
       setIsEvaluating(false);
     }

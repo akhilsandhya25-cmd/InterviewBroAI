@@ -36,14 +36,35 @@ aiRouter.post('/evaluate', async (req: Request, res: Response) => {
       return res.json({ success: true, evaluation, source: 'openai' });
     }
 
+    // Honest unconfigured status - no fabricated scores
     return res.json({ 
       success: true, 
-      evaluation: null, 
-      message: 'Server in local fallback mode' 
+      evaluation: {
+        status: 'unavailable',
+        unavailableReason: 'AI evaluation service is unconfigured on the server (OPENAI_API_KEY is not configured). Your answer has been recorded into the transcript, but scores are not fabricated.',
+        score: 0,
+        feedback: 'AI evaluation service is unconfigured on the server. Your answer has been safely recorded in the transcript. InterviewBro AI never invents or fabricates arbitrary scores.',
+        strengths: ['Candidate answer safely recorded in transcript.'],
+        missedPoints: ['Automated scoring requires OPENAI_API_KEY in server environment.'],
+        betterAnswerExample: 'Configure OPENAI_API_KEY to enable deep 5-category evaluation and verified factual checks.'
+      },
+      message: 'Server in local fallback mode (OPENAI_API_KEY not configured)' 
     });
   } catch (error: any) {
-    console.warn('AI evaluation error, falling back:', error.message);
-    return res.status(200).json({ success: true, evaluation: null, error: error.message });
+    console.warn('AI evaluation error, returning unavailable status:', error.message);
+    return res.status(200).json({ 
+      success: true, 
+      evaluation: {
+        status: 'unavailable',
+        unavailableReason: `AI evaluation service error: ${error.message}. Scores will not be fabricated.`,
+        score: 0,
+        feedback: 'Evaluation service encountered an error. Your answer has been saved safely.',
+        strengths: [],
+        missedPoints: [],
+        betterAnswerExample: ''
+      }, 
+      error: error.message 
+    });
   }
 });
 

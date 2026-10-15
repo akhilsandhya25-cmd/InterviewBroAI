@@ -13,7 +13,10 @@ import {
   Check, 
   ChevronRight,
   Flame,
-  Globe
+  Globe,
+  Video,
+  Mic,
+  Headphones
 } from 'lucide-react';
 import { 
   COMPANY_PRESETS, 
@@ -26,7 +29,8 @@ import {
   ExperienceLevel, 
   InterviewType, 
   CompanyCategory, 
-  DifficultyLevel 
+  DifficultyLevel,
+  InterviewDeliveryMode
 } from '../types';
 import { useInterview } from '../context/InterviewContext';
 import { useAuth } from '../context/AuthContext';
@@ -50,6 +54,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
   const [questionCount, setQuestionCount] = useState<number>(3);
   const [durationMinutes, setDurationMinutes] = useState<number>(20);
   const [language, setLanguage] = useState<string>('English');
+  const [mode, setMode] = useState<InterviewDeliveryMode>('voice_only');
   const [jobDescription, setJobDescription] = useState<string>('');
   const [resumeText, setResumeText] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
@@ -75,6 +80,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       durationMinutes,
       questionCount,
       language,
+      mode,
       jobDescription: jobDescription.trim() || undefined,
       resumeText: resumeText.trim() || undefined
     };
@@ -267,6 +273,76 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
         </section>
       </div>
 
+      {/* Interview Delivery Format Selector */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <Headphones className="w-4 h-4 text-violet-400" />
+            <span>Select Interview Delivery Format</span>
+          </label>
+          <span className="text-xs text-slate-400">Choose your practice mode</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Voice-Only Mode */}
+          <div
+            onClick={() => setMode('voice_only')}
+            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+              mode === 'voice_only'
+                ? 'bg-violet-950/40 border-violet-500/80 shadow-lg shadow-violet-500/10'
+                : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-violet-500/20 text-violet-300">
+                  <Mic className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-2">
+                    <span>Dedicated Voice-Only Interview</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Recommended
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400">Voice-driven dialogue with real-time waveform</div>
+                </div>
+              </div>
+              {mode === 'voice_only' && <Check className="w-4 h-4 text-violet-400" />}
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed pl-11">
+              The AI interviewer speaks every question aloud. Answer verbally using your microphone with real-time speech transcription. Typed answers are disabled to simulate realistic phone screens and technical voice rounds.
+            </p>
+          </div>
+
+          {/* Video Mode */}
+          <div
+            onClick={() => setMode('video')}
+            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+              mode === 'video'
+                ? 'bg-blue-950/40 border-blue-500/80 shadow-lg shadow-blue-500/10'
+                : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-300">
+                  <Video className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white">Video Interview Mode</div>
+                  <div className="text-[11px] text-slate-400">Webcam visual feed + audio with response editor</div>
+                </div>
+              </div>
+              {mode === 'video' && <Check className="w-4 h-4 text-blue-400" />}
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed pl-11">
+              Full webcam simulation for formal virtual placement rounds. Practice maintaining camera posture and eye contact while answering questions by voice or refining your answer in the response editor.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* 4. Session Length & Difficulty */}
       <section className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-5">
         <div className="flex items-center justify-between">
@@ -392,6 +468,8 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             <span>•</span>
             <span className="capitalize">{interviewType} Round</span>
             <span>•</span>
+            <span className="capitalize">{mode === 'voice_only' ? 'Voice-Only' : 'Video'} Mode</span>
+            <span>•</span>
             <span className="capitalize">{difficulty} Level</span>
           </div>
         </div>
@@ -409,7 +487,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             </>
           ) : (
             <>
-              <span>Enter Video Interview Room</span>
+              <span>{mode === 'voice_only' ? 'Enter Voice Interview Room' : 'Enter Video Interview Room'}</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
