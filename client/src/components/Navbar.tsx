@@ -7,10 +7,17 @@ interface NavbarProps {
   onToggleSidebar?: () => void;
   isSidebarOpen?: boolean;
   onNavigate: (route: string) => void;
+  onOpenAuth?: (mode?: 'login' | 'signup') => void;
   currentRoute: string;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen, onNavigate, currentRoute }) => {
+export const Navbar: React.FC<NavbarProps> = ({ 
+  onToggleSidebar, 
+  isSidebarOpen, 
+  onNavigate, 
+  onOpenAuth,
+  currentRoute 
+}) => {
   const { user, quota, isSupabaseConnected, logout } = useAuth();
 
   return (
@@ -121,7 +128,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen, 
                 </button>
                 <div className="border-t border-slate-800/80 my-1"></div>
                 <button
-                  onClick={() => logout()}
+                  onClick={async () => {
+                    await logout();
+                    onNavigate('landing');
+                  }}
                   className="w-full text-left px-3 py-1.5 text-xs text-rose-400 hover:bg-rose-500/10 transition-colors"
                 >
                   Sign Out
@@ -130,8 +140,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen, 
             </div>
           ) : (
             <button
-              onClick={() => onNavigate('landing')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-700 transition-colors"
+              onClick={() => onOpenAuth ? onOpenAuth('login') : onNavigate('landing')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm"
             >
               <User className="w-3.5 h-3.5" />
               <span>Sign In</span>

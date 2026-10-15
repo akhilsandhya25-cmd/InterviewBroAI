@@ -19,18 +19,27 @@ import { api } from '../services/api';
 import { storage } from '../services/storage';
 import { ResumeAnalysis } from '../types';
 
+import { useAuth } from '../context/AuthContext';
+
 interface ResumeAnalyzerProps {
   onStartWithResume: (resumeQuestions: string[]) => void;
   onNavigate: (route: string) => void;
 }
 
 export const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({ onStartWithResume, onNavigate }) => {
-  const [resumes, setResumes] = useState<ResumeAnalysis[]>(() => storage.getResumes());
+  const { user } = useAuth();
+  const [resumes, setResumes] = useState<ResumeAnalysis[]>(() => storage.getResumes(user?.id));
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [targetRole, setTargetRole] = useState<string>('Full Stack Developer');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [activeAnalysis, setActiveAnalysis] = useState<ResumeAnalysis | null>(() => resumes[0] || null);
+  const [activeAnalysis, setActiveAnalysis] = useState<ResumeAnalysis | null>(() => storage.getResumes(user?.id)[0] || null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const list = storage.getResumes(user?.id);
+    setResumes(list);
+    setActiveAnalysis(list[0] || null);
+  }, [user?.id]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMsg(null);
@@ -63,8 +72,8 @@ export const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({ onStartWithResum
     setErrorMsg(null);
     try {
       const analysis = await api.analyzeResume(selectedFile, targetRole);
-      storage.saveResume(analysis);
-      setResumes(storage.getResumes());
+      storage.saveResume(analysis, user?.id);
+      setResumes(storage.getResumes(user?.id));
       setActiveAnalysis(analysis);
       setSelectedFile(null);
     } catch (e: any) {
@@ -76,8 +85,8 @@ export const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({ onStartWithResum
 
   const handleDeleteResume = (id: string) => {
     if (confirm('Delete this resume analysis record?')) {
-      storage.deleteResume(id);
-      const remaining = storage.getResumes();
+      storage.deleteResume(id, user?.id);
+      const remaining = storage.getResumes(user?.id);
       setResumes(remaining);
       if (activeAnalysis?.id === id) {
         setActiveAnalysis(remaining[0] || null);

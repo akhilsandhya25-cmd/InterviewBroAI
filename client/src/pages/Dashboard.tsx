@@ -31,9 +31,14 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset }) => {
   const { user, quota } = useAuth();
   const { loadReport, activeSession } = useInterview();
-  const [sessions, setSessions] = React.useState<InterviewSession[]>(() => storage.getSessions());
-  const reports = storage.getReports();
-  const resumes = storage.getResumes();
+  const [sessions, setSessions] = React.useState<InterviewSession[]>(() => storage.getSessions(user?.id));
+  
+  React.useEffect(() => {
+    setSessions(storage.getSessions(user?.id));
+  }, [user?.id]);
+
+  const reports = storage.getReports(user?.id);
+  const resumes = storage.getResumes(user?.id);
 
   const completedSessions = sessions.filter(s => s.status === 'completed');
   const totalInterviews = completedSessions.length;

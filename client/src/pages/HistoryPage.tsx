@@ -14,14 +14,21 @@ import { storage } from '../services/storage';
 import { useInterview } from '../context/InterviewContext';
 import { InterviewSession } from '../types';
 
+import { useAuth } from '../context/AuthContext';
+
 interface HistoryPageProps {
   onNavigate: (route: string) => void;
 }
 
 export const HistoryPage: React.FC<HistoryPageProps> = ({ onNavigate }) => {
+  const { user } = useAuth();
   const { loadReport } = useInterview();
-  const [sessions, setSessions] = useState<InterviewSession[]>(() => storage.getSessions());
+  const [sessions, setSessions] = useState<InterviewSession[]>(() => storage.getSessions(user?.id));
   const [search, setSearch] = useState<string>('');
+
+  React.useEffect(() => {
+    setSessions(storage.getSessions(user?.id));
+  }, [user?.id]);
 
   const filteredSessions = sessions.filter(s => 
     s.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -32,8 +39,8 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onNavigate }) => {
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm('Delete this mock interview session and all its associated question transcripts?')) {
-      storage.deleteSession(id);
-      setSessions(storage.getSessions());
+      storage.deleteSession(id, user?.id);
+      setSessions(storage.getSessions(user?.id));
     }
   };
 

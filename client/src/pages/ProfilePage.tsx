@@ -27,6 +27,19 @@ export const ProfilePage: React.FC = () => {
   const [skills, setSkills] = useState<string[]>(user?.skills || ['React', 'TypeScript', 'Node.js', 'PostgreSQL']);
   const [newSkill, setNewSkill] = useState<string>('');
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [saving, setSaving] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (user) {
+      setFullName(user.full_name || '');
+      setRoleTarget(user.role_target || 'Full Stack Developer');
+      setExperienceLevel(user.experience_level || 'fresher');
+      setCollege(user.college || '');
+      setGraduationYear(user.graduation_year || '2025');
+      setCareerGoals(user.career_goals || '');
+      setSkills(user.skills || ['React', 'TypeScript', 'Node.js', 'PostgreSQL']);
+    }
+  }, [user]);
 
   const handleAddSkill = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,18 +53,23 @@ export const ProfilePage: React.FC = () => {
     setSkills(skills.filter(s => s !== skillToRemove));
   };
 
-  const handleSave = () => {
-    updateProfile({
-      full_name: fullName,
-      role_target: roleTarget,
-      experience_level: experienceLevel,
-      college,
-      graduation_year: graduationYear,
-      career_goals: careerGoals,
-      skills
-    });
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateProfile({
+        full_name: fullName,
+        role_target: roleTarget,
+        experience_level: experienceLevel,
+        college,
+        graduation_year: graduationYear,
+        career_goals: careerGoals,
+        skills
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

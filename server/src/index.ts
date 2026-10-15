@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import { authRouter } from './routes/auth.js';
 import { aiRouter } from './routes/ai.js';
 import { resumeRouter } from './routes/resume.js';
 import { voiceRouter } from './routes/voice.js';
@@ -42,6 +43,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Mount Routes
+app.use('/api/auth', authRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/resume', resumeRouter);
 app.use('/api/voice', voiceRouter);

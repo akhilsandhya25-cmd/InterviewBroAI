@@ -120,7 +120,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       decrementInterviewQuota();
 
       // Collect previously asked questions to enforce non-repetition across sessions
-      const pastSessions = storage.getSessions();
+      const pastSessions = storage.getSessions(user?.id);
       const previousQuestions: string[] = [];
       pastSessions.forEach(s => {
         if (s.questions) {
@@ -244,7 +244,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         elapsedSeconds
       };
 
-      storage.saveSession(updatedSession);
+      storage.saveSession(updatedSession, user?.id);
       setActiveSession(updatedSession);
       return { success: true, evaluation };
     } catch (e: any) {
@@ -344,8 +344,8 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         feedbackReport: report
       };
 
-      storage.saveSession(completedSession);
-      storage.saveReport(report);
+      storage.saveSession(completedSession, user?.id);
+      storage.saveReport(report, user?.id);
       setActiveSession(completedSession);
       setActiveReport(report);
 
@@ -370,7 +370,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const loadReport = (reportId: string) => {
-    const reports = storage.getReports();
+    const reports = storage.getReports(user?.id);
     const found = reports.find(r => r.id === reportId || r.sessionId === reportId);
     if (found) {
       setActiveReport(found);

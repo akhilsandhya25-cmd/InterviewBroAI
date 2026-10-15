@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UsageQuota } from '../types';
 import { storage } from '../services/storage';
-import { supabase, isSupabaseConfigured } from '../services/supabase';
+import { authService } from '../services/authService';
+import { isSupabaseConfigured } from '../services/supabase';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -9,10 +10,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   isSupabaseConnected: boolean;
-  login: (email: string, fullName?: string) => Promise<void>;
-  signup: (email: string, password?: string, fullName?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, confirmPassword?: string, fullName?: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<{ message: string; resetCode?: string }>;
+  resetPassword: (email: string, code: string, newPassword: string, confirmNewPassword?: string) => Promise<{ message: string }>;
   logout: () => Promise<void>;
-  updateProfile: (updates: Partial<UserProfile>) => void;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   decrementInterviewQuota: () => boolean;
 }
 
@@ -23,139 +26,93 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [quota, setQuota] = useState<UsageQuota>(() => storage.getQuota());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Restore and verify session on initial mount / page refresh
   useEffect(() => {
-    // If Supabase is configured, check active session
-    if (isSupabaseConfigured && supabase) {
-      supabase.auth.getSession().then((res: any) => {
-        const session = res?.data?.session;
-        if (session?.user) {
-          // Fetch profile from supabase
-          supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
-            .then((profileRes: any) => {
-              if (profileRes?.data) {
-                setUser(profileRes.data);
-                storage.setUser(profileRes.data);
-              }
-            });
-        }
-        setIsLoading(false);
-      });
+    let isMounted = true;
 
-      const { data: authData } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-        if (session?.user) {
-          supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
-            .then((profileRes: any) => {
-              if (profileRes?.data) {
-                setUser(profileRes.data);
-                storage.setUser(profileRes.data);
-              }
-            });
+    authService.restoreSession()
+      .then((restoredUser) => {
+        if (isMounted) {
+          setUser(restoredUser);
+          if (restoredUser) {
+            setQuota(storage.getQuota(restoredUser.id));
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Session restoration check error:', err);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
         }
       });
-      const subscription = authData?.subscription;
 
-      return () => {
-        subscription.unsubscribe();
-      };
-    } else {
-      setIsLoading(false);
-    }
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const login = async (email: string, fullName?: string) => {
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase.auth.signInWithOtp({ email });
-        if (error) throw error;
-      }
-      
-      const existingUser = storage.getUser();
-      const updated: UserProfile = {
-        id: existingUser?.id || `usr-${Date.now()}`,
-        email,
-        full_name: fullName || existingUser?.full_name || email.split('@')[0],
-        role_target: existingUser?.role_target || 'Full Stack Developer',
-        experience_level: existingUser?.experience_level || 'fresher',
-        skills: existingUser?.skills || ['JavaScript', 'React', 'Problem Solving'],
-        interviews_remaining: existingUser?.interviews_remaining ?? 5,
-        total_interviews_taken: existingUser?.total_interviews_taken ?? 0,
-        college: existingUser?.college,
-        graduation_year: existingUser?.graduation_year,
-        career_goals: existingUser?.career_goals,
-        created_at: existingUser?.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      storage.setUser(updated);
-      setUser(updated);
+      const response = await authService.login(email, password);
+      setUser(response.user);
+      setQuota(storage.getQuota(response.user.id));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const signup = async (email: string, _password?: string, fullName?: string) => {
+  const signup = async (email: string, password: string, confirmPassword?: string, fullName?: string) => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured && supabase) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password: _password || 'InterviewBro@2025',
-          options: { data: { full_name: fullName } }
-        });
-        if (error) throw error;
-      }
-
-      const newUser: UserProfile = {
-        id: `usr-${Date.now()}`,
+      const response = await authService.signup({
         email,
-        full_name: fullName || email.split('@')[0],
-        role_target: 'Full Stack Developer',
-        experience_level: 'fresher',
-        skills: ['JavaScript', 'React', 'Problem Solving'],
-        interviews_remaining: 5,
-        total_interviews_taken: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      storage.setUser(newUser);
-      setUser(newUser);
+        password,
+        confirmPassword,
+        fullName: fullName || email.split('@')[0]
+      });
+      setUser(response.user);
+      setQuota(storage.getQuota(response.user.id));
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const forgotPassword = async (email: string) => {
+    return await authService.forgotPassword(email);
+  };
+
+  const resetPassword = async (email: string, code: string, newPassword: string, confirmNewPassword?: string) => {
+    return await authService.resetPassword({ email, code, newPassword, confirmNewPassword });
   };
 
   const logout = async () => {
-    if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut();
+    setIsLoading(true);
+    try {
+      await authService.logout();
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-    storage.setUser(null);
-    setUser(null);
   };
 
-  const updateProfile = (updates: Partial<UserProfile>) => {
+  const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user) return;
-    const updated = { ...user, ...updates, updated_at: new Date().toISOString() };
+    const updated = await authService.updateProfile(updates);
     setUser(updated);
-    storage.setUser(updated);
-
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('profiles').update(updates).eq('id', user.id).then();
-    }
   };
 
   const decrementInterviewQuota = (): boolean => {
-    const updated = storage.decrementQuota();
+    const updated = storage.decrementQuota(user?.id);
     setQuota(updated);
     if (user) {
-      setUser({ ...user, interviews_remaining: updated.interviewsRemaining, total_interviews_taken: updated.interviewsUsed });
+      setUser({
+        ...user,
+        interviews_remaining: updated.interviewsRemaining,
+        total_interviews_taken: updated.interviewsUsed
+      });
     }
     return true;
   };
@@ -170,6 +127,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isSupabaseConnected: isSupabaseConfigured,
         login,
         signup,
+        forgotPassword,
+        resetPassword,
         logout,
         updateProfile,
         decrementInterviewQuota

@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import multer from 'multer';
 import { resumeParser } from '../services/resumeParser.js';
+import { optionalAuth, AuthenticatedRequest } from '../middleware/auth.js';
 
 export const resumeRouter = Router();
 
@@ -11,7 +12,7 @@ const upload = multer({
 });
 
 // POST /api/resume/parse
-resumeRouter.post('/parse', upload.single('resume'), async (req: Request, res: Response) => {
+resumeRouter.post('/parse', optionalAuth, upload.single('resume'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No resume file uploaded' });
