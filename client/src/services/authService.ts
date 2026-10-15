@@ -229,7 +229,12 @@ export const authService = {
   /**
    * Request password reset instructions
    */
-  async forgotPassword(email: string): Promise<{ message: string; resetCode?: string }> {
+  async forgotPassword(email: string): Promise<{ 
+    message: string; 
+    resetCode?: string; 
+    emailDeliveryConfigured?: boolean;
+    configuredProvider?: string;
+  }> {
     if (!email) {
       throw new Error('Please enter your registered email address.');
     }
@@ -240,7 +245,11 @@ export const authService = {
         redirectTo: `${window.location.origin}`
       });
       if (error) throw new Error(error.message);
-      return { message: 'Password recovery email sent. Please check your inbox for instructions.' };
+      return { 
+        message: 'Password recovery email dispatched via Supabase Auth. Please check your inbox for instructions.',
+        emailDeliveryConfigured: true,
+        configuredProvider: 'Supabase Auth'
+      };
     }
 
     // 2. Local Mode
@@ -257,7 +266,9 @@ export const authService = {
 
     return {
       message: data.message,
-      resetCode: data.resetCode
+      resetCode: data.resetCode,
+      emailDeliveryConfigured: Boolean(data.emailDeliveryConfigured),
+      configuredProvider: data.configuredProvider || 'None (Local Sandbox)'
     };
   },
 

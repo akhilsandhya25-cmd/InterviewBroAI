@@ -231,29 +231,58 @@ export const SettingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Supabase Database Connection */}
+      {/* Authentication & Cloud Sync Status */}
       <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <Database className="w-4 h-4 text-emerald-400" />
-            <span>Supabase PostgreSQL Integration</span>
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Authentication & Database Provider</span>
           </h2>
-          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border ${
+          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border self-start sm:self-auto ${
             isSupabaseConnected 
               ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
               : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
           }`}>
-            {isSupabaseConnected ? 'Connected & Synced' : 'Local Offline Mode'}
+            {isSupabaseConnected ? 'Cloud Synced (Supabase Auth)' : 'Local Cryptographic Mode'}
           </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80">
+            <span className="text-slate-400 block mb-0.5 font-medium">Active Provider:</span>
+            <span className="text-white font-semibold">
+              {isSupabaseConnected 
+                ? 'Supabase Auth (Cloud PostgreSQL with RLS)' 
+                : 'Local Secure Engine (PBKDF2-HMAC-SHA512 + Salt)'}
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80">
+            <span className="text-slate-400 block mb-0.5 font-medium">Data Isolation:</span>
+            <span className="text-emerald-400 font-semibold">
+              Strictly isolated per verified User ID
+            </span>
+          </div>
         </div>
 
         <p className="text-xs text-slate-400 leading-relaxed">
           {isSupabaseConnected ? (
             'Your sessions, profiles, and reports are safely persisting in your Supabase PostgreSQL database with Row Level Security (RLS).'
           ) : (
-            'Currently running in local-first demo mode. Data is saved in your browser localStorage. To connect to Supabase, provide VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in client/.env.'
+            'Currently running with the local cryptographic auth engine on your Express backend. User sessions and credentials safely persist across server restarts in .data/. To synchronize across devices using Supabase\'s free tier (50,000 monthly active users):'
           )}
         </p>
+
+        {!isSupabaseConnected && (
+          <div className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2 text-xs">
+            <div className="font-semibold text-slate-200">How to Connect Free Supabase Cloud Auth (3 Steps):</div>
+            <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
+              <li>Create a free account at <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-violet-400 hover:underline">supabase.com</a> and start a new project.</li>
+              <li>Open the <strong>SQL Editor</strong> in Supabase and run the provided <code className="text-cyan-300 bg-slate-900 px-1 py-0.5 rounded">supabase/schema.sql</code> script.</li>
+              <li>Add your project URL & Anon key to <code className="text-cyan-300 bg-slate-900 px-1 py-0.5 rounded">client/.env.local</code> as <code className="text-slate-200">VITE_SUPABASE_URL</code> and <code className="text-slate-200">VITE_SUPABASE_ANON_KEY</code>.</li>
+            </ol>
+          </div>
+        )}
       </div>
 
       {/* Hardware / Media Permissions Test */}

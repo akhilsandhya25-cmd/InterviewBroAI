@@ -10,7 +10,9 @@ import {
   EyeOff, 
   KeyRound, 
   CheckCircle2, 
-  AlertCircle 
+  AlertCircle,
+  Info,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { BrandIcon } from './brand/BrandIcon';
@@ -30,8 +32,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const { login, signup, forgotPassword, resetPassword, isSupabaseConnected } = useAuth();
   
-  // 'login' | 'signup' | 'forgot_password' | 'reset_code'
-  const [mode, setMode] = useState<'login' | 'signup' | 'forgot_password' | 'reset_code'>(initialMode);
+  // 'login' | 'signup' | 'forgot_password' | 'reset_code' | 'signup_success'
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot_password' | 'reset_code' | 'signup_success'>(initialMode);
   
   const [email, setEmail] = useState<string>('');
   const [fullName, setFullName] = useState<string>('');
@@ -45,6 +47,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [emailDeliveryConfigured, setEmailDeliveryConfigured] = useState<boolean>(true);
 
   if (!isOpen) return null;
 
@@ -98,11 +101,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       if (mode === 'signup') {
         await signup(email, password, confirmPassword, fullName);
+        setMode('signup_success');
+        setSuccessMsg(`Welcome to InterviewBro AI, ${fullName.trim()}! Your account has been created successfully.`);
+        setTimeout(() => {
+          onClose();
+          if (onSuccess) onSuccess();
+        }, 1300);
       } else {
         await login(email, password);
+        onClose();
+        if (onSuccess) onSuccess();
       }
-      onClose();
-      if (onSuccess) onSuccess();
     } catch (err: any) {
       setErrorMsg(err.message || 'Authentication failed. Please verify your credentials.');
     } finally {
@@ -124,6 +133,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
     try {
       const res = await forgotPassword(email);
+      setEmailDeliveryConfigured(res.emailDeliveryConfigured ?? false);
       setSuccessMsg(res.message);
       if (res.resetCode) {
         setResetCode(res.resetCode);
@@ -192,9 +202,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-1.5">
               <span>
-                {mode === 'signup' && 'Create Account'}
-                {mode === 'login' && 'Welcome Back'}
-                {(mode === 'forgot_password' || mode === 'reset_code') && 'Reset Password'}
+                {mode === 'signup' && 'Create Free Account'}
+                {mode === 'login' && 'Sign In to InterviewBro'}
+                {(mode === 'forgot_password' || mode === 'reset_code') && 'Password Recovery'}
+                {mode === 'signup_success' && 'Account Created!'}
               </span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/20 text-cyan-300 border border-cyan-500/30">
                 AI Studio
@@ -204,7 +215,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {mode === 'signup' && 'Create your account for personalized AI mock interviews.'}
               {mode === 'login' && 'Sign in to access your dashboard, reports & history.'}
               {mode === 'forgot_password' && 'Enter your registered email to receive reset instructions.'}
-              {mode === 'reset_code' && 'Enter your reset code and choose a new password.'}
+              {mode === 'reset_code' && 'Enter your reset verification code and set a new password.'}
+              {mode === 'signup_success' && 'Preparing your AI interview studio...'}
             </p>
           </div>
         </div>
@@ -237,16 +249,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
+        {/* Sign Up Success Screen */}
+        {mode === 'signup_success' && (
+          <div className="py-6 text-center space-y-4 animate-in zoom-in-95">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-lg">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">
+                Account Created Successfully!
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Welcome, <strong className="text-slate-200">{fullName}</strong>. Loading your private dashboard...
+              </p>
+            </div>
+            <div className="pt-2 flex justify-center">
+              <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+        )}
+
         {/* Error Feedback */}
         {errorMsg && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-            <span>{errorMsg}</span>
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex flex-col gap-1.5">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <span>{errorMsg}</span>
+            </div>
+            {errorMsg.toLowerCase().includes('already exists') && (
+              <button
+                type="button"
+                onClick={() => handleSwitchMode('login')}
+                className="text-left text-xs text-cyan-300 hover:text-cyan-200 font-semibold underline underline-offset-2 ml-6"
+              >
+                Sign in with this email instead →
+              </button>
+            )}
           </div>
         )}
 
         {/* Success Feedback */}
-        {successMsg && (
+        {successMsg && mode !== 'signup_success' && (
           <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <span>{successMsg}</span>
@@ -407,6 +450,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* FORM: Reset Password Step 2 (Enter code + new password) */}
         {mode === 'reset_code' && (
           <form onSubmit={handleConfirmReset} className="space-y-4">
+            {/* Transparent Email Status Callout */}
+            {!emailDeliveryConfigured ? (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-1">
+                <div className="flex items-center gap-1.5 font-semibold text-amber-200">
+                  <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>Local Development Mode (No Email Service)</span>
+                </div>
+                <p className="text-[11px] text-amber-300/90 leading-relaxed">
+                  No SMTP or Supabase Auth mail provider is configured in this local environment. For local testing, your verification code is:
+                </p>
+                <div className="py-1 px-2.5 rounded-lg bg-amber-950/60 border border-amber-500/40 font-mono font-bold text-amber-200 text-center tracking-widest text-sm">
+                  {resetCode || '123456'}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs flex items-start gap-2">
+                <Info className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                <span>A password recovery code has been dispatched. Enter it below:</span>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                 Reset Verification Code
@@ -419,7 +483,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   value={resetCode}
                   onChange={(e) => setResetCode(e.target.value)}
                   placeholder="6-digit reset code"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-violet-500 font-mono tracking-widest text-center"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-violet-500 font-mono tracking-widest text-center font-bold"
                 />
               </div>
             </div>
@@ -486,13 +550,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </form>
         )}
 
-        {/* Security Footer Note */}
+        {/* Security & Provider Footer Note */}
         <div className="mt-5 pt-4 border-t border-slate-800/80 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
           <span>
             {isSupabaseConnected 
-              ? 'Secured by Supabase Auth (PostgreSQL RLS Active)' 
-              : 'Secured with Salted PBKDF2 Password Hashing'}
+              ? 'Secured by Supabase Auth (Cloud PostgreSQL RLS Active)' 
+              : 'Local Sandbox Mode (PBKDF2 Password Hashing Active)'}
           </span>
         </div>
       </div>

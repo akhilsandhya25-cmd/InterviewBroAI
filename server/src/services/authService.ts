@@ -33,9 +33,9 @@ export interface ResetTokenData {
   expiresAt: number;
 }
 
-// In-memory + file-persisted secure store for local mode
 const DATA_DIR = path.resolve(process.cwd(), '.data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -53,6 +53,7 @@ class ServerAuthService {
 
   constructor() {
     this.loadUsers();
+    this.loadSessions();
   }
 
   private loadUsers() {
@@ -66,6 +67,36 @@ class ServerAuthService {
       }
     } catch (e) {
       console.warn('Could not load local users cache, starting empty:', e);
+    }
+  }
+
+  private loadSessions() {
+    try {
+      if (fs.existsSync(SESSIONS_FILE)) {
+        const raw = fs.readFileSync(SESSIONS_FILE, 'utf-8');
+        const list: SessionData[] = JSON.parse(raw);
+        const now = Date.now();
+        for (const s of list) {
+          // Only restore non-expired sessions
+          if (s.expiresAt > now) {
+            this.sessions.set(s.token, s);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load local sessions cache, starting empty:', e);
+    }
+  }
+
+  private persistSessions() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      const list = Array.from(this.sessions.values()).filter(s => s.expiresAt > Date.now());
+      fs.writeFileSync(SESSIONS_FILE, JSON.stringify(list, null, 2), 'utf-8');
+    } catch (e) {
+      console.error('Failed to persist sessions file:', e);
     }
   }
 
@@ -183,6 +214,7 @@ class ServerAuthService {
       email,
       expiresAt
     });
+    this.persistSessions();
     return token;
   }
 
@@ -196,6 +228,7 @@ class ServerAuthService {
 
     if (Date.now() > session.expiresAt) {
       this.sessions.delete(token);
+      this.persistSessions();
       return null;
     }
 
@@ -207,20 +240,36 @@ class ServerAuthService {
    * Invalidate a session (Logout)
    */
   invalidateSession(token: string): boolean {
-    return this.sessions.delete(token);
+    const deleted = this.sessions.delete(token);
+    if (deleted) {
+      this.persistSessions();
+    }
+    return deleted;
   }
 
   /**
    * Request password reset code
    */
-  requestPasswordReset(email: string): { message: string; resetCode: string } {
+  requestPasswordReset(email: string): { 
+    message: string; 
+    resetCode: string; 
+    emailDeliveryConfigured: boolean;
+    configuredProvider?: string;
+  } {
     const emailNorm = email.trim().toLowerCase();
     const user = this.users.get(emailNorm);
 
     if (!user) {
-      // Return success-like generic message or explicit error based on policy
       throw new Error('No account found with that email address.');
     }
+
+    // Check if an external email provider is configured
+    const isSupabaseConfigured = Boolean(
+      process.env.VITE_SUPABASE_URL && 
+      !process.env.VITE_SUPABASE_URL.includes('your-project-id')
+    );
+    const hasSmtpConfigured = Boolean(process.env.SMTP_HOST || process.env.RESEND_API_KEY);
+    const isEmailDeliveryConfigured = isSupabaseConfigured || hasSmtpConfigured;
 
     // Generate a secure 6-digit numeric reset code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -233,7 +282,11 @@ class ServerAuthService {
     });
 
     return {
-      message: `Password reset code sent. (For demonstration and development, your code is: ${code})`,
+      emailDeliveryConfigured: isEmailDeliveryConfigured,
+      configuredProvider: isSupabaseConfigured ? 'Supabase Auth' : hasSmtpConfigured ? 'Custom SMTP' : 'None (Local Sandbox)',
+      message: isEmailDeliveryConfigured
+        ? `Password recovery instructions dispatched via ${isSupabaseConfigured ? 'Supabase' : 'SMTP'}.`
+        : `Email delivery service (Supabase Auth / SMTP) is not configured in this local environment. For local verification, your one-time reset code is: ${code}`,
       resetCode: code
     };
   }

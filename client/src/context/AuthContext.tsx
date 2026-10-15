@@ -12,7 +12,12 @@ interface AuthContextType {
   isSupabaseConnected: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, confirmPassword?: string, fullName?: string) => Promise<void>;
-  forgotPassword: (email: string) => Promise<{ message: string; resetCode?: string }>;
+  forgotPassword: (email: string) => Promise<{ 
+    message: string; 
+    resetCode?: string; 
+    emailDeliveryConfigured?: boolean; 
+    configuredProvider?: string; 
+  }>;
   resetPassword: (email: string, code: string, newPassword: string, confirmNewPassword?: string) => Promise<{ message: string }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
