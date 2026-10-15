@@ -23,10 +23,10 @@ const DEFAULT_USER: UserProfile = {
 };
 
 const DEFAULT_QUOTA: UsageQuota = {
-  freeInterviewsTotal: 5,
-  interviewsUsed: 1,
-  interviewsRemaining: 4,
-  planName: 'Free Tier'
+  freeInterviewsTotal: 9999,
+  interviewsUsed: 0,
+  interviewsRemaining: 9999,
+  planName: 'Placement Unlimited'
 };
 
 // Seed realistic sample sessions so the dashboard immediately shows realistic metrics
@@ -134,7 +134,17 @@ export const storage = {
   getQuota(): UsageQuota {
     try {
       const data = localStorage.getItem(QUOTA_KEY);
-      return data ? JSON.parse(data) : DEFAULT_QUOTA;
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed.interviewsRemaining < 100) {
+          parsed.interviewsRemaining = 9999;
+          parsed.freeInterviewsTotal = 9999;
+          parsed.planName = 'Placement Unlimited';
+          localStorage.setItem(QUOTA_KEY, JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+      return DEFAULT_QUOTA;
     } catch {
       return DEFAULT_QUOTA;
     }
@@ -142,18 +152,16 @@ export const storage = {
 
   decrementQuota(): UsageQuota {
     const quota = this.getQuota();
-    if (quota.interviewsRemaining > 0) {
-      quota.interviewsRemaining -= 1;
-      quota.interviewsUsed += 1;
-      try {
-        localStorage.setItem(QUOTA_KEY, JSON.stringify(quota));
-        const user = this.getUser();
-        user.interviews_remaining = quota.interviewsRemaining;
-        user.total_interviews_taken += 1;
-        this.setUser(user);
-      } catch (e) {
-        console.error('Failed to update quota', e);
-      }
+    quota.interviewsUsed += 1;
+    quota.interviewsRemaining = 9999;
+    try {
+      localStorage.setItem(QUOTA_KEY, JSON.stringify(quota));
+      const user = this.getUser();
+      user.interviews_remaining = 9999;
+      user.total_interviews_taken = quota.interviewsUsed;
+      this.setUser(user);
+    } catch (e) {
+      console.error('Failed to update quota', e);
     }
     return quota;
   },

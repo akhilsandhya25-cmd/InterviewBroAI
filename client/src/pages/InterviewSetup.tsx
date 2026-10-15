@@ -64,12 +64,6 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
   const companyCategory: CompanyCategory = selectedPreset?.category || 'Product Unicorn';
 
   const handleStartInterview = async () => {
-    if (quota.interviewsRemaining <= 0) {
-      alert('You have used your 5 free mock interview sessions. Check our plans to continue practicing.');
-      onNavigate('pricing');
-      return;
-    }
-
     const config: InterviewConfig = {
       role,
       experienceLevel,
@@ -112,9 +106,9 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
 
         {/* Quota Badge */}
         <div className="self-start sm:self-auto flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-medium">
-          <Flame className="w-4 h-4 text-amber-400" />
+          <Flame className="w-4 h-4 text-emerald-400" />
           <span className="text-slate-300">
-            Allowance: <strong className="text-white">{quota.interviewsRemaining}</strong> / {quota.freeInterviewsTotal} Free
+            Allowance: <strong className="text-emerald-400">Unlimited</strong> (Limits Removed)
           </span>
         </div>
       </div>

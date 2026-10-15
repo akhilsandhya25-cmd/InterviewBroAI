@@ -119,19 +119,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isOp
             <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/10 rounded-full blur-xl group-hover:bg-violet-600/20 transition-all pointer-events-none"></div>
 
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold uppercase text-violet-400 flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> Free Quota
+              <span className="text-[11px] font-semibold uppercase text-emerald-400 flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Practice Quota
               </span>
-              <span className="text-xs font-bold text-white">
-                {quota.interviewsRemaining} of {quota.freeInterviewsTotal} left
+              <span className="text-xs font-bold text-emerald-400">
+                Unlimited
               </span>
             </div>
 
             {/* Progress bar */}
             <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-2.5">
               <div 
-                className="bg-gradient-to-r from-blue-500 to-violet-500 h-full rounded-full transition-all duration-300"
-                style={{ width: `${(quota.interviewsRemaining / quota.freeInterviewsTotal) * 100}%` }}
+                className="bg-gradient-to-r from-emerald-500 to-violet-500 h-full rounded-full transition-all duration-300 w-full"
               ></div>
             </div>
 

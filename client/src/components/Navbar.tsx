@@ -80,9 +80,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen, 
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-700/80 hover:border-violet-500/50 cursor-pointer transition-colors text-xs font-medium"
             title="Free Tier Allowance"
           >
-            <Flame className="w-4 h-4 text-amber-400 fill-amber-400/20" />
+            <Flame className="w-4 h-4 text-emerald-400 fill-emerald-400/20" />
             <span className="text-slate-300">
-              <strong className="text-white">{quota.interviewsRemaining}</strong> / {quota.freeInterviewsTotal} Free
+              <strong className="text-emerald-400">Unlimited</strong> Access
             </span>
           </div>
 

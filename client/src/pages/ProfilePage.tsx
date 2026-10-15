@@ -74,9 +74,9 @@ export const ProfilePage: React.FC = () => {
 
         {/* Free Quota Badge */}
         <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-medium self-start sm:self-auto">
-          <Flame className="w-4 h-4 text-amber-400" />
+          <Flame className="w-4 h-4 text-emerald-400" />
           <span className="text-slate-300">
-            Quota: <strong className="text-white">{quota.interviewsRemaining}</strong> / {quota.freeInterviewsTotal} Free Sessions
+            Quota: <strong className="text-emerald-400">Unlimited</strong> Practice Sessions
           </span>
         </div>
       </div>

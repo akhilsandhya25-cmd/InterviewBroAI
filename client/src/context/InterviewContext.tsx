@@ -116,13 +116,8 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const startNewSession = async (config: InterviewConfig): Promise<boolean> => {
     setIsGeneratingQuestions(true);
     try {
-      // Deduct quota
-      const canProceed = decrementInterviewQuota();
-      if (!canProceed) {
-        alert('You have reached the free interview limit (5/5 used). Please upgrade to continue practicing.');
-        setIsGeneratingQuestions(false);
-        return false;
-      }
+      // Record session without blocking
+      decrementInterviewQuota();
 
       // Generate questions from API or smart fallback
       const generatedQuestions = await api.generateQuestions(config);

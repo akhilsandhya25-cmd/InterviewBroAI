@@ -255,11 +255,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const handleSubmit = async () => {
     if (isEvaluating || isSubmitting) return;
 
-    if (wordCount < 4) {
-      const msg = isVoiceOnly
-        ? 'Your spoken response is too short. Please speak a complete answer (at least 4 words) explaining your technical reasoning before submitting.'
-        : 'Please provide a complete answer (at least 4 words) explaining your reasoning before submitting.';
-      setSubmissionError(msg);
+    if (!effectiveAnswer) {
+      setSubmissionError('Please provide or speak an answer before submitting.');
       return;
     }
 
@@ -905,9 +902,9 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80 text-xs">
               <div className="flex items-center gap-3">
                 <span className={`text-[11px] font-medium ${
-                  wordCount >= 4 ? 'text-emerald-400' : 'text-slate-500'
+                  wordCount > 0 ? 'text-emerald-400' : 'text-slate-500'
                 }`}>
-                  Answer: <strong>{wordCount} words</strong> {wordCount < 4 && '(min. 4 required)'}
+                  Answer: <strong>{wordCount} {wordCount === 1 ? 'word' : 'words'}</strong>
                 </span>
 
                 {effectiveAnswer && (

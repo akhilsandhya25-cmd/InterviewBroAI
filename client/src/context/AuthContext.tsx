@@ -143,10 +143,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const decrementInterviewQuota = (): boolean => {
-    const currentQuota = storage.getQuota();
-    if (currentQuota.interviewsRemaining <= 0) {
-      return false;
-    }
     const updated = storage.decrementQuota();
     setQuota(updated);
     if (user) {

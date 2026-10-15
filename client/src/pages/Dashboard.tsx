@@ -172,13 +172,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
         {/* Free Sessions Left */}
         <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-slate-400">Free Allowance</div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-              {quota.interviewsRemaining}<span className="text-sm font-semibold text-slate-500"> left</span>
+            <div className="text-xs font-medium text-slate-400">Interview Allowance</div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-1">
+              Unlimited
             </div>
-            <div className="text-[11px] text-amber-400 mt-1 flex items-center gap-1">
-              <Flame className="w-3 h-3" />
-              <span>Free Student Tier</span>
+            <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
+              <Flame className="w-3 h-3 text-emerald-400" />
+              <span>Limits Removed</span>
             </div>
           </div>
           <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
