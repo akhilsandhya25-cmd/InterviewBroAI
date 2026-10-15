@@ -15,10 +15,14 @@ import { HistoryPage } from './pages/HistoryPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PricingPage } from './pages/PricingPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { IntroSplashAnimation } from './components/IntroSplashAnimation';
 
 const AppContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const { activeReport } = useInterview();
+
+  // Intro Splash Animation State
+  const [showSplash, setShowSplash] = useState<boolean>(true);
 
   // Navigation route: 'landing' | 'dashboard' | 'setup' | 'interview' | 'reports' | 'resume' | 'history' | 'profile' | 'pricing' | 'settings'
   const [currentRoute, setCurrentRoute] = useState<string>('dashboard');
@@ -135,6 +139,11 @@ const AppContent: React.FC = () => {
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
       />
+
+      {/* Intro Animation Before Webapp Starts */}
+      {showSplash && (
+        <IntroSplashAnimation onComplete={() => setShowSplash(false)} />
+      )}
     </div>
   );
 };
