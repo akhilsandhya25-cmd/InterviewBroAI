@@ -80,12 +80,14 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const preflightVideoRef = useRef<HTMLVideoElement | null>(null);
   const recognitionRef = useRef<any>(null);
+  const evaluationSectionRef = useRef<HTMLDivElement | null>(null);
 
   // Sync candidateAnswer to state when moving between questions
   useEffect(() => {
-    if (currentQuestion?.candidateAnswer) {
-      setSpokenTranscript(currentQuestion.candidateAnswer);
-      setCandidateTypedText(currentQuestion.candidateAnswer);
+    const q = activeSession?.questions[currentQuestionIndex];
+    if (q?.candidateAnswer) {
+      setSpokenTranscript(q.candidateAnswer);
+      setCandidateTypedText(q.candidateAnswer);
       setInterimText('');
     } else {
       setSpokenTranscript('');
@@ -94,7 +96,10 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     }
     setSpeechError(null);
     setSubmissionError(null);
-  }, [currentQuestionIndex, currentQuestion]);
+    if (recognitionRef.current?.reset) {
+      recognitionRef.current.reset();
+    }
+  }, [currentQuestionIndex, activeSession?.id]);
 
   // Hook up video stream to local HTML video elements (only in video mode)
   useEffect(() => {
@@ -194,11 +199,13 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     }
 
     setSpeechError(null);
-    setSubmissionError(null);
     setIsListening(true);
 
     recognitionRef.current.start(
       (fullText: string, interimChunk: string, isFinal: boolean) => {
+        if (fullText) {
+          setSubmissionError(null);
+        }
         setSpokenTranscript(fullText);
         // In video mode, update typed text as well if candidate isn't actively typing
         if (!isVoiceOnly && !candidateTypedText) {
@@ -225,7 +232,14 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
   const stopSpeechCapture = () => {
     if (recognitionRef.current) {
+      const latest = recognitionRef.current.getLatestTranscript?.() || '';
       recognitionRef.current.stop();
+      if (latest) {
+        setSpokenTranscript(latest);
+        if (!isVoiceOnly && !candidateTypedText) {
+          setCandidateTypedText(latest);
+        }
+      }
     }
     setIsListening(false);
     setInterimText('');
@@ -255,18 +269,48 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const handleSubmit = async () => {
     if (isEvaluating || isSubmitting) return;
 
-    if (!effectiveAnswer) {
-      setSubmissionError('Please provide or speak an answer before submitting.');
+    // 1. Immediately halt recording and TTS to freeze audio states
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsListening(false);
+    tts.stop();
+
+    // 2. Resolve latest transcript from service or React state
+    const serviceTranscript = recognitionRef.current?.getLatestTranscript?.() || '';
+    const resolvedSpoken = (
+      serviceTranscript ||
+      spokenTranscript ||
+      interimText ||
+      ''
+    ).trim();
+
+    if (resolvedSpoken && resolvedSpoken !== spokenTranscript) {
+      setSpokenTranscript(resolvedSpoken);
+    }
+    setInterimText('');
+
+    const effectiveCandidateAnswer = (
+      isVoiceOnly
+        ? resolvedSpoken
+        : (candidateTypedText.trim() || resolvedSpoken)
+    ).trim();
+
+    // 3. Validation: if empty, show helpful message and do not submit
+    if (!effectiveCandidateAnswer) {
+      setSubmissionError(
+        isVoiceOnly
+          ? 'No spoken answer was detected. Please click "Start Speaking Answer", speak clearly into your microphone, and then click submit.'
+          : 'Please provide or speak an answer before submitting.'
+      );
       return;
     }
 
     setSubmissionError(null);
     setIsSubmitting(true);
-    stopSpeechCapture();
-    tts.stop();
 
     try {
-      const res = await submitAnswer(effectiveAnswer);
+      const res = await submitAnswer(effectiveCandidateAnswer);
       if (!res.success) {
         setSubmissionError(res.error || 'Evaluation failed. Please try submitting again.');
       } else {
@@ -279,17 +323,27 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     }
   };
 
+  const handleSubmitRef = useRef(handleSubmit);
+  handleSubmitRef.current = handleSubmit;
+
   // Support Ctrl+Enter / Cmd+Enter keyboard shortcut for answer submission
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
-        handleSubmit();
+        handleSubmitRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [effectiveAnswer, isEvaluating, isSubmitting, isVoiceOnly, wordCount]);
+  }, []);
+
+  // Smooth scroll to evaluation feedback when available
+  useEffect(() => {
+    if (currentQuestion?.evaluation && evaluationSectionRef.current) {
+      evaluationSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [currentQuestion?.evaluation]);
 
   const handleFinishEarly = async () => {
     if (confirm('Finish this interview and generate your performance report?')) {
@@ -883,18 +937,24 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
             {/* Inline Submission Error Banner */}
             {submissionError && (
-              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-3">
+              <div 
+                role="alert"
+                aria-live="assertive"
+                className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-center justify-between gap-3 shadow-lg"
+              >
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                  <span>{submissionError}</span>
+                  <span className="font-semibold">{submissionError}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 text-[11px] font-semibold shrink-0"
-                >
-                  Retry Submit
-                </button>
+                {effectiveAnswer && (
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="px-2.5 py-1 rounded-lg bg-rose-500/25 hover:bg-rose-500/35 text-white text-[11px] font-semibold shrink-0 transition-colors"
+                  >
+                    Retry Submit
+                  </button>
+                )}
               </div>
             )}
 
@@ -931,7 +991,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   {isEvaluating || isSubmitting ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Evaluating Answer...</span>
+                      <span>{isVoiceOnly ? 'Evaluating Spoken Answer...' : 'Evaluating Answer...'}</span>
                     </>
                   ) : (
                     <>
@@ -996,7 +1056,10 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
           {/* Evaluation Feedback Panel */}
           {currentQuestion.evaluation && (
-            <div className="p-5 rounded-2xl bg-slate-900/90 border border-emerald-500/40 shadow-xl space-y-4 transition-all">
+            <div 
+              ref={evaluationSectionRef}
+              className="p-5 rounded-2xl bg-slate-900/90 border border-emerald-500/40 shadow-xl space-y-4 transition-all"
+            >
               {currentQuestion.evaluation.status === 'unavailable' ? (
                 <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
                   <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">

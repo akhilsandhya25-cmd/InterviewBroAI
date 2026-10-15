@@ -12,6 +12,8 @@ export interface SpeechRecognitionService {
   stop: () => void;
   abort: () => void;
   isListening: () => boolean;
+  getLatestTranscript?: () => string;
+  reset?: () => void;
 }
 
 export const createSpeechRecognition = (): SpeechRecognitionService => {
@@ -25,19 +27,26 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
       start: () => {},
       stop: () => {},
       abort: () => {},
-      isListening: () => false
+      isListening: () => false,
+      getLatestTranscript: () => '',
+      reset: () => {}
     };
   }
 
   let recognition: any = null;
   let shouldBeListening = false;
   let fullAccumulatedTranscript = '';
+  let currentInterimChunk = '';
+  let activeOnTranscript: ((full: string, interim: string, isFinal: boolean) => void) | null = null;
 
   return {
     isSupported: true,
 
     start: (onTranscript, onError, onStatusChange) => {
       try {
+        activeOnTranscript = onTranscript;
+        shouldBeListening = true;
+
         if (recognition) {
           try {
             recognition.abort();
@@ -46,76 +55,83 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
           }
         }
 
-        recognition = new SpeechRecognitionClass();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-        recognition.maxAlternatives = 1;
-        shouldBeListening = true;
+        const setupRecognition = () => {
+          const rec = new SpeechRecognitionClass();
+          rec.continuous = true;
+          rec.interimResults = true;
+          rec.lang = 'en-US';
+          rec.maxAlternatives = 1;
 
-        if (onStatusChange) onStatusChange('listening');
+          rec.onresult = (event: any) => {
+            let interim = '';
+            let newFinal = '';
 
-        recognition.onresult = (event: any) => {
-          let interimChunk = '';
-          let newFinalChunk = '';
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const result = event.results[i];
-            const text = result[0]?.transcript || '';
-            if (result.isFinal) {
-              newFinalChunk += text;
-            } else {
-              interimChunk += text;
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              const result = event.results[i];
+              const text = result[0]?.transcript || '';
+              if (result.isFinal) {
+                newFinal += text;
+              } else {
+                interim += text;
+              }
             }
-          }
 
-          if (newFinalChunk) {
-            fullAccumulatedTranscript = (fullAccumulatedTranscript + ' ' + newFinalChunk.trim()).trim();
-            onTranscript(fullAccumulatedTranscript, '', true);
-          } else if (interimChunk) {
-            onTranscript(fullAccumulatedTranscript, interimChunk.trim(), false);
-          }
-        };
+            currentInterimChunk = interim.trim();
 
-        recognition.onerror = (event: any) => {
-          const err = event.error || 'unknown';
-          console.warn('Speech recognition event error:', err);
+            if (newFinal) {
+              fullAccumulatedTranscript = (fullAccumulatedTranscript + ' ' + newFinal.trim()).trim();
+              currentInterimChunk = '';
+              onTranscript(fullAccumulatedTranscript, '', true);
+            } else {
+              onTranscript(fullAccumulatedTranscript, currentInterimChunk, false);
+            }
+          };
 
-          let userMsg = 'Microphone speech capture encountered an error.';
-          if (err === 'no-speech') {
-            userMsg = 'No speech was detected. Please check that your microphone is unmuted and speak clearly.';
-          } else if (err === 'audio-capture') {
-            userMsg = 'No microphone was found or microphone is busy in another app.';
-          } else if (err === 'not-allowed') {
-            userMsg = 'Microphone permission was denied. Please allow microphone access in your browser settings to proceed.';
-          } else if (err === 'network') {
-            userMsg = 'Network error occurred during speech-to-text recognition.';
-          }
+          rec.onerror = (event: any) => {
+            const err = event.error || 'unknown';
+            console.warn('Speech recognition event error:', err);
 
-          // If no-speech error, keep listening instead of aborting
-          if (err === 'no-speech' && shouldBeListening) {
-            return;
-          }
+            let userMsg = 'Microphone speech capture encountered an error.';
+            if (err === 'no-speech') {
+              userMsg = 'No speech was detected. Please check that your microphone is unmuted and speak clearly.';
+            } else if (err === 'audio-capture') {
+              userMsg = 'No microphone was found or microphone is busy in another app.';
+            } else if (err === 'not-allowed') {
+              userMsg = 'Microphone permission was denied. Please allow microphone access in your browser settings to proceed.';
+            } else if (err === 'network') {
+              userMsg = 'Network error occurred during speech-to-text recognition.';
+            }
 
-          onError(err, userMsg);
-        };
+            // If no-speech error, keep listening instead of aborting
+            if (err === 'no-speech' && shouldBeListening) {
+              return;
+            }
 
-        recognition.onend = () => {
-          // If browser closed the recognition stream unexpectedly but candidate is still speaking, auto-restart
-          if (shouldBeListening) {
-            try {
-              if (onStatusChange) onStatusChange('processing');
-              recognition.start();
-              if (onStatusChange) onStatusChange('listening');
-            } catch (e) {
-              shouldBeListening = false;
+            onError(err, userMsg);
+          };
+
+          rec.onend = () => {
+            // If browser closed the recognition stream unexpectedly but candidate is still speaking, auto-restart
+            if (shouldBeListening) {
+              try {
+                if (onStatusChange) onStatusChange('processing');
+                recognition = setupRecognition();
+                recognition.start();
+                if (onStatusChange) onStatusChange('listening');
+              } catch (e) {
+                shouldBeListening = false;
+                if (onStatusChange) onStatusChange('stopped');
+              }
+            } else {
               if (onStatusChange) onStatusChange('stopped');
             }
-          } else {
-            if (onStatusChange) onStatusChange('stopped');
-          }
+          };
+
+          return rec;
         };
 
+        recognition = setupRecognition();
+        if (onStatusChange) onStatusChange('listening');
         recognition.start();
       } catch (err: any) {
         shouldBeListening = false;
@@ -127,6 +143,14 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
 
     stop: () => {
       shouldBeListening = false;
+      // Guarantee that any uncommitted interim speech is committed into full transcript immediately
+      if (currentInterimChunk) {
+        fullAccumulatedTranscript = (fullAccumulatedTranscript + ' ' + currentInterimChunk).trim();
+        if (activeOnTranscript) {
+          activeOnTranscript(fullAccumulatedTranscript, '', true);
+        }
+        currentInterimChunk = '';
+      }
       if (recognition) {
         try {
           recognition.stop();
@@ -139,6 +163,7 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
     abort: () => {
       shouldBeListening = false;
       fullAccumulatedTranscript = '';
+      currentInterimChunk = '';
       if (recognition) {
         try {
           recognition.abort();
@@ -146,6 +171,15 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
           console.warn('Error calling recognition.abort:', e);
         }
       }
+    },
+
+    getLatestTranscript: () => {
+      return (fullAccumulatedTranscript + ' ' + currentInterimChunk).trim();
+    },
+
+    reset: () => {
+      fullAccumulatedTranscript = '';
+      currentInterimChunk = '';
     },
 
     isListening: () => shouldBeListening
