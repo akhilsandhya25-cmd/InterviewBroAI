@@ -24,6 +24,7 @@ import {
 import { COMPANY_PRESETS } from '../data/presets';
 import { BrandIcon } from '../components/brand/BrandIcon';
 import { BrandLogo } from '../components/brand/BrandLogo';
+import { CompanyBadge } from '../components/CompanyBadge';
 
 interface LandingPageProps {
   onStartPracticing: () => void;
@@ -264,7 +265,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPracticing, onN
                 className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 hover:shadow-lg transition-all cursor-pointer group"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-2xl">{preset.logo}</span>
+                  <CompanyBadge name={preset.name} code={preset.code} size="md" />
                   <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-400">
                     {preset.category}
                   </span>

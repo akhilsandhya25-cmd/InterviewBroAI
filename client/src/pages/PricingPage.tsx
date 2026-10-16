@@ -37,7 +37,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
       <div className="p-6 rounded-2xl bg-gradient-to-r from-violet-950/40 via-slate-900 to-blue-950/40 border border-violet-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-lg">
-            🔥
+            <Sparkles className="w-6 h-6 text-amber-400" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-white">Your Current Quota Allowance</h3>

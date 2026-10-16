@@ -30,6 +30,7 @@ export interface CompanyPreset {
   name: string;
   category: CompanyCategory;
   tagline: string;
+  code?: string;
   logo: string;
   color: string;
   popularRoles: string[];

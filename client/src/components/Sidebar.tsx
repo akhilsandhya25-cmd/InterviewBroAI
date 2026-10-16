@@ -28,7 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isOp
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'setup', label: 'Start Mock Interview', icon: Video, badge: 'AI Live' },
+    { id: 'setup', label: 'Start Mock Interview', icon: Video, badge: 'Live' },
     { id: 'resume', label: 'Resume ATS Analyzer', icon: FileText, badge: 'New' },
     { id: 'history', label: 'Session History', icon: History },
     { id: 'profile', label: 'Candidate Profile', icon: UserCheck },

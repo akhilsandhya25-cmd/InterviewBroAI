@@ -15,7 +15,7 @@ import {
   Pause, 
   Play, 
   AlertTriangle,
-  Bot,
+  UserCheck,
   Video,
   Shield,
   RotateCcw,
@@ -207,7 +207,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const testSpeaker = () => {
     if (isTestingSpeaker) return;
     setIsTestingSpeaker(true);
-    tts.speak('Audio check. The AI interviewer voice is working properly.', {
+    tts.speak('Audio check. The interviewer audio is working properly.', {
       rate: 1.0,
       onEnd: () => setIsTestingSpeaker(false),
       onError: () => setIsTestingSpeaker(false)
@@ -426,7 +426,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             Distraction-Free Interview Practice
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto">
-            You are ready to begin. The AI will present questions on screen, and you will type your answers. Full AI STAR evaluations and scoring are enabled.
+            You are ready to begin. The interviewer will present questions on screen, and you can formulate and submit your responses. Structured STAR evaluation and objective competency scoring are active.
           </p>
 
           <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 max-w-md mx-auto space-y-3 text-left">
@@ -481,8 +481,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
             {isVoiceOnly 
-              ? 'In this dedicated voice mode, all questions are spoken aloud and you answer verbally via microphone. Please verify your microphone and speakers below.'
-              : 'In InterviewBro AI video interviews, verify your camera stream and microphone input before entering the live session.'}
+              ? 'In this dedicated voice mode, all questions are spoken aloud and you respond verbally via your microphone. Please verify your audio settings below.'
+              : 'Verify your camera stream and microphone input below before entering your live mock interview session.'}
           </p>
         </div>
 
@@ -795,7 +795,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 <VoiceInterviewerOrb
                   state={orbState}
                   size="xl"
-                  interviewerName="AI Principal Interviewer"
+                  interviewerName="Lead Technical Interviewer"
                   company={activeSession.config.companyName}
                 />
 
@@ -859,7 +859,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 <VoiceInterviewerOrb
                   state={orbState}
                   size="xl"
-                  interviewerName="AI Principal Interviewer"
+                  interviewerName="Lead Technical Interviewer"
                   company={activeSession.config.companyName}
                 />
 
@@ -867,9 +867,9 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   <AudioVisualizer stream={videoStream} isActive={isMicOn && !isPaused && isListening} />
                   <div className="text-[11px] text-slate-400 pt-1">
                     {isSpeakingQuestion 
-                      ? 'Listen to the question... (Mic muted during interviewer speech)' 
+                      ? 'Listen to the question... (Microphone pauses while interviewer speaks)' 
                       : isListening 
-                      ? 'Listening to your microphone — speak your answer clearly' 
+                      ? 'Listening to your response — speak clearly' 
                       : 'Microphone on standby'}
                   </div>
                 </div>
@@ -906,10 +906,10 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 space-y-2">
                 <div className="text-white font-semibold flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                  <span>Voice-Only Mode Rules</span>
+                  <span>Voice Interview Guidelines</span>
                 </div>
                 <p className="leading-relaxed">
-                  The AI evaluates your verbal explanation, technical terminology, and reasoning.
+                  Your response is evaluated on technical correctness, structured reasoning, and communication clarity.
                 </p>
                 <div className="pt-1 border-t border-slate-800/60">
                   <button
@@ -964,7 +964,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   <VoiceInterviewerOrb
                     state={orbState}
                     size="sm"
-                    interviewerName="AI Interviewer"
+                    interviewerName="Lead Interviewer"
                     company={activeSession.config.companyName}
                   />
                 </div>
@@ -1018,10 +1018,10 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-violet-300">
-                  <Bot className="w-4 h-4" />
+                  <UserCheck className="w-4 h-4" />
                 </div>
                 <span className="text-xs font-bold text-violet-300 uppercase tracking-wider">
-                  AI Interviewer {isSpeakingQuestion && '(Speaking...)'}
+                  Lead Interviewer {isSpeakingQuestion && '(Speaking...)'}
                 </span>
               </div>
 
@@ -1045,7 +1045,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold text-[10px] flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-amber-400" />
-                  <span>AI Follow-Up Challenge</span>
+                  <span>Follow-Up Deep Dive</span>
                 </span>
                 {currentQuestion.followUpReason && (
                   <span className="text-[11px] text-slate-300 italic">
@@ -1266,7 +1266,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   {isEvaluating || isSubmitting ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>{isVoiceOnly ? 'Evaluating Spoken Answer...' : 'Evaluating Answer...'}</span>
+                      <span>{isVoiceOnly ? 'Reviewing Spoken Response...' : 'Reviewing Response...'}</span>
                     </>
                   ) : (
                     <>
@@ -1286,10 +1286,10 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                     disabled={isEvaluating || isSubmitting}
                     onClick={requestFollowUp}
                     className="px-3.5 py-2.5 rounded-xl font-medium text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors flex items-center gap-1.5"
-                    title="Challenge this answer with a realistic follow-up question"
+                    title="Explore deeper with a realistic follow-up question"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Challenge with Follow-Up</span>
+                    <span>Explore Follow-Up Question</span>
                   </button>
                 )}
               </div>
@@ -1339,7 +1339,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
                   <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
                     <AlertCircle className="w-4 h-4" />
-                    <span>AI Evaluation Unavailable (Local / Unconfigured Mode)</span>
+                    <span>Automated Evaluation Offline (Local / Unconfigured Mode)</span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
                     {currentQuestion.evaluation.unavailableReason || currentQuestion.evaluation.feedback}
@@ -1354,7 +1354,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span className="text-xs font-bold text-white uppercase tracking-wider">Evaluation Scorecard</span>
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Performance & Evaluation Review</span>
                     </div>
                     <div className="text-xl font-black text-emerald-400">
                       {currentQuestion.evaluation.score}<span className="text-xs text-slate-500">/100</span>
@@ -1365,7 +1365,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   {currentQuestion.evaluation.rubricBreakdown && (
                     <div className="space-y-2 pt-1">
                       <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        5-Pillar Structured Evaluation Rubric:
+                        5-Pillar Competency Rubric:
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                         {/* Pillar 1: Technical Depth & Accuracy */}
@@ -1545,7 +1545,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                         className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-violet-600/30 hover:bg-violet-600/50 text-violet-200 border border-violet-500/40 transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
                       >
                         <Sparkles className="w-3 h-3 text-amber-300" />
-                        <span>Challenge with Follow-Up</span>
+                        <span>Explore Follow-Up Question</span>
                       </button>
                     </div>
                   )}

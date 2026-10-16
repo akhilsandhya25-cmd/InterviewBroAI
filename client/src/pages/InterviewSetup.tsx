@@ -20,8 +20,14 @@ import {
   AlertCircle,
   CheckCircle2,
   Volume2,
-  RotateCcw
+  RotateCcw,
+  Terminal,
+  Users,
+  UserCheck,
+  Cpu,
+  Compass
 } from 'lucide-react';
+import { CompanyBadge } from '../components/CompanyBadge';
 import { 
   COMPANY_PRESETS, 
   POPULAR_ROLES, 
@@ -211,7 +217,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xl">{preset.logo}</span>
+                  <CompanyBadge name={preset.name} code={preset.code} size="sm" />
                   {isSelected && <Check className="w-3.5 h-3.5 text-violet-400" />}
                 </div>
                 <div className="font-semibold text-xs text-white truncate">{preset.name.split('(')[0]}</div>
@@ -324,7 +330,19 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span>{type.icon}</span>
+                      {type.id === 'technical' ? (
+                        <Terminal className="w-4 h-4 text-blue-400 shrink-0" />
+                      ) : type.id === 'behavioral' ? (
+                        <Users className="w-4 h-4 text-emerald-400 shrink-0" />
+                      ) : type.id === 'hr' ? (
+                        <UserCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                      ) : type.id === 'system_design' ? (
+                        <Cpu className="w-4 h-4 text-cyan-400 shrink-0" />
+                      ) : type.id === 'managerial' ? (
+                        <Compass className="w-4 h-4 text-rose-400 shrink-0" />
+                      ) : (
+                        <Layers className="w-4 h-4 text-violet-400 shrink-0" />
+                      )}
                       <span className="text-xs font-bold text-white">{type.label}</span>
                     </div>
                     {isSelected && <Check className="w-3.5 h-3.5 text-amber-400" />}

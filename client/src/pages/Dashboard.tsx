@@ -22,6 +22,7 @@ import { storage } from '../services/storage';
 import { COMPANY_PRESETS } from '../data/presets';
 import { InterviewSession } from '../types';
 import { BrandIcon } from '../components/brand/BrandIcon';
+import { CompanyBadge } from '../components/CompanyBadge';
 
 interface DashboardProps {
   onNavigate: (route: string) => void;
@@ -335,7 +336,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
               className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-violet-500/50 hover:bg-slate-900 transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl">{preset.logo}</span>
+                <CompanyBadge name={preset.name} code={preset.code} size="sm" />
                 <span className="text-[10px] font-bold text-slate-400 group-hover:text-violet-400 transition-colors">
                   Launch →
                 </span>

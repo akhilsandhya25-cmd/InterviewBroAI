@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Sparkles, Mic, Volume2, Bot, BrainCircuit } from 'lucide-react';
+import { Sparkles, Mic, Volume2, UserCheck, BrainCircuit } from 'lucide-react';
 
 export type OrbState = 'idle' | 'thinking' | 'speaking' | 'listening';
 
@@ -15,7 +15,7 @@ interface VoiceInterviewerOrbProps {
 export const VoiceInterviewerOrb: React.FC<VoiceInterviewerOrbProps> = ({
   state = 'idle',
   size = 'lg',
-  interviewerName = 'InterviewBro AI Interviewer',
+  interviewerName = 'Lead Technical Interviewer',
   company,
   audioLevel = 0,
   className = ''
@@ -36,7 +36,7 @@ export const VoiceInterviewerOrb: React.FC<VoiceInterviewerOrbProps> = ({
         return {
           glow: 'from-cyan-500/30 via-violet-600/40 to-blue-500/20',
           ring: 'border-cyan-400 border-t-violet-400',
-          label: 'AI Thinking & Analyzing',
+          label: 'Reviewing Response',
           badgeBg: 'bg-violet-500/20 text-cyan-300 border-cyan-500/40',
           icon: BrainCircuit,
           textColor: 'text-cyan-300'
@@ -54,7 +54,7 @@ export const VoiceInterviewerOrb: React.FC<VoiceInterviewerOrbProps> = ({
         return {
           glow: 'from-cyan-400/40 via-emerald-500/30 to-teal-400/20',
           ring: 'border-cyan-400 border-t-emerald-300',
-          label: 'Listening to Your Answer',
+          label: 'Listening to Your Response',
           badgeBg: 'bg-cyan-500/20 text-cyan-200 border-cyan-400/50',
           icon: Mic,
           textColor: 'text-cyan-300'
@@ -66,7 +66,7 @@ export const VoiceInterviewerOrb: React.FC<VoiceInterviewerOrbProps> = ({
           ring: 'border-slate-700 border-t-violet-500/60',
           label: 'Interviewer Ready',
           badgeBg: 'bg-slate-800 text-slate-300 border-slate-700',
-          icon: Bot,
+          icon: UserCheck,
           textColor: 'text-slate-400'
         };
     }
@@ -167,7 +167,7 @@ export const VoiceInterviewerOrb: React.FC<VoiceInterviewerOrbProps> = ({
           ) : (
             /* Idle Breathing Mode */
             <div className="flex flex-col items-center justify-center z-10 text-slate-400">
-              <Bot className="w-8 h-8 text-violet-400/80 mb-1" />
+              <UserCheck className="w-8 h-8 text-violet-400/80 mb-1" />
               <div className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500/60" />
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />

@@ -263,7 +263,7 @@ export const authService = {
         requiresEmailVerification,
         email: cleanEmail,
         message: requiresEmailVerification
-          ? "Account created successfully! 📩 We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
+          ? "Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
           : `Welcome to InterviewBro AI, ${fullName.trim()}! Your account has been created successfully.`
       };
     }

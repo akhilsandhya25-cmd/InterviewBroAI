@@ -220,7 +220,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           // Supabase cloud mode: Email verification is required before login
           setMode('verify_email_notice');
           setSuccessMsg(
-            "Account created successfully! 📩 We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
+            "Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
           );
         } else {
           // Instant session (local sandbox or auto-confirm)
@@ -461,10 +461,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <div className="text-center space-y-2">
               <h3 className="text-sm font-bold text-white tracking-tight">
-                Account Created Successfully! 📩
+                Account Created Successfully
               </h3>
               <p className="text-xs text-slate-300 leading-relaxed max-w-sm mx-auto">
-                Account created successfully! 📩 We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in.
+                Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in.
               </p>
             </div>
 

@@ -18,7 +18,8 @@ import {
   RefreshCw,
   Video,
   Play,
-  Film
+  Film,
+  Shield
 } from 'lucide-react';
 import { useInterview } from '../context/InterviewContext';
 import { FeedbackReport as FeedbackReportType } from '../types';
@@ -179,8 +180,9 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
             />
           </div>
 
-          <p className="text-[11px] text-slate-500 text-center">
-            🔒 Recording is held in your browser memory for your review and is not stored remotely without user action.
+          <p className="text-[11px] text-slate-500 text-center flex items-center justify-center gap-1.5">
+            <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>Recording is held in your browser memory for your review and is not stored remotely without user action.</span>
           </p>
         </section>
       )}
