@@ -2,16 +2,42 @@
   "name": "interviewbro-ai-workspace",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "npm run --prefix client dev",
     "dev:server": "npm run --prefix server dev",
-    "build": "npm run --prefix client build && npm run --prefix server build",
+    "build": "vite build",
+    "build:client": "npm run --prefix client build",
+    "build:server": "npm run --prefix server build",
+    "build:all": "npm run --prefix client build && npm run --prefix server build",
+    "preview": "vite preview",
     "test": "npm run --prefix server test",
     "install:all": "npm install && npm install --prefix client && npm install --prefix server"
   },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "canvas-confetti": "^1.9.4",
+    "lucide-react": "^1.16.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
-    "puppeteer-core": "^25.14.0"
+    "postcss": "^8.5.3",
+    "puppeteer-core": "^25.14.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
   }
 }
