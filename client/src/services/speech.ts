@@ -9,6 +9,11 @@ export interface SpeechRecognitionService {
     onError: (errorType: string, message: string) => void,
     onStatusChange?: (status: 'listening' | 'processing' | 'stopped') => void
   ) => void;
+  startListening: (
+    onTranscript: (fullTranscript: string, interimChunk: string, isFinal: boolean) => void,
+    onError: (errorType: string, message: string) => void,
+    onStatusChange?: (status: 'listening' | 'processing' | 'stopped') => void
+  ) => void;
   stop: () => void;
   abort: () => void;
   isListening: () => boolean;
@@ -25,6 +30,7 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
     return {
       isSupported: false,
       start: () => {},
+      startListening: () => {},
       stop: () => {},
       abort: () => {},
       isListening: () => false,
@@ -33,174 +39,285 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
     };
   }
 
-  let recognition: any = null;
+  let activeRecognitionInstance: any = null;
   let shouldBeListening = false;
-  let fullAccumulatedTranscript = '';
-  let currentInterimChunk = '';
+  let restartTimeoutId: any = null;
+
+  // Transcript aggregation buffers
+  let persistedFinalTranscript = '';
+  let currentSessionFinalTranscript = '';
+  let currentInterimTranscript = '';
+
   let activeOnTranscript: ((full: string, interim: string, isFinal: boolean) => void) | null = null;
+  let activeOnError: ((errorType: string, message: string) => void) | null = null;
+  let activeOnStatusChange: ((status: 'listening' | 'processing' | 'stopped') => void) | null = null;
+
+  const safelyDetachInstance = () => {
+    if (restartTimeoutId) {
+      clearTimeout(restartTimeoutId);
+      restartTimeoutId = null;
+    }
+    if (activeRecognitionInstance) {
+      try {
+        activeRecognitionInstance.onstart = null;
+        activeRecognitionInstance.onresult = null;
+        activeRecognitionInstance.onerror = null;
+        activeRecognitionInstance.onend = null;
+        activeRecognitionInstance.abort();
+      } catch (e) {
+        console.warn('[SpeechRecognition] Instance cleanup notice:', e);
+      }
+      activeRecognitionInstance = null;
+    }
+  };
+
+  const setupRecognitionInstance = () => {
+    const rec = new SpeechRecognitionClass();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    rec.maxAlternatives = 1;
+
+    rec.onstart = () => {
+      console.log('[SpeechRecognition] onstart: microphone listener active and capturing audio');
+      if (activeOnStatusChange) {
+        activeOnStatusChange('listening');
+      }
+    };
+
+    rec.onresult = (event: any) => {
+      let interim = '';
+      let sessionFinal = '';
+
+      for (let i = 0; i < event.results.length; ++i) {
+        const result = event.results[i];
+        if (!result || !result[0]) continue;
+        const text = result[0].transcript || '';
+        if (result.isFinal) {
+          sessionFinal = (sessionFinal ? sessionFinal + ' ' : '') + text.trim();
+        } else {
+          interim = (interim ? interim + ' ' : '') + text.trim();
+        }
+      }
+
+      currentSessionFinalTranscript = sessionFinal;
+      currentInterimTranscript = interim;
+
+      // Full transcript combines all previous cycles' finalized text + current cycle final
+      const fullTranscript = [persistedFinalTranscript, currentSessionFinalTranscript]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+      const isFinalResult = Boolean(currentSessionFinalTranscript && !currentInterimTranscript);
+
+      console.log('[SpeechRecognition] onresult:', {
+        fullTranscript,
+        interim: currentInterimTranscript,
+        isFinal: isFinalResult
+      });
+
+      if (activeOnTranscript) {
+        activeOnTranscript(fullTranscript, currentInterimTranscript, isFinalResult);
+      }
+    };
+
+    rec.onerror = (event: any) => {
+      const err = event.error || 'unknown';
+      console.log('[SpeechRecognition] onerror event:', err, event.message || '');
+
+      // Explicitly filter out non-fatal events like 'no-speech' and 'aborted'
+      if (err === 'no-speech' || err === 'aborted') {
+        console.log(`[SpeechRecognition] Non-fatal notice: "${err}". Continuous listening preserved.`);
+        return;
+      }
+
+      // Fatal hardware / permission errors
+      console.warn('[SpeechRecognition] Fatal speech error:', err);
+      shouldBeListening = false;
+      if (restartTimeoutId) {
+        clearTimeout(restartTimeoutId);
+        restartTimeoutId = null;
+      }
+
+      let userMsg = 'Microphone speech capture encountered an error.';
+      if (err === 'not-allowed') {
+        userMsg = 'Microphone permission was denied. Please allow microphone permissions in Microsoft Edge (lock/tune icon) or Windows Privacy Settings.';
+      } else if (err === 'audio-capture') {
+        userMsg = 'No microphone was detected or your microphone is in exclusive use by another app (e.g. Teams, Zoom).';
+      } else if (err === 'network') {
+        userMsg = 'Network error occurred while connecting to browser speech recognition. Check your connection or switch to Text-Based Interview mode.';
+      } else if (err === 'service-not-allowed') {
+        userMsg = 'Speech recognition service is disabled or blocked in your browser or system settings.';
+      }
+
+      if (activeOnError) {
+        activeOnError(err, userMsg);
+      }
+      if (activeOnStatusChange) {
+        activeOnStatusChange('stopped');
+      }
+    };
+
+    rec.onend = () => {
+      console.log('[SpeechRecognition] onend event fired. shouldBeListening =', shouldBeListening);
+
+      // Consolidate current session finals and trailing interim into persistedFinalTranscript
+      persistedFinalTranscript = [
+        persistedFinalTranscript,
+        currentSessionFinalTranscript,
+        currentInterimTranscript
+      ].filter(Boolean).join(' ').trim();
+      currentSessionFinalTranscript = '';
+      currentInterimTranscript = '';
+
+      // If candidate is still in speaking mode, restart listener automatically
+      if (shouldBeListening) {
+        if (activeOnStatusChange) {
+          activeOnStatusChange('processing');
+        }
+
+        if (restartTimeoutId) clearTimeout(restartTimeoutId);
+        restartTimeoutId = setTimeout(() => {
+          if (!shouldBeListening) return;
+          try {
+            console.log('[SpeechRecognition] Auto-restarting continuous listener...');
+            safelyDetachInstance();
+            activeRecognitionInstance = setupRecognitionInstance();
+            activeRecognitionInstance.start();
+          } catch (e: any) {
+            console.warn('[SpeechRecognition] Auto-restart notice:', e?.message || e);
+            if (shouldBeListening) {
+              restartTimeoutId = setTimeout(() => {
+                if (!shouldBeListening) return;
+                try {
+                  safelyDetachInstance();
+                  activeRecognitionInstance = setupRecognitionInstance();
+                  activeRecognitionInstance.start();
+                } catch (secondErr) {
+                  console.warn('[SpeechRecognition] Second restart failed:', secondErr);
+                  shouldBeListening = false;
+                  if (activeOnStatusChange) activeOnStatusChange('stopped');
+                }
+              }, 300);
+            }
+          }
+        }, 150);
+      } else {
+        if (activeOnStatusChange) {
+          activeOnStatusChange('stopped');
+        }
+      }
+    };
+
+    return rec;
+  };
+
+  const startListening = (
+    onTranscript: (fullTranscript: string, interimChunk: string, isFinal: boolean) => void,
+    onError: (errorType: string, message: string) => void,
+    onStatusChange?: (status: 'listening' | 'processing' | 'stopped') => void
+  ) => {
+    console.log('[SpeechRecognition] startListening / start invoked');
+    activeOnTranscript = onTranscript;
+    activeOnError = onError;
+    activeOnStatusChange = onStatusChange || null;
+    shouldBeListening = true;
+
+    // Safely stop or cancel any existing active recognition instance before creating a new one
+    safelyDetachInstance();
+
+    try {
+      activeRecognitionInstance = setupRecognitionInstance();
+      activeRecognitionInstance.start();
+      console.log('[SpeechRecognition] Instance created and started successfully');
+    } catch (err: any) {
+      console.warn('[SpeechRecognition] Immediate start threw, queuing retry:', err);
+      restartTimeoutId = setTimeout(() => {
+        if (!shouldBeListening) return;
+        try {
+          safelyDetachInstance();
+          activeRecognitionInstance = setupRecognitionInstance();
+          activeRecognitionInstance.start();
+          console.log('[SpeechRecognition] Delayed start succeeded');
+        } catch (retryErr: any) {
+          shouldBeListening = false;
+          console.error('[SpeechRecognition] Start retry failed:', retryErr);
+          onError('init_failed', retryErr.message || 'Speech recognition failed to initialize.');
+          if (onStatusChange) onStatusChange('stopped');
+        }
+      }, 200);
+    }
+  };
+
+  const stop = () => {
+    console.log('[SpeechRecognition] stop requested');
+    shouldBeListening = false;
+    if (restartTimeoutId) {
+      clearTimeout(restartTimeoutId);
+      restartTimeoutId = null;
+    }
+
+    persistedFinalTranscript = [
+      persistedFinalTranscript,
+      currentSessionFinalTranscript,
+      currentInterimTranscript
+    ].filter(Boolean).join(' ').trim();
+    currentSessionFinalTranscript = '';
+    currentInterimTranscript = '';
+
+    if (activeOnTranscript) {
+      activeOnTranscript(persistedFinalTranscript, '', true);
+    }
+
+    safelyDetachInstance();
+
+    if (activeOnStatusChange) {
+      activeOnStatusChange('stopped');
+    }
+  };
+
+  const abort = () => {
+    console.log('[SpeechRecognition] abort requested');
+    shouldBeListening = false;
+    if (restartTimeoutId) {
+      clearTimeout(restartTimeoutId);
+      restartTimeoutId = null;
+    }
+    persistedFinalTranscript = '';
+    currentSessionFinalTranscript = '';
+    currentInterimTranscript = '';
+
+    safelyDetachInstance();
+
+    if (activeOnStatusChange) {
+      activeOnStatusChange('stopped');
+    }
+  };
+
+  const getLatestTranscript = (): string => {
+    return [
+      persistedFinalTranscript,
+      currentSessionFinalTranscript,
+      currentInterimTranscript
+    ].filter(Boolean).join(' ').trim();
+  };
+
+  const reset = () => {
+    console.log('[SpeechRecognition] reset transcript');
+    persistedFinalTranscript = '';
+    currentSessionFinalTranscript = '';
+    currentInterimTranscript = '';
+  };
 
   return {
     isSupported: true,
-
-    start: (onTranscript, onError, onStatusChange) => {
-      try {
-        activeOnTranscript = onTranscript;
-        shouldBeListening = true;
-
-        if (recognition) {
-          try {
-            recognition.abort();
-          } catch (e) {
-            // ignore
-          }
-        }
-
-        const setupRecognition = () => {
-          const rec = new SpeechRecognitionClass();
-          rec.continuous = true;
-          rec.interimResults = true;
-          rec.lang = 'en-US';
-          rec.maxAlternatives = 1;
-
-          rec.onresult = (event: any) => {
-            let interim = '';
-            let newFinal = '';
-
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-              const result = event.results[i];
-              const text = result[0]?.transcript || '';
-              if (result.isFinal) {
-                newFinal += text;
-              } else {
-                interim += text;
-              }
-            }
-
-            currentInterimChunk = interim.trim();
-
-            if (newFinal) {
-              fullAccumulatedTranscript = (fullAccumulatedTranscript + ' ' + newFinal.trim()).trim();
-              currentInterimChunk = '';
-              onTranscript(fullAccumulatedTranscript, '', true);
-            } else {
-              onTranscript(fullAccumulatedTranscript, currentInterimChunk, false);
-            }
-          };
-
-          rec.onerror = (event: any) => {
-            const err = event.error || 'unknown';
-            console.warn('Speech recognition event error:', err);
-
-            // If no-speech error, keep listening so natural pauses do not abort the session
-            if (err === 'no-speech' && shouldBeListening) {
-              return;
-            }
-
-            // Aborted event occurs during intentional stops, cleanup, or brief Edge audio device yield.
-            // Do not treat transient or expected aborts as unrecoverable errors.
-            if (err === 'aborted') {
-              if (!shouldBeListening) {
-                return;
-              }
-              // Transient abort while listening; return and let onend restart cleanly
-              return;
-            }
-
-            // For all real device/permission errors (not-allowed, audio-capture, network, service-not-allowed),
-            // immediately halt listening state to prevent infinite auto-restart loops in Microsoft Edge / Windows
-            shouldBeListening = false;
-
-            let userMsg = 'Microphone speech capture encountered an error.';
-            if (err === 'not-allowed') {
-              userMsg = 'Microphone permission was denied. Please allow microphone permissions in Microsoft Edge (lock/tune icon) or Windows Privacy Settings.';
-            } else if (err === 'audio-capture') {
-              userMsg = 'No microphone was detected or your microphone is in exclusive use by another app (e.g. Teams, Zoom).';
-            } else if (err === 'network') {
-              userMsg = 'Network error occurred while connecting to browser speech recognition. Check your connection or switch to Text-Based Interview mode.';
-            } else if (err === 'service-not-allowed') {
-              userMsg = 'Speech recognition service is disabled or blocked in your browser or system settings.';
-            }
-
-            onError(err, userMsg);
-            if (onStatusChange) onStatusChange('stopped');
-          };
-
-          rec.onend = () => {
-            // Only auto-restart if still actively listening (e.g. normal utterance boundary, NOT after an error)
-            if (shouldBeListening) {
-              if (onStatusChange) onStatusChange('processing');
-              // Delay slightly (250ms) to allow Windows / Edge audio session to cycle cleanly without locking
-              setTimeout(() => {
-                if (!shouldBeListening) return;
-                try {
-                  recognition = setupRecognition();
-                  recognition.start();
-                  if (onStatusChange) onStatusChange('listening');
-                } catch (e) {
-                  shouldBeListening = false;
-                  if (onStatusChange) onStatusChange('stopped');
-                }
-              }, 250);
-            } else {
-              if (onStatusChange) onStatusChange('stopped');
-            }
-          };
-
-          return rec;
-        };
-
-        recognition = setupRecognition();
-        if (onStatusChange) onStatusChange('listening');
-        recognition.start();
-      } catch (err: any) {
-        shouldBeListening = false;
-        console.error('Failed to initialize speech recognition:', err);
-        onError('init_failed', err.message || 'Speech recognition failed to initialize.');
-        if (onStatusChange) onStatusChange('stopped');
-      }
-    },
-
-    stop: () => {
-      shouldBeListening = false;
-      // Guarantee that any uncommitted interim speech is committed into full transcript immediately
-      if (currentInterimChunk) {
-        fullAccumulatedTranscript = (fullAccumulatedTranscript + ' ' + currentInterimChunk).trim();
-        if (activeOnTranscript) {
-          activeOnTranscript(fullAccumulatedTranscript, '', true);
-        }
-        currentInterimChunk = '';
-      }
-      if (recognition) {
-        try {
-          recognition.stop();
-        } catch (e) {
-          console.warn('Error calling recognition.stop:', e);
-        }
-      }
-    },
-
-    abort: () => {
-      shouldBeListening = false;
-      fullAccumulatedTranscript = '';
-      currentInterimChunk = '';
-      if (recognition) {
-        try {
-          recognition.abort();
-        } catch (e) {
-          console.warn('Error calling recognition.abort:', e);
-        }
-      }
-    },
-
-    getLatestTranscript: () => {
-      return (fullAccumulatedTranscript + ' ' + currentInterimChunk).trim();
-    },
-
-    reset: () => {
-      fullAccumulatedTranscript = '';
-      currentInterimChunk = '';
-    },
-
+    start: startListening,
+    startListening,
+    stop,
+    abort,
+    reset,
+    getLatestTranscript,
     isListening: () => shouldBeListening
   };
 };

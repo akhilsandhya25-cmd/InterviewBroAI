@@ -97,9 +97,11 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const preflightVideoRef = useRef<HTMLVideoElement | null>(null);
   const recognitionRef = useRef<any>(null);
   const evaluationSectionRef = useRef<HTMLDivElement | null>(null);
+  const hasTypedManually = useRef<boolean>(false);
 
   // Sync candidateAnswer to state when moving between questions
   useEffect(() => {
+    hasTypedManually.current = false;
     const q = activeSession?.questions[currentQuestionIndex];
     if (q?.candidateAnswer) {
       setSpokenTranscript(q.candidateAnswer);
@@ -233,8 +235,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           setSubmissionError(null);
         }
         setSpokenTranscript(fullText);
-        // In video mode, update typed text as well if candidate isn't actively typing
-        if (!isVoiceOnly && !candidateTypedText) {
+        // In video mode, update typed text as well unless candidate has manually edited it
+        if (!isVoiceOnly && !hasTypedManually.current) {
           setCandidateTypedText(fullText);
         }
         setInterimText(interimChunk);
@@ -244,7 +246,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       },
       (errType: string, userMsg: string) => {
         setSpeechError(userMsg);
-        if (errType !== 'no-speech') {
+        if (errType !== 'no-speech' && errType !== 'aborted') {
           setIsListening(false);
         }
       },
@@ -262,7 +264,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       recognitionRef.current.stop();
       if (latest) {
         setSpokenTranscript(latest);
-        if (!isVoiceOnly && !candidateTypedText) {
+        if (!isVoiceOnly && !hasTypedManually.current) {
           setCandidateTypedText(latest);
         }
       }
@@ -272,6 +274,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   };
 
   const handleClearAndRespeak = () => {
+    hasTypedManually.current = false;
     if (recognitionRef.current) {
       recognitionRef.current.abort();
     }
@@ -1178,7 +1181,10 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 <textarea
                   rows={5}
                   value={candidateTypedText || spokenTranscript}
-                  onChange={(e) => setCandidateTypedText(e.target.value)}
+                  onChange={(e) => {
+                    hasTypedManually.current = true;
+                    setCandidateTypedText(e.target.value);
+                  }}
                   placeholder="Speak via microphone or type your technical answer here..."
                   className="w-full p-4 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-violet-500 leading-relaxed"
                 />
