@@ -316,12 +316,12 @@ export const authService = {
 
       let profile: UserProfile | null = null;
       try {
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileErr } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
-          .single();
-        if (profileData) profile = profileData;
+          .maybeSingle();
+        if (!profileErr && profileData) profile = profileData;
       } catch (e) {
         // Fallback profile if DB table not yet created
       }
@@ -412,21 +412,49 @@ export const authService = {
     // 1. Supabase Mode
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('Supabase stored session invalid, resetting auth state:', error.message);
+          await supabase.auth.signOut().catch(() => {});
+          storage.setToken(null);
+          storage.setUser(null);
+          return null;
+        }
+
         if (data?.session?.user) {
           if (data.session.access_token) {
             storage.setToken(data.session.access_token);
           }
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.session.user.id)
-            .single();
+          let profile: UserProfile | null = null;
+          try {
+            const { data: profileData, error: pErr } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', data.session.user.id)
+              .maybeSingle();
 
-          if (profile) {
-            storage.setUser(profile);
-            return profile;
+            if (!pErr && profileData) {
+              profile = profileData;
+            }
+          } catch (e) {
+            // Handled if DB table not yet created
           }
+
+          const userToSet: UserProfile = profile || {
+            id: data.session.user.id,
+            email: data.session.user.email || (cachedUser?.email || ''),
+            full_name: data.session.user.user_metadata?.full_name || cachedUser?.full_name || (data.session.user.email ? data.session.user.email.split('@')[0] : 'Candidate'),
+            role_target: cachedUser?.role_target || 'Full Stack Developer',
+            experience_level: cachedUser?.experience_level || 'fresher',
+            skills: cachedUser?.skills || ['JavaScript', 'React', 'Problem Solving'],
+            interviews_remaining: cachedUser?.interviews_remaining ?? 9999,
+            total_interviews_taken: cachedUser?.total_interviews_taken ?? 0,
+            created_at: data.session.user.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          storage.setUser(userToSet);
+          return userToSet;
         }
       } catch (e) {
         console.warn('Supabase session restore check failed:', e);

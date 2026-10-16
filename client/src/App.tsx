@@ -41,8 +41,45 @@ const AppContent: React.FC = () => {
   const [currentRoute, setCurrentRoute] = useState<string>('landing');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot_password'>('login');
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot_password' | 'update_password'>('login');
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
+
+  // Handle URL hash fragments (Supabase Auth redirects for email verification & password recovery)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Check for password recovery event dispatched by AuthContext onAuthStateChange
+    const handlePasswordRecovery = () => {
+      setAuthModalMode('update_password');
+      setIsAuthModalOpen(true);
+    };
+    window.addEventListener('interviewbro_password_recovery', handlePasswordRecovery);
+
+    // Check for raw hash tokens in address bar (e.g. #access_token=...&type=recovery|signup)
+    const hash = window.location.hash;
+    if (hash && (hash.includes('access_token=') || hash.includes('type=') || hash.includes('error='))) {
+      try {
+        const cleanHash = hash.startsWith('#') ? hash.slice(1) : hash;
+        const params = new URLSearchParams(cleanHash);
+        const type = params.get('type');
+        const errorDesc = params.get('error_description') || params.get('error');
+
+        // Immediately purge sensitive access tokens from browser address bar history
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
+        if (!errorDesc && type === 'recovery') {
+          setAuthModalMode('update_password');
+          setIsAuthModalOpen(true);
+        }
+      } catch (e) {
+        console.warn('Error processing URL auth hash:', e);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('interviewbro_password_recovery', handlePasswordRecovery);
+    };
+  }, []);
 
   // Once auth is resolved, set initial route
   useEffect(() => {

@@ -12,6 +12,17 @@ const DEFAULT_QUOTA: UsageQuota = {
   planName: 'Placement Unlimited'
 };
 
+function handleCloudStorageError(action: string, error: any) {
+  if (!error) return;
+  if (error.code === 'PGRST205' || (error.message && error.message.includes('schema cache'))) {
+    // Database table not yet provisioned in Supabase project.
+    // Local storage is safely preserving candidate state until schema.sql is executed.
+    return;
+  }
+  console.warn(`Supabase ${action} notice:`, error.message);
+}
+
+
 export const storage = {
   // Session Token
   getToken(): string | null {
@@ -111,7 +122,7 @@ export const storage = {
               })
               .eq('id', uid)
               .then(({ error }: any) => {
-                if (error) console.warn('Supabase profile quota update error:', error.message);
+                handleCloudStorageError('profile quota update', error);
               });
           }
         }
@@ -178,7 +189,7 @@ export const storage = {
             feedback_report: session.feedbackReport || null
           })
           .then(({ error }: any) => {
-            if (error) console.warn('Supabase saveSession error:', error.message);
+            handleCloudStorageError('saveSession', error);
           });
       }
     } catch (e) {
@@ -202,7 +213,7 @@ export const storage = {
           .eq('id', id)
           .eq('user_id', uid)
           .then(({ error }: any) => {
-            if (error) console.warn('Supabase deleteSession error:', error.message);
+            handleCloudStorageError('deleteSession', error);
           });
       }
     } catch (e) {
@@ -266,7 +277,7 @@ export const storage = {
             created_at: report.createdAt || new Date().toISOString()
           })
           .then(({ error }: any) => {
-            if (error) console.warn('Supabase saveReport error:', error.message);
+            handleCloudStorageError('saveReport', error);
           });
       }
     } catch (e) {
@@ -325,7 +336,7 @@ export const storage = {
             created_at: resume.createdAt || new Date().toISOString()
           })
           .then(({ error }: any) => {
-            if (error) console.warn('Supabase saveResume error:', error.message);
+            handleCloudStorageError('saveResume', error);
           });
       }
     } catch (e) {
@@ -349,7 +360,7 @@ export const storage = {
           .eq('id', id)
           .eq('user_id', uid)
           .then(({ error }: any) => {
-            if (error) console.warn('Supabase deleteResume error:', error.message);
+            handleCloudStorageError('deleteResume', error);
           });
       }
     } catch (e) {
@@ -373,6 +384,7 @@ export const storage = {
         .eq('user_id', uid)
         .order('started_at', { ascending: false });
 
+      if (sErr) handleCloudStorageError('syncSessions', sErr);
       if (!sErr && sessionRows && sessionRows.length > 0) {
         const parsedSessions: InterviewSession[] = sessionRows.map((row: any) => ({
           id: row.id,
@@ -397,6 +409,7 @@ export const storage = {
         .eq('user_id', uid)
         .order('created_at', { ascending: false });
 
+      if (rErr) handleCloudStorageError('syncReports', rErr);
       if (!rErr && reportRows && reportRows.length > 0) {
         const parsedReports: FeedbackReport[] = reportRows.map((row: any) => ({
           id: row.id,
@@ -430,6 +443,8 @@ export const storage = {
         .select('*')
         .eq('user_id', uid)
         .order('created_at', { ascending: false });
+
+      if (resErr) handleCloudStorageError('syncResumes', resErr);
 
       if (!resErr && resumeRows && resumeRows.length > 0) {
         const parsedResumes: ResumeAnalysis[] = resumeRows.map((row: any) => ({

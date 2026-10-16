@@ -96,7 +96,17 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
               return;
             }
 
-            // For all non-pause errors (not-allowed, audio-capture, network, service-not-allowed),
+            // Aborted event occurs during intentional stops, cleanup, or brief Edge audio device yield.
+            // Do not treat transient or expected aborts as unrecoverable errors.
+            if (err === 'aborted') {
+              if (!shouldBeListening) {
+                return;
+              }
+              // Transient abort while listening; return and let onend restart cleanly
+              return;
+            }
+
+            // For all real device/permission errors (not-allowed, audio-capture, network, service-not-allowed),
             // immediately halt listening state to prevent infinite auto-restart loops in Microsoft Edge / Windows
             shouldBeListening = false;
 
@@ -216,7 +226,8 @@ class NaturalTTS {
   private activeElevenLabsVoiceId: string = typeof localStorage !== 'undefined'
     ? localStorage.getItem('interviewbro_voice_id') || '21m00Tcm4TlvDq8ikWAM'
     : '21m00Tcm4TlvDq8ikWAM';
-  private useElevenLabs = true;
+  private useElevenLabs = false;
+  private checkedBackendStatus = false;
 
   constructor() {
     this.isSupported = typeof window !== 'undefined';
@@ -226,6 +237,24 @@ class NaturalTTS {
         window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
       }
     }
+    this.checkBackendVoiceStatus();
+  }
+
+  public async checkBackendVoiceStatus(): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+    try {
+      const res = await fetch('/api/voice/status');
+      if (res.ok) {
+        const data = await res.json();
+        this.useElevenLabs = Boolean(data.isConfigured);
+        this.checkedBackendStatus = true;
+        return this.useElevenLabs;
+      }
+    } catch {
+      this.useElevenLabs = false;
+    }
+    this.checkedBackendStatus = true;
+    return false;
   }
 
   private loadVoices(): void {
@@ -381,6 +410,10 @@ class NaturalTTS {
               console.warn('Audio autoplay blocked or failed, falling back:', playErr);
               // continue to Web Speech fallback
             }
+          } else {
+            // Server returned JSON fallback indication
+            this.speakWithWebSpeech(cleaned, options);
+            return;
           }
         }
       } catch (networkErr) {

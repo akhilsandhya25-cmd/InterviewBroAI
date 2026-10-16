@@ -82,7 +82,12 @@ function getCacheKey(text: string, voiceId: string, modelId: string): string {
 export const elevenlabsService = {
   isConfigured(): boolean {
     const key = process.env.ELEVENLABS_API_KEY;
-    return Boolean(key && key.trim().length > 5);
+    return Boolean(
+      key && 
+      typeof key === 'string' && 
+      key.trim().startsWith('sk_') && 
+      key.trim().length > 20
+    );
   },
 
   getDefaultVoiceId(): string {

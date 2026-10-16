@@ -10,7 +10,15 @@ export const isSupabaseConfigured = Boolean(
   !supabaseUrl.includes('your-supabase-url')
 );
 
-// Fallback dummy client if credentials aren't provided yet
+// Resilient Supabase client with isolated storage key and token refresh
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'interviewbro_supabase_auth'
+      }
+    })
   : (null as any);
+

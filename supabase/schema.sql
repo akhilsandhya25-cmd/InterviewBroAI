@@ -233,3 +233,21 @@ create policy "Users can update own resume analyses"
 create policy "Users can delete own resume analyses" 
   on public.resume_analyses for delete 
   using (auth.uid() = user_id);
+
+-- =========================================================================
+-- 5. PERMISSIONS & ROLE GRANTS
+-- Grants access to the public schema and user-owned tables
+-- Row Level Security (RLS) ensures candidates only see their own records
+-- =========================================================================
+grant usage on schema public to anon, authenticated;
+
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select on public.profiles to anon;
+
+grant select, insert, update, delete on public.interview_sessions to authenticated;
+grant select, insert, update, delete on public.feedback_reports to authenticated;
+grant select, insert, update, delete on public.resume_analyses to authenticated;
+
+-- Reload PostgREST schema cache so tables are immediately discoverable
+notify pgrst, 'reload schema';
+

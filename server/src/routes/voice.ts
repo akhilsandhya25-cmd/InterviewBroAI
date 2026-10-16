@@ -44,9 +44,10 @@ voiceRouter.post('/tts', async (req: Request, res: Response) => {
     }
 
     if (!elevenlabsService.isConfigured()) {
-      return res.status(503).json({
+      return res.status(200).json({
         success: false,
         fallback: true,
+        provider: 'web_speech',
         message: 'ElevenLabs is not configured on this server. Fall back to browser Web Speech API.'
       });
     }
@@ -65,10 +66,11 @@ voiceRouter.post('/tts', async (req: Request, res: Response) => {
 
     return res.send(audioBuffer);
   } catch (error: any) {
-    console.warn('TTS synthesis error, signaling client fallback:', error.message);
-    return res.status(502).json({
+    console.warn('TTS synthesis notice, signaling client fallback:', error.message);
+    return res.status(200).json({
       success: false,
       fallback: true,
+      provider: 'web_speech',
       error: error.message
     });
   }

@@ -65,6 +65,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else if (event === 'SIGNED_IN' && session?.user) {
           if (session.access_token) storage.setToken(session.access_token);
           storage.syncWithCloud(session.user.id);
+        } else if (event === 'PASSWORD_RECOVERY') {
+          if (session?.access_token) storage.setToken(session.access_token);
+          window.dispatchEvent(new CustomEvent('interviewbro_password_recovery'));
         } else if (event === 'SIGNED_OUT') {
           storage.setUser(null);
           storage.setToken(null);
