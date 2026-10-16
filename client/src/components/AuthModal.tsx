@@ -264,6 +264,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setIsEmailUnconfirmed(false);
         setErrorType('network');
         setErrorMsg("Network connection error. Please check your internet connection and try again.");
+      } else if (err.message && (err.message.includes('JSON') || err.message.includes('json') || err.message.includes('Unexpected end'))) {
+        setIsEmailUnconfirmed(false);
+        setErrorType('general');
+        setErrorMsg('Authentication server is connecting. Please retry or refresh the page.');
       } else {
         setIsEmailUnconfirmed(false);
         setErrorType('general');
