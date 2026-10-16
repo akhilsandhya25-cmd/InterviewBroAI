@@ -10,6 +10,147 @@ export interface AuthResponse {
   message?: string;
   requiresEmailVerification?: boolean;
   email?: string;
+  isRateLimit?: boolean;
+  retryAfterSeconds?: number;
+}
+
+export interface ParsedAuthError {
+  isRateLimit: boolean;
+  isNetworkError: boolean;
+  isEmailUnconfirmed: boolean;
+  isUserAlreadyExists: boolean;
+  retryAfterSeconds?: number;
+  friendlyMessage: string;
+}
+
+export function parseAuthError(error: any): ParsedAuthError {
+  if (!error) {
+    return {
+      isRateLimit: false,
+      isNetworkError: false,
+      isEmailUnconfirmed: false,
+      isUserAlreadyExists: false,
+      friendlyMessage: 'An unexpected authentication error occurred. Please try again.'
+    };
+  }
+
+  const rawMessage = typeof error === 'string' ? error : (error.message || '');
+  const msgLower = rawMessage.toLowerCase();
+  const code = (error.code || '').toLowerCase();
+  const status = error.status || (error.response && error.response.status);
+
+  // 1. Rate Limit Detection
+  const isRateLimit =
+    status === 429 ||
+    code === 'over_email_send_rate_limit' ||
+    code === 'rate_limit_exceeded' ||
+    code === 'over_request_rate_limit' ||
+    msgLower.includes('rate limit') ||
+    msgLower.includes('over_email_send_rate_limit') ||
+    msgLower.includes('too many requests') ||
+    msgLower.includes('too many verification email requests');
+
+  if (isRateLimit) {
+    let retryAfterSeconds: number | undefined;
+
+    if (typeof error.retry_after === 'number' && error.retry_after > 0) {
+      retryAfterSeconds = Math.round(error.retry_after);
+    } else if (typeof error.retryAfter === 'number' && error.retryAfter > 0) {
+      retryAfterSeconds = Math.round(error.retryAfter);
+    } else {
+      const match = rawMessage.match(/(?:once every|retry after|wait)\s+(\d+)\s*(?:seconds|second|s)/i);
+      if (match && match[1]) {
+        const parsed = parseInt(match[1], 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          retryAfterSeconds = parsed;
+        }
+      }
+    }
+
+    return {
+      isRateLimit: true,
+      isNetworkError: false,
+      isEmailUnconfirmed: false,
+      isUserAlreadyExists: false,
+      retryAfterSeconds, // Only defined when Supabase provided an exact retry delay
+      friendlyMessage: "Too many verification email requests. Please wait a while before trying again."
+    };
+  }
+
+  // 2. Network Error Detection
+  const isNetworkError =
+    (typeof window !== 'undefined' && typeof navigator !== 'undefined' && navigator.onLine === false) ||
+    (error.name === 'TypeError' && msgLower.includes('fetch')) ||
+    msgLower.includes('failed to fetch') ||
+    msgLower.includes('network error') ||
+    msgLower.includes('networkerror') ||
+    msgLower.includes('network request failed') ||
+    msgLower.includes('net::err') ||
+    msgLower.includes('timeout') ||
+    msgLower.includes('abort');
+
+  if (isNetworkError) {
+    return {
+      isRateLimit: false,
+      isNetworkError: true,
+      isEmailUnconfirmed: false,
+      isUserAlreadyExists: false,
+      friendlyMessage: "Network connection error. Please check your internet connection and try again."
+    };
+  }
+
+  // 3. Email Not Confirmed
+  const isEmailUnconfirmed =
+    code === 'email_not_confirmed' ||
+    msgLower.includes('email not confirmed') ||
+    msgLower.includes('email not verified') ||
+    msgLower.includes("email isn't verified");
+
+  if (isEmailUnconfirmed) {
+    return {
+      isRateLimit: false,
+      isNetworkError: false,
+      isEmailUnconfirmed: true,
+      isUserAlreadyExists: false,
+      friendlyMessage: "Your email isn't verified yet. Please check your inbox and click the verification link before logging in."
+    };
+  }
+
+  // 4. User Already Exists
+  const isUserAlreadyExists =
+    code === 'user_already_exists' ||
+    msgLower.includes('already registered') ||
+    msgLower.includes('already in use') ||
+    msgLower.includes('user already exists');
+
+  if (isUserAlreadyExists) {
+    return {
+      isRateLimit: false,
+      isNetworkError: false,
+      isEmailUnconfirmed: false,
+      isUserAlreadyExists: true,
+      friendlyMessage: "An account with this email address already exists. Please sign in instead."
+    };
+  }
+
+  // 5. Invalid Credentials
+  if (msgLower.includes('invalid login credentials') || msgLower.includes('invalid credentials')) {
+    return {
+      isRateLimit: false,
+      isNetworkError: false,
+      isEmailUnconfirmed: false,
+      isUserAlreadyExists: false,
+      friendlyMessage: "Incorrect email or password. Please verify your credentials and try again."
+    };
+  }
+
+  return {
+    isRateLimit: false,
+    isNetworkError: false,
+    isEmailUnconfirmed: false,
+    isUserAlreadyExists: false,
+    friendlyMessage: rawMessage || "Authentication failed. Please verify your details."
+  };
 }
 
 export const authService = {
@@ -65,7 +206,14 @@ export const authService = {
       });
 
       if (error) {
-        throw new Error(error.message);
+        const parsed = parseAuthError(error);
+        const customErr: any = new Error(parsed.friendlyMessage);
+        customErr.isRateLimit = parsed.isRateLimit;
+        customErr.isNetworkError = parsed.isNetworkError;
+        customErr.isUserAlreadyExists = parsed.isUserAlreadyExists;
+        customErr.retryAfterSeconds = parsed.retryAfterSeconds;
+        customErr.email = cleanEmail;
+        throw customErr;
       }
 
       const uid = data.user?.id || `usr-${Date.now()}`;
@@ -155,22 +303,15 @@ export const authService = {
       });
 
       if (error) {
-        const msg = error.message || '';
-        const isEmailNotConfirmed = 
-          msg.toLowerCase().includes('email not confirmed') ||
-          msg.toLowerCase().includes('email not verified') ||
-          (error as any).code === 'email_not_confirmed';
-
-        if (isEmailNotConfirmed) {
-          const unconfirmedError: any = new Error(
-            "Your email isn't verified yet. Please check your inbox and click the verification link before logging in."
-          );
-          unconfirmedError.isEmailUnconfirmed = true;
-          unconfirmedError.unconfirmedEmail = cleanEmail;
-          throw unconfirmedError;
-        }
-
-        throw new Error(msg);
+        const parsed = parseAuthError(error);
+        const customErr: any = new Error(parsed.friendlyMessage);
+        customErr.isRateLimit = parsed.isRateLimit;
+        customErr.isNetworkError = parsed.isNetworkError;
+        customErr.isEmailUnconfirmed = parsed.isEmailUnconfirmed;
+        customErr.isUserAlreadyExists = parsed.isUserAlreadyExists;
+        customErr.retryAfterSeconds = parsed.retryAfterSeconds;
+        customErr.unconfirmedEmail = cleanEmail;
+        throw customErr;
       }
 
       let profile: UserProfile | null = null;
@@ -240,7 +381,13 @@ export const authService = {
       });
 
       if (error) {
-        throw new Error(error.message);
+        const parsed = parseAuthError(error);
+        const customErr: any = new Error(parsed.friendlyMessage);
+        customErr.isRateLimit = parsed.isRateLimit;
+        customErr.isNetworkError = parsed.isNetworkError;
+        customErr.retryAfterSeconds = parsed.retryAfterSeconds;
+        customErr.email = cleanEmail;
+        throw customErr;
       }
 
       return {
@@ -335,7 +482,14 @@ export const authService = {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}`
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        const parsed = parseAuthError(error);
+        const customErr: any = new Error(parsed.friendlyMessage);
+        customErr.isRateLimit = parsed.isRateLimit;
+        customErr.isNetworkError = parsed.isNetworkError;
+        customErr.retryAfterSeconds = parsed.retryAfterSeconds;
+        throw customErr;
+      }
       return { 
         message: 'Password recovery email dispatched via Supabase Auth. Please check your inbox for instructions.',
         emailDeliveryConfigured: true,

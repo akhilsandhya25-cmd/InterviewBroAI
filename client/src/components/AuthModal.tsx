@@ -14,7 +14,9 @@ import {
   Info,
   Sparkles,
   RotateCcw,
-  Loader2
+  Loader2,
+  Clock,
+  WifiOff
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { BrandIcon } from './brand/BrandIcon';
@@ -64,13 +66,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [unconfirmedEmail, setUnconfirmedEmail] = useState<string>('');
   const [resendLoading, setResendLoading] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
-  const [resendStatusMsg, setResendStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState<boolean>(false);
+  const [resendStatusMsg, setResendStatusMsg] = useState<{ 
+    type: 'success' | 'error' | 'rate_limit' | 'network'; 
+    text: string 
+  } | null>(null);
+  const [errorType, setErrorType] = useState<'rate_limit' | 'network' | 'unconfirmed' | 'general' | null>(null);
 
-  // Cooldown countdown timer for resending verification email
+  // Cooldown countdown timer when an exact retry delay is known
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = setInterval(() => {
-      setResendCooldown(prev => (prev > 0 ? prev - 1 : 0));
+      setResendCooldown(prev => {
+        if (prev <= 1) {
+          setIsRateLimited(false);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(timer);
   }, [resendCooldown]);
@@ -88,6 +101,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsEmailUnconfirmed(false);
     setUnconfirmedEmail('');
     setResendStatusMsg(null);
+    setErrorType(null);
   };
 
   const handleSwitchMode = (newMode: ModalMode) => {
@@ -106,23 +120,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    if (resendCooldown > 0) return;
+    // Do not call Supabase if cooling down or actively rate limited without a known elapsed delay
+    if (resendCooldown > 0 || (isRateLimited && resendCooldown <= 0)) return;
 
     setResendLoading(true);
     setResendStatusMsg(null);
+    setErrorType(null);
+
     try {
       const res = await resendVerification(mail);
+      setIsRateLimited(false);
       setResendStatusMsg({
         type: 'success',
         text: res.message || `Verification link resent to ${mail}! Please check your inbox and spam folder.`
       });
-      // 60-second cooldown to prevent rapid API requests
-      setResendCooldown(60);
+      // Short client spacing throttle (30s) to prevent double clicks, labeled clearly
+      setResendCooldown(30);
     } catch (err: any) {
-      setResendStatusMsg({
-        type: 'error',
-        text: err.message || 'Failed to resend verification link. Please wait a moment and try again.'
-      });
+      if (err.isRateLimit) {
+        setIsRateLimited(true);
+        setErrorType('rate_limit');
+        setResendStatusMsg({
+          type: 'rate_limit',
+          text: "Too many verification email requests. Please wait a while before trying again."
+        });
+        // Display countdown ONLY if Supabase provided an exact retry delay
+        if (typeof err.retryAfterSeconds === 'number' && err.retryAfterSeconds > 0) {
+          setResendCooldown(err.retryAfterSeconds);
+        } else {
+          setResendCooldown(0);
+        }
+      } else if (err.isNetworkError) {
+        setErrorType('network');
+        setResendStatusMsg({
+          type: 'network',
+          text: "Network connection error. Please check your internet connection and try again."
+        });
+      } else {
+        setErrorType('general');
+        setResendStatusMsg({
+          type: 'error',
+          text: err.message || 'Failed to resend verification link. Please wait a moment and try again.'
+        });
+      }
     } finally {
       setResendLoading(false);
     }
@@ -189,21 +229,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (onSuccess) onSuccess();
       }
     } catch (err: any) {
-      const msg = err.message || '';
-      const isUnconfirmed = 
+      if (err.isRateLimit) {
+        setIsRateLimited(true);
+        setErrorType('rate_limit');
+        setIsEmailUnconfirmed(false);
+        setErrorMsg("Too many verification email requests. Please wait a while before trying again.");
+        if (typeof err.retryAfterSeconds === 'number' && err.retryAfterSeconds > 0) {
+          setResendCooldown(err.retryAfterSeconds);
+        } else {
+          setResendCooldown(0);
+        }
+      } else if (
         err.isEmailUnconfirmed ||
-        msg.toLowerCase().includes('email not confirmed') ||
-        msg.toLowerCase().includes('email not verified') ||
-        msg.toLowerCase().includes("email isn't verified") ||
-        (err as any).code === 'email_not_confirmed';
-
-      if (isUnconfirmed) {
+        (err.message && (
+          err.message.toLowerCase().includes('email not confirmed') ||
+          err.message.toLowerCase().includes('email not verified') ||
+          err.message.toLowerCase().includes("email isn't verified")
+        )) ||
+        err.code === 'email_not_confirmed'
+      ) {
         setIsEmailUnconfirmed(true);
         setUnconfirmedEmail(cleanEmail);
+        setErrorType('unconfirmed');
         setErrorMsg("Your email isn't verified yet. Please check your inbox and click the verification link before logging in.");
+      } else if (err.isNetworkError) {
+        setIsEmailUnconfirmed(false);
+        setErrorType('network');
+        setErrorMsg("Network connection error. Please check your internet connection and try again.");
       } else {
         setIsEmailUnconfirmed(false);
-        setErrorMsg(msg || 'Authentication failed. Please verify your credentials.');
+        setErrorType('general');
+        setErrorMsg(err.message || 'Authentication failed. Please verify your credentials.');
       }
     } finally {
       setLoading(false);
@@ -389,10 +445,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className={`p-3 rounded-xl text-xs flex items-start gap-2 ${
                 resendStatusMsg.type === 'success'
                   ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                  : resendStatusMsg.type === 'rate_limit'
+                  ? 'bg-amber-500/10 border border-amber-500/30 text-amber-200'
                   : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
               }`}>
                 {resendStatusMsg.type === 'success' ? (
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                ) : resendStatusMsg.type === 'rate_limit' ? (
+                  <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 ) : (
                   <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                 )}
@@ -410,13 +470,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 }}
                 className="w-full py-3 rounded-xl font-bold text-xs gradient-button flex items-center justify-center gap-2 shadow-lg"
               >
-                <span>I've Verified My Email — Proceed to Sign In</span>
+                <span>Return to Sign In</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
 
               <button
                 type="button"
-                disabled={resendLoading || resendCooldown > 0}
+                disabled={resendLoading || resendCooldown > 0 || (isRateLimited && resendCooldown <= 0)}
                 onClick={() => handleResendVerification(registeredEmail || email)}
                 className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
@@ -425,8 +485,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
                     <span>Sending verification email...</span>
                   </span>
+                ) : isRateLimited && resendCooldown > 0 ? (
+                  <span className="flex items-center gap-1.5 text-amber-300">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Retry available in {resendCooldown}s</span>
+                  </span>
+                ) : isRateLimited ? (
+                  <span className="flex items-center gap-1.5 text-amber-300">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Rate limit active — please wait a while</span>
+                  </span>
                 ) : resendCooldown > 0 ? (
-                  <span className="text-slate-400">Resend verification in {resendCooldown}s</span>
+                  <span className="flex items-center gap-1.5 text-slate-400">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Link dispatched (wait {resendCooldown}s)</span>
+                  </span>
                 ) : (
                   <span className="flex items-center gap-1.5">
                     <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
@@ -477,10 +550,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className={`p-2.5 rounded-lg text-xs flex items-start gap-2 ${
                 resendStatusMsg.type === 'success'
                   ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
+                  : resendStatusMsg.type === 'rate_limit'
+                  ? 'bg-amber-500/15 border border-amber-500/30 text-amber-200'
                   : 'bg-rose-500/15 border border-rose-500/30 text-rose-300'
               }`}>
                 {resendStatusMsg.type === 'success' ? (
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                ) : resendStatusMsg.type === 'rate_limit' ? (
+                  <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                 ) : (
                   <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
                 )}
@@ -490,7 +567,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <button
               type="button"
-              disabled={resendLoading || resendCooldown > 0}
+              disabled={resendLoading || resendCooldown > 0 || (isRateLimited && resendCooldown <= 0)}
               onClick={() => handleResendVerification(unconfirmedEmail || email)}
               className="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
@@ -499,8 +576,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   <span>Resending verification email...</span>
                 </span>
+              ) : isRateLimited && resendCooldown > 0 ? (
+                <span className="flex items-center gap-1.5 text-amber-200">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Retry available in {resendCooldown}s</span>
+                </span>
+              ) : isRateLimited ? (
+                <span className="flex items-center gap-1.5 text-amber-200">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Rate limit active — please wait a while</span>
+                </span>
               ) : resendCooldown > 0 ? (
-                <span>Resend email in {resendCooldown}s</span>
+                <span className="flex items-center gap-1.5 text-amber-200/90">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Link dispatched (wait {resendCooldown}s)</span>
+                </span>
               ) : (
                 <span className="flex items-center gap-1.5">
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -511,13 +601,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* General Error Feedback (when not unconfirmed email, to avoid duplicate alerts) */}
+        {/* Error Feedback */}
         {errorMsg && !isEmailUnconfirmed && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex flex-col gap-1.5">
+          <div className={`mb-4 p-3 rounded-xl text-xs flex flex-col gap-1.5 ${
+            errorType === 'rate_limit'
+              ? 'bg-amber-500/10 border border-amber-500/30 text-amber-200'
+              : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+          }`}>
             <div className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-              <span>{errorMsg}</span>
+              {errorType === 'rate_limit' ? (
+                <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              ) : errorType === 'network' ? (
+                <WifiOff className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              )}
+              <div className="space-y-1">
+                <p className="font-semibold">{errorMsg}</p>
+                {errorType === 'rate_limit' && (
+                  <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                    Supabase email rate limits protect against abuse. Your email ({email}) is preserved.
+                  </p>
+                )}
+              </div>
             </div>
+
+            {errorType === 'rate_limit' && mode === 'signup' && (
+              <div className="mt-1 pt-1.5 border-t border-amber-500/20 flex items-center justify-between">
+                <span className="text-[11px] text-slate-300">Already registered or need to sign in?</span>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchMode('login')}
+                  className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs flex items-center gap-1"
+                >
+                  <span>Return to Sign In</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
             {errorMsg.toLowerCase().includes('already exists') && (
               <button
                 type="button"
