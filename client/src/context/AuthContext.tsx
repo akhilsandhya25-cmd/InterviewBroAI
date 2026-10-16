@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UsageQuota } from '../types';
 import { storage } from '../services/storage';
-import { authService } from '../services/authService';
+import { authService, AuthResponse } from '../services/authService';
 import { isSupabaseConfigured, supabase } from '../services/supabase';
 
 interface AuthContextType {
@@ -11,7 +11,7 @@ interface AuthContextType {
   isLoading: boolean;
   isSupabaseConnected: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, confirmPassword?: string, fullName?: string) => Promise<void>;
+  signup: (email: string, password: string, confirmPassword?: string, fullName?: string) => Promise<AuthResponse>;
   forgotPassword: (email: string) => Promise<{ 
     message: string; 
     resetCode?: string; 
@@ -19,6 +19,7 @@ interface AuthContextType {
     configuredProvider?: string; 
   }>;
   resetPassword: (email: string, code: string, newPassword: string, confirmNewPassword?: string) => Promise<{ message: string }>;
+  resendVerification: (email: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   decrementInterviewQuota: () => boolean;
@@ -111,11 +112,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         confirmPassword,
         fullName: fullName || email.split('@')[0]
       });
-      setUser(response.user);
-      setQuota(storage.getQuota(response.user.id));
+      if (response.user) {
+        setUser(response.user);
+        setQuota(storage.getQuota(response.user.id));
+      }
+      return response;
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const resendVerification = async (email: string) => {
+    return await authService.resendVerificationEmail(email);
   };
 
   const forgotPassword = async (email: string) => {
@@ -167,6 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signup,
         forgotPassword,
         resetPassword,
+        resendVerification,
         logout,
         updateProfile,
         decrementInterviewQuota

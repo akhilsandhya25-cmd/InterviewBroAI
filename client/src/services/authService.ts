@@ -8,6 +8,8 @@ export interface AuthResponse {
   user: UserProfile;
   token?: string;
   message?: string;
+  requiresEmailVerification?: boolean;
+  email?: string;
 }
 
 export const authService = {
@@ -47,15 +49,18 @@ export const authService = {
       throw new Error('Please enter a valid email address.');
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
     // 1. If Supabase is connected, register with Supabase Auth
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: cleanEmail,
         password,
         options: {
           data: {
             full_name: fullName.trim()
-          }
+          },
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
         }
       });
 
@@ -66,7 +71,7 @@ export const authService = {
       const uid = data.user?.id || `usr-${Date.now()}`;
       const newUser: UserProfile = {
         id: uid,
-        email: email.trim().toLowerCase(),
+        email: cleanEmail,
         full_name: fullName.trim(),
         role_target: 'Full Stack Developer',
         experience_level: 'fresher',
@@ -81,7 +86,7 @@ export const authService = {
         try {
           await supabase.from('profiles').upsert({
             id: data.user.id,
-            email: email.trim().toLowerCase(),
+            email: cleanEmail,
             full_name: fullName.trim(),
             role_target: 'Full Stack Developer',
             experience_level: 'fresher',
@@ -94,14 +99,24 @@ export const authService = {
         }
       }
 
-      storage.setUser(newUser);
-      if (data.session?.access_token) {
-        storage.setToken(data.session.access_token);
+      // Check whether session exists (auto-confirm enabled) or verification is required
+      const requiresEmailVerification = !data.session;
+
+      if (!requiresEmailVerification) {
+        storage.setUser(newUser);
+        if (data.session?.access_token) {
+          storage.setToken(data.session.access_token);
+        }
       }
+
       return { 
-        user: newUser, 
+        user: requiresEmailVerification ? (null as any) : newUser, 
         token: data.session?.access_token,
-        message: data.session ? 'Signup successful' : 'Account created. Please check your inbox to verify your email.' 
+        requiresEmailVerification,
+        email: cleanEmail,
+        message: requiresEmailVerification
+          ? "Account created successfully! 📩 We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
+          : `Welcome to InterviewBro AI, ${fullName.trim()}! Your account has been created successfully.`
       };
     }
 
@@ -109,7 +124,7 @@ export const authService = {
     const res = await fetch(`${API_BASE}/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, confirmPassword, fullName })
+      body: JSON.stringify({ email: cleanEmail, password, confirmPassword, fullName })
     });
 
     const data = await res.json();
@@ -119,7 +134,7 @@ export const authService = {
 
     storage.setUser(data.user);
     storage.setToken(data.token);
-    return { user: data.user, token: data.token };
+    return { user: data.user, token: data.token, requiresEmailVerification: false, email: cleanEmail };
   },
 
   /**
@@ -130,15 +145,32 @@ export const authService = {
       throw new Error('Please enter both your email address and password.');
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
     // 1. Supabase Mode
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: cleanEmail,
         password
       });
 
       if (error) {
-        throw new Error(error.message);
+        const msg = error.message || '';
+        const isEmailNotConfirmed = 
+          msg.toLowerCase().includes('email not confirmed') ||
+          msg.toLowerCase().includes('email not verified') ||
+          (error as any).code === 'email_not_confirmed';
+
+        if (isEmailNotConfirmed) {
+          const unconfirmedError: any = new Error(
+            "Your email isn't verified yet. Please check your inbox and click the verification link before logging in."
+          );
+          unconfirmedError.isEmailUnconfirmed = true;
+          unconfirmedError.unconfirmedEmail = cleanEmail;
+          throw unconfirmedError;
+        }
+
+        throw new Error(msg);
       }
 
       let profile: UserProfile | null = null;
@@ -155,8 +187,8 @@ export const authService = {
 
       const user: UserProfile = profile || {
         id: data.user.id,
-        email: data.user.email || email,
-        full_name: data.user.user_metadata?.full_name || email.split('@')[0],
+        email: data.user.email || cleanEmail,
+        full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
         role_target: 'Full Stack Developer',
         experience_level: 'fresher',
         skills: ['JavaScript', 'React', 'Problem Solving'],
@@ -175,7 +207,7 @@ export const authService = {
     const res = await fetch(`${API_BASE}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email: cleanEmail, password })
     });
 
     const data = await res.json();
@@ -186,6 +218,41 @@ export const authService = {
     storage.setUser(data.user);
     storage.setToken(data.token);
     return { user: data.user, token: data.token };
+  },
+
+  /**
+   * Resend signup email verification link
+   */
+  async resendVerificationEmail(email: string): Promise<{ success: boolean; message: string }> {
+    if (!email || !email.trim()) {
+      throw new Error('Please enter your email address to resend the verification link.');
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: cleanEmail,
+        options: {
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return {
+        success: true,
+        message: `Verification link has been resent to ${cleanEmail}. Please check your inbox and spam folder.`
+      };
+    }
+
+    return {
+      success: true,
+      message: `Verification link simulated for ${cleanEmail} (local sandbox mode).`
+    };
   },
 
   /**
