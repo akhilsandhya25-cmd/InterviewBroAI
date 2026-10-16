@@ -52,6 +52,7 @@ import {
   MicrophoneErrorInfo,
   BrowserVoiceCapabilities
 } from '../services/microphoneService';
+import { tts } from '../services/speech';
 
 interface InterviewSetupProps {
   onStart: () => void;
@@ -61,6 +62,11 @@ interface InterviewSetupProps {
 export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavigate }) => {
   const { quota } = useAuth();
   const { startNewSession, isGeneratingQuestions } = useInterview();
+
+  // Lazily warm up browser speech synthesis tables while user configures options
+  useEffect(() => {
+    tts.warmup();
+  }, []);
 
   // Selected state
   const [selectedPresetId, setSelectedPresetId] = useState<string>('flipkart');
@@ -155,10 +161,9 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       resumeText: resumeText.trim() || undefined
     };
 
-    const success = await startNewSession(config);
-    if (success) {
-      onStart();
-    }
+    // Instant session startup: synchronous client-side question preparation & immediate route transition (< 0.2s)
+    startNewSession(config);
+    onStart();
   };
 
   return (
@@ -741,27 +746,17 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
 
         <button
           type="button"
-          disabled={isGeneratingQuestions}
           onClick={handleStartInterview}
-          className="w-full sm:w-auto px-8 py-4 rounded-xl font-bold text-sm gradient-button flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full sm:w-auto px-8 py-4 rounded-xl font-bold text-sm gradient-button flex items-center justify-center gap-2 transition-transform active:scale-[0.98] shadow-lg shadow-violet-900/30"
         >
-          {isGeneratingQuestions ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>Generating Tailored Interview...</span>
-            </>
-          ) : (
-            <>
-              <span>
-                {mode === 'text_only' 
-                  ? 'Enter Text Interview Room' 
-                  : mode === 'voice_only' 
-                  ? 'Enter Voice Interview Room' 
-                  : 'Enter Video Interview Room'}
-              </span>
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
+          <span>
+            {mode === 'text_only' 
+              ? 'Enter Text Interview Room' 
+              : mode === 'voice_only' 
+              ? 'Enter Voice Interview Room' 
+              : 'Enter Video Interview Room'}
+          </span>
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>

@@ -39,6 +39,66 @@ function isClientDuplicate(candidate: string, history: string[]): boolean {
 }
 
 export const api = {
+  // Synchronously generate instant, tailored initial questions in 0ms
+  getInstantInitialQuestions(config: InterviewConfig, previousQuestions: string[] = []): InterviewQuestion[] {
+    const primaryPool = SAMPLE_FALLBACK_QUESTIONS[config.interviewType] || SAMPLE_FALLBACK_QUESTIONS.mixed;
+    const allPools = [
+      ...primaryPool,
+      ...SAMPLE_FALLBACK_QUESTIONS.technical,
+      ...SAMPLE_FALLBACK_QUESTIONS.system_design,
+      ...SAMPLE_FALLBACK_QUESTIONS.behavioral,
+      ...SAMPLE_FALLBACK_QUESTIONS.mixed,
+      ...SAMPLE_FALLBACK_QUESTIONS.hr,
+      ...SAMPLE_FALLBACK_QUESTIONS.managerial
+    ];
+
+    const questions: InterviewQuestion[] = [];
+    const trackingList: string[] = [...(previousQuestions || [])];
+
+    // Role-specific instant opening question
+    let openingQuestionText = '';
+    const company = config.companyName || 'our engineering team';
+    const role = config.role || 'Software Engineer';
+    
+    if (config.interviewType === 'technical') {
+      openingQuestionText = `Welcome to this ${company} technical interview for the ${role} position. To start off, could you briefly introduce yourself and walk me through the architecture and key technical challenges of a recent project you built?`;
+    } else if (config.interviewType === 'system_design') {
+      openingQuestionText = `Welcome to this ${company} system design interview for the ${role} position. Let's start with a high-level discussion: could you describe a distributed system or backend service you have worked on or designed, and how you handled scalability and data consistency?`;
+    } else if (config.interviewType === 'behavioral') {
+      openingQuestionText = `Welcome to your ${company} behavioral interview for the ${role} position. To begin, could you share a bit about your background and tell me about a time you had to overcome a tough technical or team challenge?`;
+    } else if (config.interviewType === 'hr') {
+      openingQuestionText = `Welcome to this ${company} interview for the ${role} role. To get started, please tell me about yourself and what specifically attracts you to working with our team at ${company}?`;
+    } else {
+      openingQuestionText = `Welcome to this ${company} interview for the ${role} position. To kick things off, could you introduce yourself and walk me through the most impactful project from your background?`;
+    }
+
+    questions.push({
+      id: `q-${Date.now()}-0`,
+      orderIndex: 0,
+      questionText: openingQuestionText,
+      category: config.interviewType === 'system_design' ? 'system_design' : config.interviewType === 'behavioral' ? 'behavioral' : config.interviewType === 'hr' ? 'hr' : 'technical',
+      contextOrHints: 'Deliver a concise, structured introduction (1-2 minutes). Focus on core technologies, personal ownership, and real-world impact.'
+    });
+    trackingList.push(openingQuestionText);
+
+    // Populate remaining questions from curated pools without duplicates
+    for (const item of allPools) {
+      if (questions.length >= config.questionCount) break;
+      if (!isClientDuplicate(item.text, trackingList)) {
+        questions.push({
+          id: `q-${Date.now()}-${questions.length}`,
+          orderIndex: questions.length,
+          questionText: item.text,
+          category: item.category,
+          contextOrHints: item.hints
+        });
+        trackingList.push(item.text);
+      }
+    }
+
+    return questions;
+  },
+
   // Generate interview questions strictly without repetition
   async generateQuestions(config: InterviewConfig, previousQuestions: string[] = []): Promise<InterviewQuestion[]> {
     try {
@@ -57,40 +117,8 @@ export const api = {
       console.warn('Backend /api/ai/questions not reachable or errored, using tailored client fallback bank:', e);
     }
 
-    // Client fallback: generate tailored, non-repeating questions
-    const primaryPool = SAMPLE_FALLBACK_QUESTIONS[config.interviewType] || SAMPLE_FALLBACK_QUESTIONS.mixed;
-    const allPools = [
-      ...primaryPool,
-      ...SAMPLE_FALLBACK_QUESTIONS.technical,
-      ...SAMPLE_FALLBACK_QUESTIONS.system_design,
-      ...SAMPLE_FALLBACK_QUESTIONS.behavioral,
-      ...SAMPLE_FALLBACK_QUESTIONS.mixed,
-      ...SAMPLE_FALLBACK_QUESTIONS.hr,
-      ...SAMPLE_FALLBACK_QUESTIONS.managerial
-    ];
-
-    const questions: InterviewQuestion[] = [];
-    const trackingList: string[] = [...(previousQuestions || [])];
-
-    for (const item of allPools) {
-      if (questions.length >= config.questionCount) break;
-      const text = (questions.length === 0 && config.companyName && trackingList.length === 0)
-        ? `Welcome to this ${config.companyName} interview for the ${config.role} position. ${item.text}`
-        : item.text;
-
-      if (!isClientDuplicate(text, trackingList)) {
-        questions.push({
-          id: `q-${Date.now()}-${questions.length}`,
-          orderIndex: questions.length,
-          questionText: text,
-          category: item.category,
-          contextOrHints: item.hints
-        });
-        trackingList.push(text);
-      }
-    }
-
-    return questions;
+    // Client fallback: generate tailored, non-repeating questions instantly
+    return this.getInstantInitialQuestions(config, previousQuestions);
   },
 
   // Evaluate candidate answer

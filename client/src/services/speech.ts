@@ -398,6 +398,24 @@ class NaturalTTS {
     return this.selectedVoice ? `${this.selectedVoice.name} (${this.selectedVoice.lang})` : 'Default System Voice';
   }
 
+  /**
+   * Lazily primes the speech synthesis engine in the background without blocking UI rendering
+   */
+  public warmup(): void {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      this.loadVoices();
+      if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+        const silentUtterance = new SpeechSynthesisUtterance(' ');
+        silentUtterance.volume = 0.01;
+        silentUtterance.rate = 2.0;
+        window.speechSynthesis.speak(silentUtterance);
+      }
+    } catch {
+      // Non-fatal background warm-up
+    }
+  }
+
   public setElevenLabsVoice(voiceId: string): void {
     this.activeElevenLabsVoiceId = voiceId;
     if (typeof localStorage !== 'undefined') {

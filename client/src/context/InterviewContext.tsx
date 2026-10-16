@@ -163,7 +163,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const startNewSession = async (config: InterviewConfig): Promise<boolean> => {
-    setIsGeneratingQuestions(true);
+    setIsGeneratingQuestions(false);
     setMediaError(null);
     try {
       // Record session without blocking
@@ -182,8 +182,8 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       });
 
-      // Generate questions strictly avoiding previously asked questions
-      const generatedQuestions = await api.generateQuestions(config, previousQuestions);
+      // Synchronously generate instant, tailored initial questions in 0ms (under 0.5s transition target)
+      const instantQuestions = api.getInstantInitialQuestions(config, previousQuestions);
 
       const session: InterviewSession = {
         id: `sess-${Date.now()}`,
@@ -191,83 +191,107 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         title: `${config.companyName} ${config.role} Mock Interview`,
         config,
         status: 'in_progress',
-        questions: generatedQuestions,
+        questions: instantQuestions,
         currentQuestionIndex: 0,
         startedAt: new Date().toISOString(),
         elapsedSeconds: 0
       };
 
-      // In text_only mode, deliberately skip requesting microphone/camera hardware
-      if (config.mode === 'text_only') {
-        releaseMedia();
-      } else {
-        // Request camera/mic stream if available in browser
-        try {
-          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            const isVoiceOnly = config.mode === 'voice_only';
-            const stream = await navigator.mediaDevices.getUserMedia(
-              isVoiceOnly
-                ? {
-                    audio: {
-                      echoCancellation: true,
-                      noiseSuppression: true,
-                      autoGainControl: true
-                    },
-                    video: false
-                  }
-                : { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true }
-            );
-            setVideoStream(stream);
-            setIsCameraOn(!isVoiceOnly);
-            setIsMicOn(true);
-            setMediaError(null);
-
-            // If consented to local recording, initialize MediaRecorder
-            if (isRecordingConsented && (window as any).MediaRecorder) {
-              try {
-                const recorder = new MediaRecorder(stream);
-                const chunks: Blob[] = [];
-                recorder.ondataavailable = (e) => {
-                  if (e.data.size > 0) chunks.push(e.data);
-                };
-                recorder.onstop = () => {
-                  setRecordedBlobs(chunks);
-                  if (chunks.length > 0) {
-                    try {
-                      const videoBlob = new Blob(chunks, { type: 'video/webm' });
-                      const url = URL.createObjectURL(videoBlob);
-                      setRecordedVideoUrl(url);
-                    } catch (e) {
-                      console.warn('Could not generate object URL for video:', e);
-                    }
-                  }
-                };
-                recorder.start(1000);
-                mediaRecorderRef.current = recorder;
-              } catch (recErr) {
-                console.warn('MediaRecorder init notice:', recErr);
-              }
-            }
-          }
-        } catch (mediaErr: any) {
-          const parsed = parseMicrophoneError(mediaErr);
-          setMediaError(parsed);
-          console.warn('Camera/mic access encountered an issue:', parsed.title, mediaErr);
-        }
-      }
-
+      // Activate session immediately so UI transitions without waiting for network or hardware
       storage.saveSession(session);
       setActiveSession(session);
       setCurrentQuestionIndex(0);
       setElapsedSeconds(0);
       setIsPaused(false);
+
+      // In the background, asynchronously enrich subsequent questions via Gemini without blocking
+      api.generateQuestions(config, previousQuestions)
+        .then((aiQuestions) => {
+          if (aiQuestions && aiQuestions.length > 0) {
+            setActiveSession((current) => {
+              if (!current || current.id !== session.id) return current;
+              // Retain current question (index 0) to avoid UI shifting, and enrich future questions
+              const currentIdx = current.currentQuestionIndex;
+              const mergedQuestions = [...current.questions];
+              for (let i = currentIdx + 1; i < current.questions.length && (i - currentIdx) < aiQuestions.length; i++) {
+                if (!mergedQuestions[i]?.candidateAnswer) {
+                  mergedQuestions[i] = aiQuestions[i];
+                }
+              }
+              const updated = { ...current, questions: mergedQuestions };
+              storage.saveSession(updated, user?.id);
+              return updated;
+            });
+          }
+        })
+        .catch((err) => {
+          console.warn('Background AI question generation non-fatal notice:', err);
+        });
+
+      // Initialize media hardware concurrently in the background without blocking the room entry
+      if (config.mode === 'text_only') {
+        releaseMedia();
+      } else {
+        (async () => {
+          try {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+              const isVoiceOnly = config.mode === 'voice_only';
+              const stream = await navigator.mediaDevices.getUserMedia(
+                isVoiceOnly
+                  ? {
+                      audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                      },
+                      video: false
+                    }
+                  : { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true }
+              );
+              setVideoStream(stream);
+              setIsCameraOn(!isVoiceOnly);
+              setIsMicOn(true);
+              setMediaError(null);
+
+              // If consented to local recording, initialize MediaRecorder
+              if (isRecordingConsented && (window as any).MediaRecorder) {
+                try {
+                  const recorder = new MediaRecorder(stream);
+                  const chunks: Blob[] = [];
+                  recorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) chunks.push(e.data);
+                  };
+                  recorder.onstop = () => {
+                    setRecordedBlobs(chunks);
+                    if (chunks.length > 0) {
+                      try {
+                        const videoBlob = new Blob(chunks, { type: 'video/webm' });
+                        const url = URL.createObjectURL(videoBlob);
+                        setRecordedVideoUrl(url);
+                      } catch (e) {
+                        console.warn('Could not generate object URL for video:', e);
+                      }
+                    }
+                  };
+                  recorder.start(1000);
+                  mediaRecorderRef.current = recorder;
+                } catch (recErr) {
+                  console.warn('MediaRecorder init notice:', recErr);
+                }
+              }
+            }
+          } catch (mediaErr: any) {
+            const parsed = parseMicrophoneError(mediaErr);
+            setMediaError(parsed);
+            console.warn('Camera/mic access encountered an issue:', parsed.title, mediaErr);
+          }
+        })();
+      }
+
       return true;
     } catch (err) {
       console.error('Error starting session:', err);
-      alert('Failed to start interview session. Please check your network connection.');
       return false;
-    } finally {
-      setIsGeneratingQuestions(false);
     }
   };
 
