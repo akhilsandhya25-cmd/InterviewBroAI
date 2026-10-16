@@ -704,15 +704,17 @@ Respond ONLY with a JSON object in this exact format:
    * Evaluates candidate answer with strict 5-category rubric and verified claims
    */
   async evaluateCandidateAnswer(question: any, answer: string, config: any): Promise<any> {
-    const prompt = `You are a Principal Software Engineer and Bar Raiser evaluating a candidate's answer for the position of "${config.role || 'Software Engineer'}" at "${config.companyName || 'Tech Company'}" (${config.difficulty || 'intermediate'} level).
+    const prompt = `You are an encouraging, empathetic Lead Engineering Interviewer and Mentor evaluating a candidate's answer for the position of "${config.role || 'Software Engineer'}" at "${config.companyName || 'Tech Company'}" (${config.difficulty || 'intermediate'} level).
 Question Asked: "${question.questionText}"
 Question Category: ${question.category}
 Context / Expected Competencies: "${question.contextOrHints || 'Demonstrate technical correctness, practical engineering tradeoffs, and structured communication.'}"
 Candidate Transcribed Spoken Answer: "${answer}"
 
-EVALUATION RUBRIC & INSTRUCTIONS:
-Evaluate strictly on content, technical depth, and actual problem-solving, NOT on length or superficial fluency.
-Do not fabricate facts or award points for unsupported buzzwords. If a candidate makes incorrect or unsupported technical claims, penalize them explicitly and explain why.
+EVALUATION RUBRIC & COACHING INSTRUCTIONS:
+1. Tone & Style: Be conversational, supportive, and verbal—like a trusted senior engineer debriefing a mentee over a whiteboard.
+2. Positive Reinforcement First: Always acknowledge what the candidate explained well before offering pointers. Highlight their reasoning, clarity, or valid architectural points.
+3. Constructive Growth Framing: Frame missing concepts, gaps, or questionable claims as "growth opportunities" or "areas to polish" (e.g. "To take this to the next level next time, explore..."). Do not use harsh, punitive, or clinical dismissals.
+4. Grounded & Fair: Evaluate real technical depth, problem-solving reasoning, and communication clarity. Do not fabricate scores, but keep ratings supportive and calibrated so the candidate leaves feeling motivated and confident.
 
 Evaluate across exactly 5 criteria (each scored 0 to 100):
 1. technicalCorrectness: Technical accuracy, depth of concepts, correct terminology, absence of technical hallucinations.
@@ -726,9 +728,9 @@ score = Math.round(technicalCorrectness * 0.35 + relevance * 0.20 + problemSolvi
 
 Identify:
 - verifiedClaims: 1-3 specific technical facts or valid arguments verified in their answer.
-- unverifiedOrQuestionableClaims: Any incorrect, dubious, or unsupported claims (or empty array if none).
-- strengths: 2-3 specific strengths citing the candidate's actual words.
-- missedPoints: 2-3 essential missing concepts or deeper edge cases.
+- unverifiedOrQuestionableClaims: Any claims to clarify or back up with evidence (or empty array if none).
+- strengths: 2-3 specific strengths highlighting what the candidate articulated well, citing actual words.
+- missedPoints: 2-3 encouraging growth opportunities or deeper edge cases to polish.
 - betterAnswerExample: A concise, high-impact model answer demonstrating senior-level competence with concrete numbers/tradeoffs.
 
 Respond ONLY with valid JSON in this exact schema:
@@ -745,35 +747,35 @@ Respond ONLY with valid JSON in this exact schema:
   "rubricBreakdown": {
     "technicalCorrectness": {
       "score": 85,
-      "reasoning": "Direct explanation of why this score was awarded or deducted.",
+      "reasoning": "Supportive explanation of why this score was awarded and what was done well.",
       "evidenceQuote": "Short quote from candidate's answer"
     },
     "relevance": {
       "score": 90,
-      "reasoning": "Direct explanation of why this score was awarded or deducted.",
+      "reasoning": "Supportive explanation of why this score was awarded.",
       "evidenceQuote": "Short quote from candidate's answer"
     },
     "problemSolvingReasoning": {
       "score": 78,
-      "reasoning": "Direct explanation of why this score was awarded or deducted.",
+      "reasoning": "Supportive explanation highlighting good points and areas to polish.",
       "evidenceQuote": "Short quote from candidate's answer"
     },
     "completenessAndExamples": {
       "score": 75,
-      "reasoning": "Direct explanation of why this score was awarded or deducted.",
+      "reasoning": "Supportive explanation highlighting good points and opportunities to elevate.",
       "evidenceQuote": "Short quote from candidate's answer"
     },
     "communicationClarity": {
       "score": 85,
-      "reasoning": "Direct explanation of why this score was awarded or deducted.",
+      "reasoning": "Supportive explanation of delivery pace and structure.",
       "evidenceQuote": "Short quote from candidate's answer"
     }
   },
   "verifiedClaims": ["Verified technical fact 1"],
-  "unverifiedOrQuestionableClaims": ["Unverified or incorrect claim 1"],
-  "feedback": "2-3 sentences of clear constructive feedback directly to the candidate.",
-  "strengths": ["Strength 1 with short quote", "Strength 2 with short quote"],
-  "missedPoints": ["Missed point 1", "Missed point 2"],
+  "unverifiedOrQuestionableClaims": ["Claim to clarify or back up with evidence 1"],
+  "feedback": "2-3 conversational sentences spoken directly to the candidate like an encouraging mentor, celebrating their strengths first and giving an encouraging tip to polish next time (e.g. 'You explained the core concepts really well, especially your breakdown of... To elevate this even further, try walking through how you would handle edge cases like...').",
+  "strengths": ["Clear positive reinforcement for strength 1 citing candidate's words", "Encouraging praise for strength 2"],
+  "missedPoints": ["Opportunity to polish: Concept 1 to elevate the answer", "Opportunity to polish: Edge case or practical tradeoff 2"],
   "betterAnswerExample": "How a top candidate would formulate this answer concisely with concrete metrics and architecture.",
   "starMethodologyUsed": true
 }`;
@@ -916,16 +918,22 @@ Strengths: ${(q.evaluation?.strengths || []).join('; ')}
 Missed Points: ${(q.evaluation?.missedPoints || []).join('; ')}
 `).join('\n---\n');
 
-    const prompt = `You are the lead bar raiser and hiring committee member.
+    const prompt = `You are an encouraging Lead Engineering Interviewer and Mentor who just conducted this mock interview session with ${candidateName}.
 Candidate: ${candidateName}
 Target Role: ${config.role}
 Company: ${config.companyName}
 Interview Type: ${config.interviewType}
 
-Transcript of the session:
+Transcript and question evaluations of the session:
 ${transcriptSummary}
 
-Synthesize a comprehensive, executive evaluation report with actionable growth recommendations.
+GOAL & TONE INSTRUCTIONS:
+Synthesize an encouraging, conversational ("verbal") performance debrief and mentoring report.
+1. Verbal Mentor Tone: Frame the performance debrief as if you are a friendly, experienced tech lead sitting down with the candidate for a warm debrief. Speak directly to their growth and potential.
+2. Strengths First: Celebrate what they did really well—highlight their conceptual grasp, composure, or structured breakdown with genuine positive reinforcement.
+3. Growth Opportunities Framing: Frame weaknesses or missing concepts not as failures, but as "opportunities to polish and elevate" with actionable, practical coaching tips.
+4. Motivating Takeaways: Keep scoring calibrated, fair, and supportive so the candidate leaves feeling empowered, confident, and excited for their real-world placement or hiring rounds.
+
 Respond ONLY with a JSON object matching this schema:
 {
   "overallScore": 82,
@@ -933,18 +941,18 @@ Respond ONLY with a JSON object matching this schema:
   "communicationScore": 80,
   "structureStarScore": 82,
   "relevanceScore": 85,
-  "summary": "Executive summary of candidate performance",
-  "strengths": ["Strength 1", "Strength 2", "Strength 3"],
-  "weaknesses": ["Area for improvement 1", "Area for improvement 2"],
-  "missedConcepts": ["Concept 1", "Concept 2"],
-  "actionableImprovements": ["Tip 1", "Tip 2", "Tip 3"],
+  "summary": "3-4 conversational, encouraging sentences speaking directly to the candidate (e.g. 'You had a really promising session today! You explained the core concepts really well, especially your breakdown of... Let's fine-tune how we articulate system trade-offs and edge cases next time to make your answers truly stand out. You have great momentum—keep building on it!').",
+  "strengths": ["Clear positive reinforcement for strength 1", "Praise for strength 2", "Praise for strength 3"],
+  "weaknesses": ["Opportunity to polish 1", "Opportunity to polish 2"],
+  "missedConcepts": ["Concept to explore for next time 1", "Concept to explore for next time 2"],
+  "actionableImprovements": ["Encouraging actionable coaching tip 1", "Encouraging actionable coaching tip 2", "Encouraging actionable coaching tip 3"],
   "recommendedTopics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4"],
   "exampleImprovedAnswers": [
     {
       "question": "Question text",
-      "originalSummary": "Brief recap of what candidate said",
-      "improvedAnswer": "Exemplary model answer",
-      "whyBetter": "Explanation of structural improvement"
+      "originalSummary": "Brief encouraging recap of what candidate shared",
+      "improvedAnswer": "Coaching model answer showing how to level up the response",
+      "whyBetter": "Explanation of how this elevates the answer"
     }
   ],
   "prepPlan": [

@@ -272,24 +272,24 @@ export const api = {
       communicationScore: Math.min(95, avgScore - 1),
       structureStarScore: Math.min(94, avgScore - 3),
       relevanceScore: Math.min(96, avgScore + 1),
-      summary: `Overall solid performance for the ${config.role} interview targeting ${config.companyName}. Demonstrated good conceptual foundation and clear communication. With targeted practice in structured STAR storytelling and addressing edge cases, candidate will be highly competitive for campus and off-campus hiring rounds.`,
+      summary: `You put in a really strong effort in today's mock session for ${config.role} targeting ${config.companyName}! You explained your thought process with clarity and composure, and your grasp of the core concepts is solid. Like any great engineer, the next step is fine-tuning how you articulate trade-offs and edge cases. With a little targeted practice, you're going to feel very confident and competitive in your upcoming interviews!`,
       strengths: [
-        'Demonstrated strong fundamental understanding of the core concepts requested',
-        'Communicated thoughts methodically without rambling',
-        'Showed genuine willingness to break down complex problems step by step'
+        'You communicated your thoughts methodically and kept a steady, composed pace throughout the session',
+        'Strong intuitive grasp of fundamental technical concepts and architecture requirements',
+        'Demonstrated a great problem-solving mindset by breaking complex requirements down step by step'
       ],
       weaknesses: [
-        'Tendency to gloss over production edge cases and system trade-offs',
-        'Behavioral answers can leverage the STAR methodology (Situation, Task, Action, Result) more rigorously'
+        'Opportunity to polish: Bring in production edge cases and real-world system trade-offs early in your answers',
+        'Opportunity to elevate: Deepen behavioral answers by highlighting your specific personal ownership using the STAR structure'
       ],
       missedConcepts: [
-        'Explicit mention of observability (metrics, logs, traces) during system reliability discussions',
-        'Nuances of distributed failure modes and retry with exponential backoff'
+        'Observability practices (metrics, telemetry, tracing) during distributed system discussions',
+        'Resilience patterns like circuit breakers and retry strategies with exponential backoff'
       ],
       actionableImprovements: [
-        'Before jumping into coding or solutions, explicitly clarify constraints and input boundaries with the interviewer',
-        'Always quantify your achievements in behavioral rounds (e.g. "reduced latency by 35%" instead of "made it faster")',
-        'Practice sketching low-level class models and high-level architecture blocks under timed conditions'
+        'Take 20-30 seconds at the start to clarify boundary constraints with the interviewer—it showcases collaborative engineering maturity',
+        'Quantify your personal contributions (e.g. "reduced latency by 35% across 10k RPS" instead of "improved speed")',
+        'Practice sketching mental diagrams for data flow and component models under gentle time limits'
       ],
       recommendedTopics: [
         'Distributed Caching strategies (Cache-Aside, Write-Through)',

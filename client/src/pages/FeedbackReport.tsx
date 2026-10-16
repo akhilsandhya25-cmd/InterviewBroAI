@@ -83,9 +83,13 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
             <div>
               <div className="text-xs font-bold text-white">Overall Readiness</div>
               <div className="text-[11px] text-emerald-400 font-medium mt-0.5">
-                {report.overallScore >= 80 ? 'Highly Competitive' : report.overallScore >= 65 ? 'Placement Ready' : 'Needs Practice'}
+                {report.overallScore >= 80 
+                  ? 'Exceptional Progress • Strong Match' 
+                  : report.overallScore >= 65 
+                    ? 'Great Foundation • Ready to Polish' 
+                    : 'Building Momentum • High Potential'}
               </div>
-              <div className="text-[10px] text-slate-500 mt-0.5">STAR Rubric Standards</div>
+              <div className="text-[10px] text-slate-400 mt-0.5">Encouraging Mentor Evaluation</div>
             </div>
           </div>
         </div>
@@ -112,40 +116,55 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
 
       {/* 4 Pillars Score Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 transition-colors">
           <div className="text-xs text-slate-400 font-medium">Technical Accuracy</div>
           <div className="text-2xl font-black text-blue-400 mt-1">{report.technicalAccuracyScore}%</div>
-          <div className="text-[11px] text-slate-500 mt-1">Core CS & problem logic</div>
+          <div className="text-[11px] text-emerald-400/90 font-medium mt-1">
+            {report.technicalAccuracyScore >= 80 ? 'Strong conceptual grasp' : 'Great concepts to build on'}
+          </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 transition-colors">
           <div className="text-xs text-slate-400 font-medium">Communication Clarity</div>
           <div className="text-2xl font-black text-violet-400 mt-1">{report.communicationScore}%</div>
-          <div className="text-[11px] text-slate-500 mt-1">Tone, pacing & conciseness</div>
+          <div className="text-[11px] text-emerald-400/90 font-medium mt-1">
+            {report.communicationScore >= 80 ? 'Clear, composed articulation' : 'Natural delivery style'}
+          </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 transition-colors">
           <div className="text-xs text-slate-400 font-medium">STAR Methodology</div>
           <div className="text-2xl font-black text-cyan-400 mt-1">{report.structureStarScore}%</div>
-          <div className="text-[11px] text-slate-500 mt-1">Situation, Task, Action, Result</div>
+          <div className="text-[11px] text-emerald-400/90 font-medium mt-1">
+            {report.structureStarScore >= 80 ? 'Well-structured narrative' : 'Good story elements to polish'}
+          </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 transition-colors">
           <div className="text-xs text-slate-400 font-medium">Relevance & Depth</div>
           <div className="text-2xl font-black text-emerald-400 mt-1">{report.relevanceScore}%</div>
-          <div className="text-[11px] text-slate-500 mt-1">Addressed core question</div>
+          <div className="text-[11px] text-emerald-400/90 font-medium mt-1">
+            {report.relevanceScore >= 80 ? 'Direct and insightful points' : 'Focused on the core problem'}
+          </div>
         </div>
       </div>
 
-      {/* Executive Summary */}
-      <section className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
-        <h2 className="text-sm font-bold text-white flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-violet-400" />
-          <span>Interviewer Executive Summary</span>
-        </h2>
-        <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-          {report.summary}
-        </p>
+      {/* Verbal Mentor Debrief & Summary */}
+      <section className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-violet-400" />
+            <span>Mentor Debrief & Verbal Feedback</span>
+          </h2>
+          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-violet-500/10 text-violet-300 border border-violet-500/20 font-medium">
+            Conversational Coaching
+          </span>
+        </div>
+        <div className="p-4 sm:p-5 rounded-xl bg-slate-950/70 border-l-4 border-l-violet-500 border-t border-r border-b border-slate-800/80 relative">
+          <p className="text-xs sm:text-sm text-slate-200 leading-relaxed italic">
+            "{report.summary}"
+          </p>
+        </div>
       </section>
 
       {/* Recorded Session Video Playback */}
@@ -187,62 +206,77 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
         </section>
       )}
 
-      {/* Strengths & Weaknesses Split */}
+      {/* Strengths & Growth Opportunities Split */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Strengths */}
         <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
-          <h2 className="text-sm font-bold text-emerald-400 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Demonstrated Strengths</span>
-          </h2>
-          <ul className="space-y-2 text-xs text-slate-300">
+          <div>
+            <h2 className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>What You Did Really Well</span>
+            </h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Standout competencies and strengths from your session
+            </p>
+          </div>
+          <ul className="space-y-2.5 text-xs text-slate-200 pt-1">
             {report.strengths.map((str, idx) => (
-              <li key={idx} className="flex items-start gap-2">
+              <li key={idx} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
                 <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                <span>{str}</span>
+                <span className="leading-relaxed">{str}</span>
               </li>
             ))}
           </ul>
         </div>
 
-        {/* Weaknesses / Gaps */}
+        {/* Growth Opportunities */}
         <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
-          <h2 className="text-sm font-bold text-amber-400 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            <span>Areas for Improvement</span>
-          </h2>
-          <ul className="space-y-2 text-xs text-slate-300">
+          <div>
+            <h2 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span>Opportunities to Polish & Elevate</span>
+            </h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              High-impact refinements to make your answers stand out
+            </p>
+          </div>
+          <ul className="space-y-2.5 text-xs text-slate-200 pt-1">
             {report.weaknesses.map((w, idx) => (
-              <li key={idx} className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold shrink-0">•</span>
-                <span>{w}</span>
+              <li key={idx} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{w}</span>
               </li>
             ))}
           </ul>
         </div>
       </div>
 
-      {/* Actionable Suggestions & Missed Concepts */}
+      {/* Actionable Suggestions & Recommended Topics */}
       <section className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-        <h2 className="text-sm font-bold text-white flex items-center gap-2">
-          <Lightbulb className="w-4 h-4 text-cyan-400" />
-          <span>Actionable Coaching Recommendations</span>
-        </h2>
+        <div>
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <Lightbulb className="w-4 h-4 text-cyan-400" />
+            <span>Actionable Coaching Tips & Next Steps</span>
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Practical habits you can practice right away for immediate impact
+          </p>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
-            <div className="text-xs font-bold text-slate-200">Specific Delivery Adjustments:</div>
-            <ul className="space-y-1.5 text-xs text-slate-400">
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+            <div className="text-xs font-bold text-slate-200">Actionable Delivery Habits:</div>
+            <ul className="space-y-2 text-xs text-slate-300">
               {report.actionableImprovements.map((tip, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-cyan-400 font-bold">•</span>
-                  <span>{tip}</span>
+                  <span className="leading-relaxed">{tip}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
-            <div className="text-xs font-bold text-slate-200">Key Concepts to Revise:</div>
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+            <div className="text-xs font-bold text-slate-200">Key Topics to Review for Next Time:</div>
             <div className="flex flex-wrap gap-2 pt-1">
               {report.recommendedTopics.map((topic, idx) => (
                 <span key={idx} className="px-2.5 py-1 rounded-lg text-xs bg-slate-900 border border-slate-700 text-slate-300 font-medium">
@@ -257,10 +291,15 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
       {/* Model Answer Comparisons */}
       {report.exampleImprovedAnswers && report.exampleImprovedAnswers.length > 0 && (
         <section className="space-y-4">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-violet-400" />
-            <span>Question-by-Question Model Answer Transformations</span>
-          </h2>
+          <div>
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-violet-400" />
+              <span>Question-by-Question Coaching & Model Answers</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              See how subtle structural adjustments transform good answers into standout responses
+            </p>
+          </div>
 
           <div className="space-y-4">
             {report.exampleImprovedAnswers.map((ex, idx) => (
@@ -271,15 +310,15 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                   <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-                    <div className="text-[11px] font-semibold text-slate-400 mb-1">Your Delivery Summary:</div>
-                    <p className="text-slate-300 italic">{ex.originalSummary}</p>
+                    <div className="text-[11px] font-semibold text-slate-400 mb-1">What You Shared:</div>
+                    <p className="text-slate-300 italic leading-relaxed">{ex.originalSummary}</p>
                   </div>
 
                   <div className="p-3.5 rounded-xl bg-violet-950/20 border border-violet-500/30">
-                    <div className="text-[11px] font-semibold text-violet-300 mb-1">Model STAR Answer:</div>
+                    <div className="text-[11px] font-semibold text-violet-300 mb-1">Coaching Model (STAR Framework):</div>
                     <p className="text-slate-200 font-medium leading-relaxed">{ex.improvedAnswer}</p>
                     <div className="mt-2 text-[10px] text-violet-400">
-                      <strong>Why this works:</strong> {ex.whyBetter}
+                      <strong>Why this elevates your response:</strong> {ex.whyBetter}
                     </div>
                   </div>
                 </div>
@@ -292,10 +331,15 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
       {/* Personalized Preparation Plan */}
       {report.prepPlan && report.prepPlan.length > 0 && (
         <section className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-emerald-400" />
-            <span>Recommended 7-Day Action Plan</span>
-          </h2>
+          <div>
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-emerald-400" />
+              <span>Your Encouraging 7-Day Growth Plan</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Take small, steady steps each day to build confidence and polish your delivery
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {report.prepPlan.map((phase, idx) => (
@@ -317,8 +361,8 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
       )}
 
       {/* Transparent Disclaimer */}
-      <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-500 leading-relaxed text-center">
-        <strong>Evaluation Methodology Disclaimer:</strong> AI-generated scores and metrics are automated educational estimates based on structured rubrics and transcripts. They are intended for self-improvement and do not constitute a guarantee of hiring outcomes or formal job offers.
+      <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 leading-relaxed text-center">
+        <strong>Coaching Note:</strong> These evaluations and metrics are designed to support and accelerate your learning journey. Every mock interview is an encouraging stepping stone to building confidence, mastering technical conversations, and achieving your dream placement.
       </div>
     </div>
   );

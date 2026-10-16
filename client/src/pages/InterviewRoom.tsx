@@ -1354,10 +1354,18 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span className="text-xs font-bold text-white uppercase tracking-wider">Performance & Evaluation Review</span>
+                      <div>
+                        <span className="text-xs font-bold text-white uppercase tracking-wider">Interviewer Debrief & Review</span>
+                        <div className="text-[10px] text-slate-400">Encouraging rubric assessment</div>
+                      </div>
                     </div>
-                    <div className="text-xl font-black text-emerald-400">
-                      {currentQuestion.evaluation.score}<span className="text-xs text-slate-500">/100</span>
+                    <div className="text-right">
+                      <div className="text-xl font-black text-emerald-400 leading-none">
+                        {currentQuestion.evaluation.score}<span className="text-xs text-slate-500">/100</span>
+                      </div>
+                      <div className="text-[10px] text-emerald-400/80 font-medium mt-0.5">
+                        {currentQuestion.evaluation.score >= 80 ? 'Strong delivery' : currentQuestion.evaluation.score >= 65 ? 'Solid answer' : 'Good attempt'}
+                      </div>
                     </div>
                   </div>
 
@@ -1481,9 +1489,9 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
                       {currentQuestion.evaluation.unverifiedOrQuestionableClaims && currentQuestion.evaluation.unverifiedOrQuestionableClaims.length > 0 && (
                         <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 text-xs">
-                          <div className="font-bold text-amber-400 mb-1 flex items-center gap-1.5">
-                            <AlertTriangle className="w-3.5 h-3.5" />
-                            <span>Unverified / Questionable Claims:</span>
+                          <div className="font-bold text-amber-300 mb-1 flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Claims to Clarify & Back Up:</span>
                           </div>
                           <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
                             {currentQuestion.evaluation.unverifiedOrQuestionableClaims.map((claim, idx) => (
@@ -1495,15 +1503,24 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                     </div>
                   )}
 
-                  {/* Constructive Feedback */}
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    {currentQuestion.evaluation.feedback}
-                  </p>
+                  {/* Verbal Feedback from Lead Interviewer */}
+                  <div className="p-3.5 rounded-xl bg-violet-950/20 border-l-4 border-l-violet-500 border-t border-r border-b border-violet-500/20 space-y-1">
+                    <div className="text-[11px] font-bold text-violet-300 flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-violet-400" />
+                      <span>Interviewer Verbal Feedback:</span>
+                    </div>
+                    <p className="text-xs text-slate-200 leading-relaxed italic">
+                      "{currentQuestion.evaluation.feedback}"
+                    </p>
+                  </div>
 
                   {/* Strengths & Points to Improve */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
                     <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                      <div className="font-semibold text-emerald-400 mb-1">Key Strengths:</div>
+                      <div className="font-semibold text-emerald-400 mb-1 flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>What Worked Well:</span>
+                      </div>
                       <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[11px]">
                         {currentQuestion.evaluation.strengths.map((s, idx) => (
                           <li key={idx}>{s}</li>
@@ -1512,7 +1529,10 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                     </div>
 
                     <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-                      <div className="font-semibold text-amber-400 mb-1">Points to Improve:</div>
+                      <div className="font-semibold text-amber-300 mb-1 flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Opportunities to Polish:</span>
+                      </div>
                       <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[11px]">
                         {currentQuestion.evaluation.missedPoints.map((m, idx) => (
                           <li key={idx}>{m}</li>
@@ -1524,7 +1544,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   {/* Better Answer Example */}
                   {currentQuestion.evaluation.betterAnswerExample && (
                     <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs">
-                      <span className="font-semibold text-violet-400">Example High-Scoring Response: </span>
+                      <span className="font-semibold text-violet-400">Coaching Model Response: </span>
                       <p className="text-slate-300 text-[11px] leading-relaxed mt-1">
                         {currentQuestion.evaluation.betterAnswerExample}
                       </p>

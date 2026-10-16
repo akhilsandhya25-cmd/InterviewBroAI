@@ -105,10 +105,44 @@ async function testFollowUpWithHistory() {
     console.log(`Reason: ${followUp.followUpReason}`);
   }
 
-  console.log('\n🎉 ALL AI INTERVIEWER & FOLLOW-UP INTELLIGENCE TESTS PASSED!');
+  // 4. Testing Comprehensive Report Synthesis & Conversational Verbal Tone
+  console.log('\n4. Testing geminiService.generateComprehensiveReport (conversational & encouraging tone):');
+  const sampleQuestions = [
+    {
+      id: 'q-1',
+      questionText: 'Can you explain how React fiber architecture works and how state updates are scheduled?',
+      category: 'technical',
+      candidateAnswer: 'React Fiber allows incremental rendering of virtual DOM by breaking work into units of work. It can pause and prioritize user interactions over background updates.',
+      evaluation: {
+        score: 85,
+        feedback: 'You explained the core mechanics of incremental rendering really well. To take this even further next time, touch upon priority levels like Lane architecture.',
+        strengths: ['Clearly explained incremental rendering and work units', 'Highlighted user interaction prioritization'],
+        missedPoints: ['Mention of Lane priority models in newer React versions']
+      }
+    }
+  ];
+
+  const report = await geminiService.generateComprehensiveReport(
+    sampleQuestions,
+    { role: 'Frontend Engineer', companyName: 'Flipkart', interviewType: 'technical' },
+    'Arjun Sharma'
+  );
+
+  assert(Boolean(report && report.summary), 'Report summary generated');
+  assert(report.overallScore > 0, 'Overall score computed');
+  assert(Array.isArray(report.strengths) && report.strengths.length > 0, 'Strengths provided');
+  assert(Array.isArray(report.weaknesses) && report.weaknesses.length > 0, 'Growth opportunities / weaknesses provided');
+  assert(Array.isArray(report.actionableImprovements), 'Actionable coaching tips provided');
+  console.log('Report Summary (Conversational Verbal Tone Preview):');
+  console.log(`"${report.summary}"`);
+  console.log(`Strengths: ${report.strengths.join(' | ')}`);
+  console.log(`Growth Areas: ${report.weaknesses.join(' | ')}`);
+
+  console.log('\n🎉 ALL AI INTERVIEWER, FOLLOW-UP, & FEEDBACK REPORT TESTS PASSED!');
 }
 
 testFollowUpWithHistory().catch((err) => {
   console.error('Test execution error:', err);
   process.exit(1);
 });
+
