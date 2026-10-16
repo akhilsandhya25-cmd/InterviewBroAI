@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Building2, 
   Briefcase, 
@@ -16,7 +16,11 @@ import {
   Globe,
   Video,
   Mic,
-  Headphones
+  Headphones,
+  AlertCircle,
+  CheckCircle2,
+  Volume2,
+  RotateCcw
 } from 'lucide-react';
 import { 
   COMPANY_PRESETS, 
@@ -34,6 +38,14 @@ import {
 } from '../types';
 import { useInterview } from '../context/InterviewContext';
 import { useAuth } from '../context/AuthContext';
+import {
+  testMicrophoneAccess,
+  createAudioMeter,
+  releaseMediaStream,
+  getBrowserVoiceCapabilities,
+  MicrophoneErrorInfo,
+  BrowserVoiceCapabilities
+} from '../services/microphoneService';
 
 interface InterviewSetupProps {
   onStart: () => void;
@@ -59,11 +71,69 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
   const [resumeText, setResumeText] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
+  // Pre-interview Microphone Readiness state
+  const [voiceCapabilities] = useState<BrowserVoiceCapabilities>(() => getBrowserVoiceCapabilities());
+  const [isTestingMic, setIsTestingMic] = useState<boolean>(false);
+  const [testAudioLevel, setTestAudioLevel] = useState<number>(0);
+  const [testDeviceLabel, setTestDeviceLabel] = useState<string>('');
+  const [testMicError, setTestMicError] = useState<MicrophoneErrorInfo | null>(null);
+  const [testMicPassed, setTestMicPassed] = useState<boolean>(false);
+  const testStreamRef = useRef<MediaStream | null>(null);
+  const testMeterRef = useRef<{ stop: () => void } | null>(null);
+
+  // Ensure test tracks are stopped and released if component unmounts
+  useEffect(() => {
+    return () => {
+      if (testMeterRef.current) {
+        testMeterRef.current.stop();
+      }
+      if (testStreamRef.current) {
+        releaseMediaStream(testStreamRef.current);
+      }
+    };
+  }, []);
+
+  const stopMicTest = () => {
+    if (testMeterRef.current) {
+      testMeterRef.current.stop();
+      testMeterRef.current = null;
+    }
+    if (testStreamRef.current) {
+      releaseMediaStream(testStreamRef.current);
+      testStreamRef.current = null;
+    }
+    setIsTestingMic(false);
+    setTestAudioLevel(0);
+  };
+
+  const startMicTest = async () => {
+    stopMicTest();
+    setTestMicError(null);
+    setTestMicPassed(false);
+    setIsTestingMic(true);
+
+    const result = await testMicrophoneAccess();
+    if (result.success && result.stream) {
+      testStreamRef.current = result.stream;
+      setTestDeviceLabel(result.deviceLabel || 'Default Microphone');
+      setTestMicPassed(true);
+
+      const meter = createAudioMeter(result.stream, (volume) => {
+        setTestAudioLevel(volume);
+      });
+      testMeterRef.current = meter;
+    } else {
+      setIsTestingMic(false);
+      setTestMicError(result.error || null);
+    }
+  };
+
   const selectedPreset = COMPANY_PRESETS.find(p => p.id === selectedPresetId);
   const companyName = customCompany.trim() || selectedPreset?.name || 'Top Tech Employer';
   const companyCategory: CompanyCategory = selectedPreset?.category || 'Product Unicorn';
 
   const handleStartInterview = async () => {
+    stopMicTest();
     const config: InterviewConfig = {
       role,
       experienceLevel,
@@ -277,10 +347,13 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
           <span className="text-xs text-slate-400">Choose your practice mode</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Voice-Only Mode */}
           <div
-            onClick={() => setMode('voice_only')}
+            onClick={() => {
+              setMode('voice_only');
+              setTestMicError(null);
+            }}
             className={`p-4 rounded-2xl border cursor-pointer transition-all ${
               mode === 'voice_only'
                 ? 'bg-violet-950/40 border-violet-500/80 shadow-lg shadow-violet-500/10'
@@ -293,25 +366,28 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                   <Mic className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-2">
-                    <span>Dedicated Voice-Only Interview</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      Recommended
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Voice-Only Mode</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Top Pick
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-400">Voice-driven dialogue with real-time waveform</div>
+                  <div className="text-[11px] text-slate-400">Spoken dialogue & live waveform</div>
                 </div>
               </div>
               {mode === 'voice_only' && <Check className="w-4 h-4 text-violet-400" />}
             </div>
             <p className="text-[11px] text-slate-400 leading-relaxed pl-11">
-              The AI interviewer speaks every question aloud. Answer verbally using your microphone with real-time speech transcription. Typed answers are disabled to simulate realistic phone screens and technical voice rounds.
+              The AI interviewer speaks every question aloud. You respond verbally via your microphone with real-time speech transcription to simulate phone and tech rounds.
             </p>
           </div>
 
           {/* Video Mode */}
           <div
-            onClick={() => setMode('video')}
+            onClick={() => {
+              setMode('video');
+              setTestMicError(null);
+            }}
             className={`p-4 rounded-2xl border cursor-pointer transition-all ${
               mode === 'video'
                 ? 'bg-blue-950/40 border-blue-500/80 shadow-lg shadow-blue-500/10'
@@ -324,17 +400,194 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                   <Video className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-white">Video Interview Mode</div>
-                  <div className="text-[11px] text-slate-400">Webcam visual feed + audio with response editor</div>
+                  <div className="text-xs font-bold text-white">Video Mode</div>
+                  <div className="text-[11px] text-slate-400">Webcam visual feed + audio</div>
                 </div>
               </div>
               {mode === 'video' && <Check className="w-4 h-4 text-blue-400" />}
             </div>
             <p className="text-[11px] text-slate-400 leading-relaxed pl-11">
-              Full webcam simulation for formal virtual placement rounds. Practice maintaining camera posture and eye contact while answering questions by voice or refining your answer in the response editor.
+              Full webcam simulation for formal virtual placement rounds. Practice maintaining camera posture and eye contact with optional answer editor refinements.
+            </p>
+          </div>
+
+          {/* Text-Based Mode (Silent / Mic-Free Fallback) */}
+          <div
+            onClick={() => {
+              setMode('text_only');
+              stopMicTest();
+              setTestMicError(null);
+            }}
+            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+              mode === 'text_only'
+                ? 'bg-emerald-950/40 border-emerald-500/80 shadow-lg shadow-emerald-500/10'
+                : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Text-Based Mode</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                      Mic-Free
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400">Silent practice • No mic required</div>
+                </div>
+              </div>
+              {mode === 'text_only' && <Check className="w-4 h-4 text-emerald-400" />}
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed pl-11">
+              Read questions on screen (with optional audio replay) and type your technical answers. Ideal for quiet spaces or when your microphone is unavailable. Full STAR evaluations preserved.
             </p>
           </div>
         </div>
+
+        {/* Interactive Pre-Interview Microphone Readiness & Diagnostics */}
+        {mode !== 'text_only' ? (
+          <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-white">
+                <Mic className="w-4 h-4 text-violet-400" />
+                <span>Microphone & Audio Readiness Check</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-normal">
+                  {voiceCapabilities.browserName} on {voiceCapabilities.osName}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {isTestingMic ? (
+                  <button
+                    type="button"
+                    onClick={stopMicTest}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 transition-colors"
+                  >
+                    Stop Test
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startMicTest}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors flex items-center gap-1.5 shadow"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    <span>Test Microphone</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Microsoft Edge on Windows Specific Advice */}
+            {voiceCapabilities.browserName === 'Edge' && voiceCapabilities.osName === 'Windows' && (
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-[11px] text-blue-200 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="font-semibold text-white">Edge on Windows Tip:</span> If Edge reports a microphone problem despite site permissions being granted, ensure Windows allows apps to access your microphone via <strong>Windows Settings &gt; Privacy &amp; security &gt; Microphone</strong>.
+                </div>
+              </div>
+            )}
+
+            {/* Firefox Warning */}
+            {voiceCapabilities.browserName === 'Firefox' && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-200 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="font-semibold text-white">Firefox Notice:</span> Mozilla Firefox does not support the Web Speech API by default. For the best voice experience, use Google Chrome or Microsoft Edge, or switch to Text-Based Mode below.
+                </div>
+              </div>
+            )}
+
+            {/* Active Test Display */}
+            {isTestingMic && (
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-violet-500/30 space-y-2.5 animate-fadeIn">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-300 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Device: <strong className="text-white">{testDeviceLabel}</strong></span>
+                  </span>
+                  <span className="text-emerald-400 font-mono text-[11px] font-semibold">
+                    Volume: {testAudioLevel}%
+                  </span>
+                </div>
+
+                {/* Level Meter Bar */}
+                <div className="w-full h-3 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-violet-500 transition-all duration-75 rounded-full"
+                    style={{ width: `${Math.max(testAudioLevel, 4)}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Speak into your microphone. If the bar moves, your microphone is ready.</span>
+                  {testMicPassed && (
+                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Input Detected</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Microphone Error Banner */}
+            {testMicError && (
+              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/40 text-xs space-y-2">
+                <div className="flex items-start gap-2.5 text-rose-300">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block text-white font-bold">{testMicError.title}</strong>
+                    <p className="mt-0.5 text-rose-200">{testMicError.message}</p>
+                    <p className="mt-1 text-[11px] text-slate-300">
+                      <strong>Fix:</strong> {testMicError.actionHint}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={startMicTest}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600/30 hover:bg-rose-600/40 text-rose-200 border border-rose-500/40 transition-colors"
+                  >
+                    Retry Microphone Check
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('text_only');
+                      setTestMicError(null);
+                      stopMicTest();
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors flex items-center gap-1.5 shadow"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Switch to Text-Based Mode (No Mic Needed)</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Text-Based Mode Selected: Microphone and webcam access are completely disabled.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMode('voice_only')}
+              className="text-xs text-emerald-400 hover:underline font-semibold shrink-0"
+            >
+              Switch back to Voice
+            </button>
+          </div>
+        )}
       </section>
 
       {/* 4. Session Length & Difficulty */}
@@ -462,7 +715,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             <span>•</span>
             <span className="capitalize">{interviewType} Round</span>
             <span>•</span>
-            <span className="capitalize">{mode === 'voice_only' ? 'Voice-Only' : 'Video'} Mode</span>
+            <span className="capitalize">{mode === 'text_only' ? 'Text-Based' : mode === 'voice_only' ? 'Voice-Only' : 'Video'} Mode</span>
             <span>•</span>
             <span className="capitalize">{difficulty} Level</span>
           </div>
@@ -481,7 +734,13 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             </>
           ) : (
             <>
-              <span>{mode === 'voice_only' ? 'Enter Voice Interview Room' : 'Enter Video Interview Room'}</span>
+              <span>
+                {mode === 'text_only' 
+                  ? 'Enter Text Interview Room' 
+                  : mode === 'voice_only' 
+                  ? 'Enter Voice Interview Room' 
+                  : 'Enter Video Interview Room'}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}

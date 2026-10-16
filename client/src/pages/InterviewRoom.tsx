@@ -46,6 +46,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     isEvaluating,
     isPaused,
     videoStream,
+    mediaError,
     isCameraOn,
     isMicOn,
     toggleCamera,
@@ -57,10 +58,15 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     previousQuestion,
     endInterview,
     isRecordingConsented,
-    setConsentToRecord
+    setConsentToRecord,
+    releaseMedia,
+    switchToTextMode,
+    clearMediaError
   } = useInterview();
 
   const isVoiceOnly = activeSession?.config.mode === 'voice_only';
+  const isTextOnly = activeSession?.config.mode === 'text_only';
+  const isVideo = activeSession?.config.mode === 'video';
 
   // Voice & Transcript State
   const [spokenTranscript, setSpokenTranscript] = useState<string>('');
@@ -76,8 +82,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const [isTestingSpeaker, setIsTestingSpeaker] = useState<boolean>(false);
   
   // Pre-interview check gate
-  const [preflightPassed, setPreflightPassed] = useState<boolean>(false);
-  const [consentAcknowledged, setConsentAcknowledged] = useState<boolean>(isRecordingConsented);
+  const [preflightPassed, setPreflightPassed] = useState<boolean>(isTextOnly);
+  const [consentAcknowledged, setConsentAcknowledged] = useState<boolean>(isRecordingConsented || isTextOnly);
 
   const orbState: OrbState = isEvaluating 
     ? 'thinking' 
@@ -113,7 +119,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
   // Hook up video stream to local HTML video elements (only in video mode)
   useEffect(() => {
-    if (!isVoiceOnly) {
+    if (isVideo) {
       if (videoRef.current && videoStream) {
         videoRef.current.srcObject = videoStream;
       }
@@ -121,9 +127,9 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
         preflightVideoRef.current.srcObject = videoStream;
       }
     }
-  }, [videoStream, isCameraOn, preflightPassed, isVoiceOnly]);
+  }, [videoStream, isCameraOn, preflightPassed, isVideo]);
 
-  // Initialize Speech Recognition & TTS voices
+  // Initialize Speech Recognition & TTS voices, and ensure hardware tracks are released on unmount
   useEffect(() => {
     const recognition = createSpeechRecognition();
     recognitionRef.current = recognition;
@@ -135,12 +141,22 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
         recognitionRef.current.abort();
       }
       tts.stop();
+      releaseMedia();
     };
   }, []);
 
-  // Automatically speak the question aloud when question changes (after preflight check is passed)
+  const handleExit = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+    }
+    tts.stop();
+    releaseMedia();
+    onExit();
+  };
+
+  // Automatically speak the question aloud when question changes (only in voice/video modes, not text_only)
   useEffect(() => {
-    if (!preflightPassed || !currentQuestion || isPaused) return;
+    if (!preflightPassed || !currentQuestion || isPaused || isTextOnly) return;
 
     // Small natural delay so candidate perceives conversational turn
     const timer = setTimeout(() => {
@@ -151,7 +167,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       clearTimeout(timer);
       tts.stop();
     };
-  }, [currentQuestionIndex, preflightPassed, isPaused]);
+  }, [currentQuestionIndex, preflightPassed, isPaused, isTextOnly]);
 
   const speakCurrentQuestion = () => {
     if (!currentQuestion) return;
@@ -168,8 +184,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       onStart: () => setIsSpeakingQuestion(true),
       onEnd: () => {
         setIsSpeakingQuestion(false);
-        // Prompt candidate to speak after question finishes
-        if (!currentQuestion.candidateAnswer) {
+        // Prompt candidate to speak after question finishes (only in voice or video mode)
+        if (!currentQuestion.candidateAnswer && !isTextOnly) {
           startSpeechCapture();
         }
       },
@@ -269,7 +285,9 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
   // Compute effective answer based on mode
   const effectiveAnswer = (
-    isVoiceOnly 
+    isTextOnly
+      ? candidateTypedText
+      : isVoiceOnly 
       ? (spokenTranscript + (interimText ? ' ' + interimText : '')) 
       : (candidateTypedText || spokenTranscript + (interimText ? ' ' + interimText : ''))
   ).trim();
@@ -301,7 +319,9 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     setInterimText('');
 
     const effectiveCandidateAnswer = (
-      isVoiceOnly
+      isTextOnly
+        ? candidateTypedText.trim()
+        : isVoiceOnly
         ? resolvedSpoken
         : (candidateTypedText.trim() || resolvedSpoken)
     ).trim();
@@ -309,7 +329,9 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     // 3. Validation: if empty, show helpful message and do not submit
     if (!effectiveCandidateAnswer) {
       setSubmissionError(
-        isVoiceOnly
+        isTextOnly
+          ? 'Please enter your answer in the response box before submitting.'
+          : isVoiceOnly
           ? 'No spoken answer was detected. Please click "Start Speaking Answer", speak clearly into your microphone, and then click submit.'
           : 'Please provide or speak an answer before submitting.'
       );
@@ -390,6 +412,60 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
   // PRE-FLIGHT CHECK GATE
   if (!preflightPassed) {
+    if (isTextOnly) {
+      return (
+        <div className="max-w-2xl mx-auto px-4 py-12 space-y-6 text-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
+            <FileText className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Text-Based Mode Ready</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+            Distraction-Free Interview Practice
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto">
+            You are ready to begin. The AI will present questions on screen, and you will type your answers. Full AI STAR evaluations and scoring are enabled.
+          </p>
+
+          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 max-w-md mx-auto space-y-3 text-left">
+            <div className="flex items-center justify-between text-xs text-slate-300 border-b border-slate-800 pb-2.5">
+              <span>Target Role:</span>
+              <strong className="text-white">{activeSession.config.role}</strong>
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-300 border-b border-slate-800 pb-2.5">
+              <span>Company:</span>
+              <strong className="text-white">{activeSession.config.companyName}</strong>
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-300 border-b border-slate-800 pb-2.5">
+              <span>Questions:</span>
+              <strong className="text-white">{activeSession.questions.length}</strong>
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-300">
+              <span>Microphone & Camera:</span>
+              <span className="text-emerald-400 font-semibold">Bypassed (Not Required)</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={handleExit}
+              className="px-5 py-3 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+            >
+              Back to Setup
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreflightPassed(true)}
+              className="px-8 py-3.5 rounded-xl font-bold text-xs gradient-button inline-flex items-center gap-2 shadow-lg"
+            >
+              <span>Enter Text Interview Room</span>
+              <Check className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         <div className="text-center space-y-2">
@@ -406,6 +482,36 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               : 'In InterviewBro AI video interviews, verify your camera stream and microphone input before entering the live session.'}
           </p>
         </div>
+
+        {/* Actionable Hardware Error Banner if getUserMedia failed */}
+        {mediaError && (
+          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/40 text-xs space-y-3">
+            <div className="flex items-start gap-2.5 text-rose-300">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-400" />
+              <div className="space-y-1">
+                <strong className="block text-white font-bold text-sm">{mediaError.title}</strong>
+                <p className="text-rose-200 leading-relaxed">{mediaError.message}</p>
+                <p className="text-[11px] text-slate-300 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+                  <strong className="text-amber-300">Suggested Action:</strong> {mediaError.actionHint}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-1 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  switchToTextMode();
+                  setPreflightPassed(true);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all flex items-center gap-1.5 shadow-lg shadow-emerald-900/30"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Switch to Text-Based Mode (No Mic Needed)</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Device Check Grid */}
         <div className={`grid grid-cols-1 ${isVoiceOnly ? 'max-w-xl mx-auto' : 'md:grid-cols-2'} gap-6`}>
@@ -470,8 +576,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                 <div className="text-[11px] text-slate-400 flex items-center justify-between">
                   <span>Microphone Input Level:</span>
-                  <span className={isMicOn ? 'text-emerald-400 font-semibold' : 'text-slate-500'}>
-                    {isMicOn ? 'Listening to voice' : 'Muted'}
+                  <span className={isMicOn && videoStream ? 'text-emerald-400 font-semibold' : 'text-slate-500'}>
+                    {isMicOn && videoStream ? 'Listening to voice' : 'No Active Mic Stream'}
                   </span>
                 </div>
                 <AudioVisualizer stream={videoStream} isActive={isMicOn} />
@@ -515,12 +621,12 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
             <div>
               <strong className="block font-bold">Browser Speech Recognition Not Supported</strong>
-              Your current browser does not support the Web Speech API required for speech recognition. Please open InterviewBro AI in Google Chrome or Microsoft Edge.
+              Your current browser does not support the Web Speech API required for speech recognition. You can switch to Text-Based Mode to complete your interview.
             </div>
           </div>
         )}
 
-        {/* Start Button */}
+        {/* Start Button & Escape Hatch */}
         <div className="p-6 rounded-2xl bg-gradient-to-r from-violet-950/50 via-slate-900 to-blue-950/50 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
             <div className="text-sm font-bold text-white">
@@ -538,6 +644,20 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           >
             <span>{isVoiceOnly ? 'Enter Dedicated Voice Room' : 'Enter Live Video Room'}</span>
             <Check className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Graceful Fallback Link */}
+        <div className="text-center pt-1">
+          <button
+            type="button"
+            onClick={() => {
+              switchToTextMode();
+              setPreflightPassed(true);
+            }}
+            className="text-xs text-slate-400 hover:text-white underline font-medium transition-colors"
+          >
+            Microphone unavailable or in a noisy space? Switch to Text-Based Mode
           </button>
         </div>
       </div>
@@ -589,7 +709,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             <div className="text-[11px] text-slate-400 flex items-center gap-2">
               <span className="capitalize">{activeSession.config.interviewType} Round</span>
               <span>•</span>
-              <span className="capitalize">{isVoiceOnly ? 'Voice-Only' : 'Video'} Mode</span>
+              <span className="capitalize">{isTextOnly ? 'Text-Based' : isVoiceOnly ? 'Voice-Only' : 'Video'} Mode</span>
               <span>•</span>
               <span className="capitalize">{activeSession.config.difficulty}</span>
               {currentQuestion.isFollowUp && (
@@ -615,6 +735,18 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
         {/* Right Controls */}
         <div className="flex items-center gap-2">
+          {!isTextOnly && (
+            <button
+              type="button"
+              onClick={switchToTextMode}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-colors"
+              title="Switch to typing mode without losing interview progress"
+            >
+              <FileText className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Switch to Text</span>
+            </button>
+          )}
+
           <button
             onClick={togglePause}
             className={`p-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
@@ -642,7 +774,65 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Column (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
-          {isVoiceOnly ? (
+          {isTextOnly ? (
+            /* Dedicated Text-Based Interface Hub */
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-[#101728] to-slate-950 border border-emerald-500/30 shadow-2xl space-y-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-300 flex items-center gap-2 uppercase tracking-wider">
+                  <FileText className="w-4 h-4 text-emerald-400" />
+                  <span>Text-Based Interview Hub</span>
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                  Mic-Free Mode
+                </span>
+              </div>
+
+              {/* Central AI Evaluator Orb */}
+              <div className="py-4 flex flex-col items-center justify-center space-y-4">
+                <VoiceInterviewerOrb
+                  state={orbState}
+                  size="xl"
+                  interviewerName="AI Principal Interviewer"
+                  company={activeSession.config.companyName}
+                />
+
+                <div className="w-full max-w-xs space-y-1 text-center">
+                  <div className="text-xs font-semibold text-white">
+                    {activeSession.config.companyName} • {activeSession.config.role}
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    Type your answer in the response editor and submit when ready.
+                  </div>
+                </div>
+              </div>
+
+              {/* Spoken Question Audio Player */}
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-slate-300">
+                  <Volume2 className="w-4 h-4 text-violet-400" />
+                  <span>Interviewer Speech:</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleQuestionAudio}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600/30 hover:bg-violet-600/40 text-violet-200 border border-violet-500/40 transition-colors"
+                >
+                  {isSpeakingQuestion ? 'Stop Audio' : 'Play Question Aloud'}
+                </button>
+              </div>
+
+              {/* Tips Banner */}
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                <div className="text-white font-semibold flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Typing Answer Tips</span>
+                </div>
+                <p className="leading-relaxed">
+                  Be clear and structured. Explain your architectural choices, trade-offs, and metrics. Press <strong>Ctrl+Enter</strong> to submit immediately.
+                </p>
+              </div>
+            </div>
+          ) : isVoiceOnly ? (
             /* Dedicated Voice-Only Interface Hub */
             <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-[#101728] to-slate-950 border border-violet-500/30 shadow-2xl space-y-5">
               <div className="flex items-center justify-between">
@@ -710,14 +900,23 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               </div>
 
               {/* Voice Mode Rules Banner */}
-              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 space-y-2">
                 <div className="text-white font-semibold flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-violet-400" />
                   <span>Voice-Only Mode Rules</span>
                 </div>
                 <p className="leading-relaxed">
-                  Text typing is disabled as an answer substitute. The AI evaluates your verbal explanation, technical terminology, and reasoning.
+                  The AI evaluates your verbal explanation, technical terminology, and reasoning.
                 </p>
+                <div className="pt-1 border-t border-slate-800/60">
+                  <button
+                    type="button"
+                    onClick={switchToTextMode}
+                    className="text-[11px] text-violet-400 hover:text-violet-300 underline font-medium transition-colors"
+                  >
+                    Microphone issue or noisy room? Switch to Text-Based Mode
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -858,73 +1057,120 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 <label className="text-xs font-bold text-white flex items-center gap-2">
                   <span>Candidate Response</span>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
-                    isVoiceOnly
+                    isTextOnly
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                      : isVoiceOnly
                       ? 'bg-violet-500/20 text-violet-300 border-violet-500/30'
                       : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
                   }`}>
-                    {isVoiceOnly ? 'Voice Mandatory' : 'Voice / Text Hybrid'}
+                    {isTextOnly ? 'Text Mode (Typing Only)' : isVoiceOnly ? 'Voice Mandatory' : 'Voice / Text Hybrid'}
                   </span>
                 </label>
                 <div className="text-[11px] text-slate-400 mt-0.5">
-                  {isVoiceOnly 
+                  {isTextOnly 
+                    ? 'Type your structured response. Press Ctrl+Enter when ready to submit.'
+                    : isVoiceOnly 
                     ? 'Speak your answer verbally. Speech recognition transcribes your words in real time.'
                     : 'Speak your answer using the microphone or edit directly in the response box.'}
                 </div>
               </div>
 
-              {/* Dictation Toggle Button */}
-              <button
-                type="button"
-                onClick={isListening ? stopSpeechCapture : startSpeechCapture}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md ${
-                  isListening
-                    ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 animate-pulse'
-                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
-                }`}
-              >
-                <Mic className="w-3.5 h-3.5" />
-                <span>{isListening ? 'Done Speaking' : 'Start Speaking'}</span>
-              </button>
+              {/* Dictation Toggle Button (Only in voice/video modes) */}
+              {!isTextOnly && (
+                <button
+                  type="button"
+                  onClick={isListening ? stopSpeechCapture : startSpeechCapture}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md ${
+                    isListening
+                      ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 animate-pulse'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
+                  }`}
+                >
+                  <Mic className="w-3.5 h-3.5" />
+                  <span>{isListening ? 'Done Speaking' : 'Start Speaking'}</span>
+                </button>
+              )}
             </div>
 
-            {/* Speech Recognition Error Notification */}
+            {/* Speech Recognition Error Notification with Text Mode Fallback */}
             {speechError && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-3">
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{speechError}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={startSpeechCapture}
-                  className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-semibold shrink-0"
-                >
-                  Try Speaking Again
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={startSpeechCapture}
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-semibold"
+                  >
+                    Try Mic Again
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchToTextMode();
+                      setSpeechError(null);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold flex items-center gap-1 shadow"
+                  >
+                    <FileText className="w-3 h-3" />
+                    <span>Switch to Text Mode</span>
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Answer Display: Voice-Only Transparent Transcript vs Video Editable Textarea */}
-            {isVoiceOnly ? (
+            {/* Answer Display: Text-Only Editor vs Voice-Only Transcript vs Video Editable Textarea */}
+            {isTextOnly ? (
+              /* Text-Based Mode: Direct Rich Typing Editor */
+              <div className="space-y-2">
+                <textarea
+                  rows={6}
+                  value={candidateTypedText}
+                  onChange={(e) => setCandidateTypedText(e.target.value)}
+                  placeholder="Type your technical response here (Ctrl+Enter to submit)..."
+                  className="w-full p-4 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 leading-relaxed font-sans"
+                />
+                <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+                  <span>Press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">Ctrl+Enter</kbd> to submit</span>
+                  <span>{candidateTypedText.length} characters • {wordCount} words</span>
+                </div>
+              </div>
+            ) : isVoiceOnly ? (
               /* Voice-Only Mode: Live Spoken Transcript (Typing disabled) */
-              <div className="relative min-h-[140px] max-h-[220px] p-4 rounded-xl bg-slate-950 border border-slate-800 overflow-y-auto font-sans">
-                {effectiveAnswer ? (
-                  <div className="text-sm text-slate-100 leading-relaxed">
-                    <span>{spokenTranscript}</span>
-                    {interimText && (
-                      <span className="text-violet-400 italic"> {interimText}</span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center py-6 text-slate-500 space-y-2">
-                    <Mic className={`w-8 h-8 ${isListening ? 'text-violet-400 animate-pulse' : 'text-slate-600'}`} />
-                    <p className="text-xs">
-                      {isListening 
-                        ? 'Listening to your microphone... Speak clearly.' 
-                        : 'Click "Start Speaking" or use microphone to dictate your verbal answer.'}
-                    </p>
-                  </div>
-                )}
+              <div className="space-y-1.5">
+                <div className="relative min-h-[140px] max-h-[220px] p-4 rounded-xl bg-slate-950 border border-slate-800 overflow-y-auto font-sans">
+                  {effectiveAnswer ? (
+                    <div className="text-sm text-slate-100 leading-relaxed">
+                      <span>{spokenTranscript}</span>
+                      {interimText && (
+                        <span className="text-violet-400 italic"> {interimText}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-6 text-slate-500 space-y-2">
+                      <Mic className={`w-8 h-8 ${isListening ? 'text-violet-400 animate-pulse' : 'text-slate-600'}`} />
+                      <p className="text-xs">
+                        {isListening 
+                          ? 'Listening to your microphone... Speak clearly.' 
+                          : 'Click "Start Speaking" or use microphone to dictate your verbal answer.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+                  <span>Microphone voice transcription active</span>
+                  <button
+                    type="button"
+                    onClick={switchToTextMode}
+                    className="text-violet-400 hover:text-violet-300 underline font-medium transition-colors"
+                  >
+                    Microphone trouble? Switch to Text-Based Mode
+                  </button>
+                </div>
               </div>
             ) : (
               /* Video Mode: Editable Textarea (Speech + Text Fallback) */

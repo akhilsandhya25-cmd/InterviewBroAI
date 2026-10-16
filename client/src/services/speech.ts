@@ -91,37 +91,46 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
             const err = event.error || 'unknown';
             console.warn('Speech recognition event error:', err);
 
-            let userMsg = 'Microphone speech capture encountered an error.';
-            if (err === 'no-speech') {
-              userMsg = 'No speech was detected. Please check that your microphone is unmuted and speak clearly.';
-            } else if (err === 'audio-capture') {
-              userMsg = 'No microphone was found or microphone is busy in another app.';
-            } else if (err === 'not-allowed') {
-              userMsg = 'Microphone permission was denied. Please allow microphone access in your browser settings to proceed.';
-            } else if (err === 'network') {
-              userMsg = 'Network error occurred during speech-to-text recognition.';
-            }
-
-            // If no-speech error, keep listening instead of aborting
+            // If no-speech error, keep listening so natural pauses do not abort the session
             if (err === 'no-speech' && shouldBeListening) {
               return;
             }
 
+            // For all non-pause errors (not-allowed, audio-capture, network, service-not-allowed),
+            // immediately halt listening state to prevent infinite auto-restart loops in Microsoft Edge / Windows
+            shouldBeListening = false;
+
+            let userMsg = 'Microphone speech capture encountered an error.';
+            if (err === 'not-allowed') {
+              userMsg = 'Microphone permission was denied. Please allow microphone permissions in Microsoft Edge (lock/tune icon) or Windows Privacy Settings.';
+            } else if (err === 'audio-capture') {
+              userMsg = 'No microphone was detected or your microphone is in exclusive use by another app (e.g. Teams, Zoom).';
+            } else if (err === 'network') {
+              userMsg = 'Network error occurred while connecting to browser speech recognition. Check your connection or switch to Text-Based Interview mode.';
+            } else if (err === 'service-not-allowed') {
+              userMsg = 'Speech recognition service is disabled or blocked in your browser or system settings.';
+            }
+
             onError(err, userMsg);
+            if (onStatusChange) onStatusChange('stopped');
           };
 
           rec.onend = () => {
-            // If browser closed the recognition stream unexpectedly but candidate is still speaking, auto-restart
+            // Only auto-restart if still actively listening (e.g. normal utterance boundary, NOT after an error)
             if (shouldBeListening) {
-              try {
-                if (onStatusChange) onStatusChange('processing');
-                recognition = setupRecognition();
-                recognition.start();
-                if (onStatusChange) onStatusChange('listening');
-              } catch (e) {
-                shouldBeListening = false;
-                if (onStatusChange) onStatusChange('stopped');
-              }
+              if (onStatusChange) onStatusChange('processing');
+              // Delay slightly (250ms) to allow Windows / Edge audio session to cycle cleanly without locking
+              setTimeout(() => {
+                if (!shouldBeListening) return;
+                try {
+                  recognition = setupRecognition();
+                  recognition.start();
+                  if (onStatusChange) onStatusChange('listening');
+                } catch (e) {
+                  shouldBeListening = false;
+                  if (onStatusChange) onStatusChange('stopped');
+                }
+              }, 250);
             } else {
               if (onStatusChange) onStatusChange('stopped');
             }

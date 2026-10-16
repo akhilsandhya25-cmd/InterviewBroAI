@@ -4,6 +4,7 @@ import { storage } from '../services/storage';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
 import confetti from 'canvas-confetti';
+import { releaseMediaStream, parseMicrophoneError, MicrophoneErrorInfo } from '../services/microphoneService';
 
 interface InterviewContextType {
   activeSession: InterviewSession | null;
@@ -18,6 +19,7 @@ interface InterviewContextType {
   currentTranscript: string;
   isRecordingConsented: boolean;
   videoStream: MediaStream | null;
+  mediaError: MicrophoneErrorInfo | null;
   isCameraOn: boolean;
   isMicOn: boolean;
   recordedBlobs: Blob[];
@@ -36,6 +38,9 @@ interface InterviewContextType {
   setTranscript: (text: string) => void;
   setIsSpeechActive: (active: boolean) => void;
   loadReport: (reportId: string) => void;
+  releaseMedia: () => void;
+  switchToTextMode: () => void;
+  clearMediaError: () => void;
 }
 
 const InterviewContext = createContext<InterviewContextType | undefined>(undefined);
@@ -54,6 +59,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   
   // Media states
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  const [mediaError, setMediaError] = useState<MicrophoneErrorInfo | null>(null);
   const [isCameraOn, setIsCameraOn] = useState<boolean>(true);
   const [isMicOn, setIsMicOn] = useState<boolean>(true);
   const [recordedBlobs, setRecordedBlobs] = useState<Blob[]>([]);
@@ -76,14 +82,55 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [activeSession, isPaused]);
 
-  // Clean up media streams on unmount
+  // Clean up media streams on unmount and beforeunload
+  const releaseMedia = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        console.warn('Error stopping media recorder during release:', e);
+      }
+    }
+    if (videoStream) {
+      releaseMediaStream(videoStream);
+      setVideoStream(null);
+    }
+  };
+
   useEffect(() => {
-    return () => {
+    const handleBeforeUnload = () => {
       if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
+        releaseMediaStream(videoStream);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (videoStream) {
+        releaseMediaStream(videoStream);
       }
     };
   }, [videoStream]);
+
+  const clearMediaError = () => {
+    setMediaError(null);
+  };
+
+  const switchToTextMode = () => {
+    releaseMedia();
+    setMediaError(null);
+    if (activeSession) {
+      const updatedSession: InterviewSession = {
+        ...activeSession,
+        config: {
+          ...activeSession.config,
+          mode: 'text_only'
+        }
+      };
+      storage.saveSession(updatedSession, user?.id);
+      setActiveSession(updatedSession);
+    }
+  };
 
   const toggleCamera = async () => {
     if (videoStream) {
@@ -98,6 +145,8 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setVideoStream(stream);
         setIsCameraOn(true);
       } catch (err) {
+        const parsed = parseMicrophoneError(err);
+        setMediaError(parsed);
         console.warn('Could not access webcam:', err);
       }
     }
@@ -115,6 +164,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const startNewSession = async (config: InterviewConfig): Promise<boolean> => {
     setIsGeneratingQuestions(true);
+    setMediaError(null);
     try {
       // Record session without blocking
       decrementInterviewQuota();
@@ -147,48 +197,63 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         elapsedSeconds: 0
       };
 
-      // Request camera/mic stream if available in browser
-      try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          const isVoiceOnly = config.mode === 'voice_only';
-          const stream = await navigator.mediaDevices.getUserMedia(
-            isVoiceOnly
-              ? { audio: true, video: false }
-              : { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true }
-          );
-          setVideoStream(stream);
-          setIsCameraOn(!isVoiceOnly);
-          setIsMicOn(true);
-
-          // If consented to local recording, initialize MediaRecorder
-          if (isRecordingConsented && (window as any).MediaRecorder) {
-            try {
-              const recorder = new MediaRecorder(stream);
-              const chunks: Blob[] = [];
-              recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) chunks.push(e.data);
-              };
-              recorder.onstop = () => {
-                setRecordedBlobs(chunks);
-                if (chunks.length > 0) {
-                  try {
-                    const videoBlob = new Blob(chunks, { type: 'video/webm' });
-                    const url = URL.createObjectURL(videoBlob);
-                    setRecordedVideoUrl(url);
-                  } catch (e) {
-                    console.warn('Could not generate object URL for video:', e);
+      // In text_only mode, deliberately skip requesting microphone/camera hardware
+      if (config.mode === 'text_only') {
+        releaseMedia();
+      } else {
+        // Request camera/mic stream if available in browser
+        try {
+          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            const isVoiceOnly = config.mode === 'voice_only';
+            const stream = await navigator.mediaDevices.getUserMedia(
+              isVoiceOnly
+                ? {
+                    audio: {
+                      echoCancellation: true,
+                      noiseSuppression: true,
+                      autoGainControl: true
+                    },
+                    video: false
                   }
-                }
-              };
-              recorder.start(1000);
-              mediaRecorderRef.current = recorder;
-            } catch (recErr) {
-              console.warn('MediaRecorder init notice:', recErr);
+                : { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true }
+            );
+            setVideoStream(stream);
+            setIsCameraOn(!isVoiceOnly);
+            setIsMicOn(true);
+            setMediaError(null);
+
+            // If consented to local recording, initialize MediaRecorder
+            if (isRecordingConsented && (window as any).MediaRecorder) {
+              try {
+                const recorder = new MediaRecorder(stream);
+                const chunks: Blob[] = [];
+                recorder.ondataavailable = (e) => {
+                  if (e.data.size > 0) chunks.push(e.data);
+                };
+                recorder.onstop = () => {
+                  setRecordedBlobs(chunks);
+                  if (chunks.length > 0) {
+                    try {
+                      const videoBlob = new Blob(chunks, { type: 'video/webm' });
+                      const url = URL.createObjectURL(videoBlob);
+                      setRecordedVideoUrl(url);
+                    } catch (e) {
+                      console.warn('Could not generate object URL for video:', e);
+                    }
+                  }
+                };
+                recorder.start(1000);
+                mediaRecorderRef.current = recorder;
+              } catch (recErr) {
+                console.warn('MediaRecorder init notice:', recErr);
+              }
             }
           }
+        } catch (mediaErr: any) {
+          const parsed = parseMicrophoneError(mediaErr);
+          setMediaError(parsed);
+          console.warn('Camera/mic access encountered an issue:', parsed.title, mediaErr);
         }
-      } catch (mediaErr) {
-        console.warn('Camera/mic permission was not granted or device not present. Proceeding with virtual camera preview mode:', mediaErr);
       }
 
       storage.saveSession(session);
@@ -318,14 +383,8 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const endInterview = async (): Promise<FeedbackReport | null> => {
     if (!activeSession) return null;
     
-    // Stop media recorder if active
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch (e) {
-        console.warn('Error stopping recorder:', e);
-      }
-    }
+    // Stop and release all microphone and camera media tracks
+    releaseMedia();
 
     setIsEvaluating(true);
     try {
@@ -395,6 +454,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         currentTranscript,
         isRecordingConsented,
         videoStream,
+        mediaError,
         isCameraOn,
         isMicOn,
         recordedBlobs,
@@ -412,7 +472,10 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         toggleMic,
         setTranscript: setCurrentTranscript,
         setIsSpeechActive,
-        loadReport
+        loadReport,
+        releaseMedia,
+        switchToTextMode,
+        clearMediaError
       }}
     >
       {children}

@@ -37,7 +37,7 @@ export interface CompanyPreset {
   interviewStructure: string[];
 }
 
-export type InterviewDeliveryMode = 'video' | 'voice_only';
+export type InterviewDeliveryMode = 'video' | 'voice_only' | 'text_only';
 
 export interface InterviewConfig {
   role: string;
