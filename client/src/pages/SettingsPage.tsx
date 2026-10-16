@@ -45,8 +45,16 @@ export const SettingsPage: React.FC = () => {
     const loadVoiceData = async () => {
       try {
         const [statusRes, voicesRes] = await Promise.all([
-          fetch('/api/voice/status').then(r => r.json()).catch(() => null),
-          fetch('/api/voice/voices').then(r => r.json()).catch(() => null)
+          fetch('/api/voice/status').then(async r => {
+            if (!r.ok) return null;
+            const text = await r.text();
+            return text ? JSON.parse(text) : null;
+          }).catch(() => null),
+          fetch('/api/voice/voices').then(async r => {
+            if (!r.ok) return null;
+            const text = await r.text();
+            return text ? JSON.parse(text) : null;
+          }).catch(() => null)
         ]);
 
         if (statusRes) {

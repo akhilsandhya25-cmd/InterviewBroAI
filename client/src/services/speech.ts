@@ -362,7 +362,8 @@ class NaturalTTS {
     try {
       const res = await fetch('/api/voice/status');
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
         this.useElevenLabs = Boolean(data.isConfigured);
         this.checkedBackendStatus = true;
         return this.useElevenLabs;

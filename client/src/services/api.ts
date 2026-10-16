@@ -4,6 +4,19 @@ import { storage } from './storage';
 
 const API_BASE = '/api';
 
+/**
+ * Safely parse JSON responses from backend or fallback to null without throwing SyntaxError.
+ */
+async function safeJson<T = any>(res: Response): Promise<T | null> {
+  try {
+    const text = await res.text();
+    if (!text || !text.trim()) return null;
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
 function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -108,8 +121,8 @@ export const api = {
         body: JSON.stringify({ ...config, previousQuestions })
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.questions && data.questions.length > 0) {
+        const data = await safeJson<{ questions: InterviewQuestion[] }>(res);
+        if (data?.questions && data.questions.length > 0) {
           return data.questions;
         }
       }
@@ -130,12 +143,12 @@ export const api = {
         body: JSON.stringify({ question, answer, config })
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.evaluation) {
+        const data = await safeJson<{ evaluation: QuestionEvaluation }>(res);
+        if (data?.evaluation) {
           return data.evaluation;
         }
       } else {
-        const errorData = await res.json().catch(() => ({}));
+        const errorData = (await safeJson<{ error?: string }>(res)) || {};
         throw new Error(errorData.error || `Evaluation request failed with HTTP ${res.status}`);
       }
     } catch (e: any) {
@@ -185,8 +198,8 @@ export const api = {
         })
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.followUp) {
+        const data = await safeJson<{ followUp: InterviewQuestion }>(res);
+        if (data?.followUp) {
           return data.followUp;
         }
       }
@@ -273,8 +286,8 @@ export const api = {
         body: JSON.stringify({ questions, config, candidateName })
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.report) {
+        const data = await safeJson<{ report: FeedbackReport }>(res);
+        if (data?.report) {
           return data.report;
         }
       }
@@ -375,8 +388,8 @@ export const api = {
         body: formData
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.analysis) {
+        const data = await safeJson<{ analysis: ResumeAnalysis }>(res);
+        if (data?.analysis) {
           data.analysis.userId = activeUid;
           return data.analysis;
         }
