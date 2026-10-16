@@ -329,12 +329,22 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsEvaluating(true);
     try {
       const sessionQuestions = activeSession.questions.map(q => q.questionText);
+      const conversationHistory = activeSession.questions
+        .filter(q => q.candidateAnswer && q.candidateAnswer.trim().length > 0)
+        .map(q => ({
+          questionText: q.questionText,
+          candidateAnswer: q.candidateAnswer!,
+          category: q.category,
+          score: q.evaluation?.score
+        }));
+
       const followUp = await api.generateFollowUp(
         currentQ, 
         currentQ.candidateAnswer, 
         activeSession.config,
         sessionQuestions,
-        currentQ.evaluation?.score
+        currentQ.evaluation?.score,
+        conversationHistory
       );
       if (followUp) {
         const updatedQuestions = [...activeSession.questions];

@@ -72,18 +72,24 @@ aiRouter.post('/evaluate', async (req: Request, res: Response) => {
 // POST /api/ai/follow-up
 aiRouter.post('/follow-up', async (req: Request, res: Response) => {
   try {
-    const { question, answer, config, previousQuestions, previousScore } = req.body;
-    if (isGeminiConfigured) {
-      const followUp = await geminiService.generateFollowUpQuestion(
-        question, 
-        answer, 
-        config || {}, 
-        previousQuestions || [], 
-        previousScore
-      );
-      return res.json({ success: true, followUp, source: 'gemini' });
+    const { question, answer, config, previousQuestions, previousScore, conversationHistory } = req.body;
+    if (!question || !answer) {
+      return res.status(400).json({ error: 'Missing question or answer' });
     }
-    return res.json({ success: true, followUp: null });
+
+    const followUp = await geminiService.generateFollowUpQuestion(
+      question, 
+      answer, 
+      config || {}, 
+      previousQuestions || [], 
+      previousScore,
+      conversationHistory || []
+    );
+    return res.json({ 
+      success: true, 
+      followUp, 
+      source: isGeminiConfigured ? 'gemini' : 'curated_fallback' 
+    });
   } catch (error: any) {
     console.warn('Gemini follow-up error, falling back:', error.message);
     return res.status(200).json({ success: true, followUp: null, error: error.message });

@@ -385,6 +385,196 @@ async function callGemini(prompt: string, temperature = 0.4): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// CONVERSATION TYPES & VOICE/SPOKEN SANITIZATION ENGINE
+// ---------------------------------------------------------------------------
+
+export interface ConversationTurn {
+  questionText: string;
+  candidateAnswer: string;
+  category?: string;
+  score?: number;
+}
+
+/**
+ * Strips formatting gimmicks (markdown bolding, italics, code ticks, bullets, numbered lists, emojis)
+ * and limits spoken output to 1-3 concise sentences for clean, natural Text-to-Speech playback.
+ */
+export function cleanSpokenQuestion(text: string): string {
+  if (!text) return '';
+  let cleaned = text
+    .replace(/^["']\s*|\s*["']$/g, '') // remove surrounding quotes
+    .replace(/\*\*(.*?)\*\*/g, '$1') // remove bold asterisks
+    .replace(/\*(.*?)\*/g, '$1') // remove italic asterisks
+    .replace(/`([^`]+)`/g, '$1') // remove code backticks
+    .replace(/#+\s/g, '') // remove markdown headings
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1') // remove links
+    .replace(/^[\s*•\-–—\d.]+\s+/gm, '') // remove bullet points & numbers
+    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]/gu, '') // remove emojis
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Enforce at most 3 sentences so interviewer doesn't produce long unnatural spoken monologues
+  const sentences = cleaned.match(/[^.!?]+[.!?]+(\s+|$)/g);
+  if (sentences && sentences.length > 3) {
+    cleaned = sentences.slice(0, 3).join('').trim();
+  }
+  return cleaned;
+}
+
+/**
+ * Generates an intelligent, technology-aware follow-up question when offline or Gemini is unconfigured.
+ * Directly detects technical keywords, concepts, or brevity from the candidate's transcribed answer.
+ */
+export function generateIntelligentFollowUpFallback(
+  question: any,
+  answer: string,
+  config: any
+): { questionText: string; category: string; hints: string; followUpReason: string } {
+  const normAnswer = (answer || '').trim();
+  const lower = normAnswer.toLowerCase();
+
+  // Targeted technology patterns tailored for Indian tech placements and job interviews
+  const techPatterns: Array<{
+    regex: RegExp;
+    name: string;
+    question: string;
+    hints: string;
+    reason: string;
+  }> = [
+    {
+      regex: /\bredux\b/i,
+      name: 'Redux',
+      question: 'You mentioned using Redux for state management—how did you handle asynchronous actions like API calls in that setup?',
+      hints: 'Discuss redux-thunk, redux-saga, action creators, middleware flow, and state immutability.',
+      reason: 'Candidate mentioned Redux for state management; probing async action handling and middleware.'
+    },
+    {
+      regex: /\breact\b/i,
+      name: 'React',
+      question: 'You mentioned building with React—how did you optimize component re-renders and manage shared state across deep component trees?',
+      hints: 'Discuss React.memo, useMemo, useCallback, Context API vs external stores, and reconciliation.',
+      reason: 'Candidate mentioned React; probing re-render optimization and state propagation.'
+    },
+    {
+      regex: /\b(node|nodejs|express)\b/i,
+      name: 'Node.js/Express',
+      question: 'You mentioned using Node.js and Express—how did you manage unhandled asynchronous rejections and structure error-handling middleware?',
+      hints: 'Discuss express error-handling middleware, process.on(unhandledRejection), and event loop safety.',
+      reason: 'Candidate highlighted Node/Express backend; evaluating async error handling.'
+    },
+    {
+      regex: /\bmongo(?:db)?\b/i,
+      name: 'MongoDB',
+      question: 'You mentioned using MongoDB for storage—how did you approach schema validation and indexing for your highest-frequency read queries?',
+      hints: 'Discuss compound indexes, explain plans, document embedding vs referencing, and write concerns.',
+      reason: 'Candidate mentioned MongoDB; probing indexing strategy and document modeling.'
+    },
+    {
+      regex: /\b(postgres|postgresql|mysql|sql|rdbms|relational database)\b/i,
+      name: 'SQL Databases',
+      question: 'You mentioned using a SQL database—how did you diagnose slow queries and determine the right indexing strategy without degrading write throughput?',
+      hints: 'Discuss EXPLAIN ANALYZE, B-tree indexes, foreign keys, transaction isolation, and connection pooling.',
+      reason: 'Candidate referenced relational SQL databases; evaluating query optimization and indexing.'
+    },
+    {
+      regex: /\bredis\b/i,
+      name: 'Redis',
+      question: 'You mentioned using Redis for caching—what eviction policy did you configure, and how did you guard against cache stampedes or thundering herds?',
+      hints: 'Discuss TTL, LRU/LFU eviction, mutex locks, probabilistic early expiration, and cache invalidation.',
+      reason: 'Candidate highlighted Redis caching; probing eviction policy and stampede prevention.'
+    },
+    {
+      regex: /\bkafka\b/i,
+      name: 'Kafka',
+      question: 'You mentioned using Kafka for streaming—how did you guarantee at-least-once message processing and manage consumer group lag?',
+      hints: 'Discuss partition keys, consumer offset commits, dead letter topics, and idempotent consumers.',
+      reason: 'Candidate mentioned Kafka; probing consumer lag management and delivery guarantees.'
+    },
+    {
+      regex: /\bdocker\b/i,
+      name: 'Docker',
+      question: 'You mentioned containerizing with Docker—how did you minimize container image layers and handle secrets during production container builds?',
+      hints: 'Discuss multi-stage builds, alpine/distroless bases, .dockerignore, and secret mounts.',
+      reason: 'Candidate referenced Docker containerization; probing image optimization and secret hygiene.'
+    },
+    {
+      regex: /\b(jwt|json web token|token|oauth|authentication)\b/i,
+      name: 'Authentication',
+      question: 'You mentioned implementing authentication—how did you handle token expiration, silent refresh cycles, and immediate revocation for compromised sessions?',
+      hints: 'Discuss short-lived access tokens, refresh tokens in HttpOnly cookies, rotation, and blacklisting.',
+      reason: 'Candidate mentioned authentication tokens; probing token lifecycle and revocation mechanics.'
+    },
+    {
+      regex: /\b(aws|amazon web services|s3|ec2|lambda|cloud)\b/i,
+      name: 'Cloud Infrastructure',
+      question: 'You mentioned deploying to the cloud—how did you configure auto-scaling triggers and manage environment secrets securely in production?',
+      hints: 'Discuss target tracking scaling, AWS Secrets Manager, IAM roles with least privilege, and VPC isolation.',
+      reason: 'Candidate mentioned cloud deployment; evaluating auto-scaling and secrets management.'
+    },
+    {
+      regex: /\b(microservices?|micro-services?)\b/i,
+      name: 'Microservices',
+      question: 'You mentioned a microservices architecture—how did you handle inter-service communication failures and avoid cascading outages across services?',
+      hints: 'Discuss circuit breakers, retries with exponential backoff, distributed tracing, and service meshes.',
+      reason: 'Candidate highlighted microservices; testing resiliency and fault isolation.'
+    },
+    {
+      regex: /\b(python|django|fastapi|flask)\b/i,
+      name: 'Python',
+      question: 'You mentioned building with Python—how did you manage concurrency and handle database connection pooling under high concurrent traffic?',
+      hints: 'Discuss GIL implications, asyncio vs multiprocessing, Gunicorn/Uvicorn worker pools, and connection pool limits.',
+      reason: 'Candidate mentioned Python frameworks; probing concurrency model and connection pooling.'
+    },
+    {
+      regex: /\b(java|spring|spring boot)\b/i,
+      name: 'Java / Spring',
+      question: 'You mentioned using Java and Spring Boot—how did you structure transactional boundaries and ensure rollback occurred when encountering custom checked exceptions?',
+      hints: 'Discuss @Transactional rollbackFor, propagation levels, AOP proxy behavior, and Hibernate dirty checking.',
+      reason: 'Candidate mentioned Java/Spring Boot; probing transaction isolation and rollback behavior.'
+    },
+    {
+      regex: /\b(websocket|websockets|socket\.io)\b/i,
+      name: 'WebSockets',
+      question: 'You mentioned using WebSockets—how did you handle unexpected client disconnects and synchronize missed events when clients reconnected?',
+      hints: 'Discuss heartbeat pings, sequence numbering, message queues/Redis pub-sub backplane, and state reconciliation.',
+      reason: 'Candidate mentioned WebSockets; evaluating disconnect handling and state sync.'
+    }
+  ];
+
+  for (const item of techPatterns) {
+    if (item.regex.test(lower)) {
+      return {
+        questionText: item.question,
+        category: question.category || 'technical',
+        hints: item.hints,
+        followUpReason: item.reason
+      };
+    }
+  }
+
+  // If answer is very brief (< 20 words), prompt for depth
+  const wordCount = normAnswer.split(/\s+/).filter(Boolean).length;
+  if (wordCount < 20) {
+    return {
+      questionText: 'Your answer introduces the high-level concept, but could you walk me through the specific implementation steps and how you handled potential edge cases?',
+      category: question.category || 'technical',
+      hints: 'Provide concrete architectural details, data flow, error handling, and quantitative outcomes.',
+      followUpReason: 'Candidate answer was brief; prompting for concrete implementation mechanics.'
+    };
+  }
+
+  // If no tech matched, extract first clean sentence / clause and challenge it with an Indian tech interview scenario
+  const snippets = normAnswer.split(/[.?!]/).map(s => s.trim()).filter(s => s.length > 15 && s.length < 80);
+  const snippet = snippets[0] ? `regarding "${snippets[0]}"` : '';
+  return {
+    questionText: `Building on your point ${snippet}, what happens if network latency increases tenfold or a critical downstream service crashes? What fallback or circuit-breaking mechanism protects the user experience?`,
+    category: question.category || 'technical',
+    hints: 'Discuss timeout configurations, retry with exponential backoff, bulkheading, and graceful degradation.',
+    followUpReason: 'Testing resiliency and graceful failure handling on candidate stated architecture.'
+  };
+}
+
+// ---------------------------------------------------------------------------
 // CORE INTERVIEW AI SERVICE WITH DEDUPLICATION & ADAPTIVE DIFFICULTY
 // ---------------------------------------------------------------------------
 
@@ -423,7 +613,7 @@ ${adaptiveContext.averageScore >= 80
       attempts++;
       const needed = requestedCount - accumulatedQuestions.length;
 
-      const prompt = `You are a Principal Software Engineer and Bar Raiser conducting an interview for ${config.companyName || 'a top tech company'}.
+      const prompt = `You are a Principal Software Engineer and Bar Raiser conducting an interview tailored for campus placements and technical hiring in India (spanning service giants like TCS Digital/Prime, Infosys SP, product unicorns like Swiggy, Flipkart, Zomato, to MNCs like Amazon India and high-growth tech startups).
 Candidate Target Role: ${config.role}
 Experience Level: ${config.experienceLevel || 'fresher'} (student / fresher / junior / senior)
 Interview Type: ${config.interviewType || 'mixed'} (technical / behavioral / hr / system_design / mixed)
@@ -437,15 +627,21 @@ ${excludedListFormatted}
 CRITICAL UNIQUENESS & DIVERSITY REQUIREMENTS:
 1. Every generated question MUST be completely distinct, novel, and non-repeating.
 2. DO NOT repeat, rephrase, or ask questions semantically equivalent to ANY previously asked question listed above.
-3. If technical, distribute questions across different sub-domains (e.g. database indexing vs concurrency vs API protocols vs state management).
-4. If behavioral, ask about distinct situations (e.g. technical failure vs scope negotiation vs conflict resolution vs mentor feedback).
+3. If technical, distribute questions across core CS fundamentals (DSA, DBMS, OS, Networks, OOPs for college/freshers) or practical system architecture for experienced roles.
+4. If behavioral, ask about distinct situations (e.g. college capstone challenges, technical failures, scope negotiations, or team conflict).
+
+FORMAT CONSTRAINTS FOR SPOKEN VOICE (CRITICAL):
+- Each question MUST be concise: 1 to 3 sentences maximum.
+- The question will be read aloud immediately using Text-to-Speech (TTS). It must sound natural and conversational.
+- ABSOLUTELY NO MARKDOWN: NO bolding (**), NO italics (*), NO code ticks (\`), NO bullet points, NO numbered lists.
+- ABSOLUTELY NO EMOJIS.
 
 Respond ONLY with a JSON object in this exact format:
 {
   "questions": [
     {
       "orderIndex": 0,
-      "questionText": "Question text here",
+      "questionText": "Question text here (1 to 3 natural spoken sentences, plain text, no markdown)",
       "category": "technical",
       "contextOrHints": "What key concepts the candidate should cover"
     }
@@ -460,18 +656,21 @@ Respond ONLY with a JSON object in this exact format:
         for (const candidate of generatedBatch) {
           if (!candidate.questionText || candidate.questionText.trim().length < 15) continue;
 
-          const dupCheck = isDuplicateQuestion(candidate.questionText, allKnownQuestions, 0.50);
+          const cleanedQuestionText = cleanSpokenQuestion(candidate.questionText);
+          if (cleanedQuestionText.length < 15) continue;
+
+          const dupCheck = isDuplicateQuestion(cleanedQuestionText, allKnownQuestions, 0.50);
           if (!dupCheck.isDuplicate) {
             accumulatedQuestions.push({
               id: `q-gemini-${Date.now()}-${accumulatedQuestions.length}`,
               orderIndex: accumulatedQuestions.length,
-              questionText: candidate.questionText.trim(),
+              questionText: cleanedQuestionText,
               category: candidate.category || config.interviewType || 'technical',
               contextOrHints: candidate.contextOrHints || ''
             });
-            allKnownQuestions.push(candidate.questionText.trim());
+            allKnownQuestions.push(cleanedQuestionText);
           } else {
-            console.warn(`[Deduplication] Blocked similar question (${((dupCheck.similarity || 0) * 100).toFixed(0)}% match): "${candidate.questionText.slice(0, 60)}..."`);
+            console.warn(`[Deduplication] Blocked similar question (${((dupCheck.similarity || 0) * 100).toFixed(0)}% match): "${cleanedQuestionText.slice(0, 60)}..."`);
           }
 
           if (accumulatedQuestions.length >= requestedCount) break;
@@ -589,66 +788,106 @@ Respond ONLY with valid JSON in this exact schema:
   },
 
   /**
-   * Generates realistic, contextual follow-up challenge probing the candidate's actual answer
-   * Guarantees zero repetition with any previous question asked
+   * Generates realistic, contextual follow-up challenge probing the candidate's actual answer.
+   * Maintains session conversation history, analyzes transcribed answers, and enforces voice-first constraints.
    */
   async generateFollowUpQuestion(
     question: any, 
     answer: string, 
     config: any, 
     previousQuestions: string[] = [],
-    previousScore?: number
+    previousScore?: number,
+    conversationHistory: ConversationTurn[] = []
   ): Promise<any> {
     const historyList = (previousQuestions || []).filter(Boolean);
     const excludedListFormatted = historyList.length > 0
-      ? `\nDO NOT ASK ANYTHING SIMILAR TO PREVIOUS QUESTIONS:\n${historyList.slice(-10).map((q, i) => `${i + 1}. "${q}"`).join('\n')}\n`
+      ? `\nPREVIOUSLY COVERED QUESTIONS (DO NOT REPEAT OR DUPLICATE):\n${historyList.slice(-10).map((q, i) => `${i + 1}. "${q}"`).join('\n')}\n`
+      : '';
+
+    const formattedConversationHistory = (conversationHistory || []).length > 0
+      ? `\nSESSION CONVERSATION HISTORY (Previous turns in this interview):\n${conversationHistory.slice(-5).map((turn, idx) => `Turn ${idx + 1}:
+Interviewer: "${turn.questionText}"
+Candidate Answer: "${turn.candidateAnswer}"${turn.score !== undefined ? ` (Score: ${turn.score}/100)` : ''}`).join('\n')}\n`
       : '';
 
     const adaptiveTone = previousScore !== undefined && previousScore >= 80
-      ? 'The candidate gave a strong answer. Challenge them with a high-stakes edge case, scale bottleneck (e.g. 50x traffic spike or network partition), or demand that they defend their technical trade-offs.'
-      : 'The candidate answered at a high level. Probe deeper into their specific implementation mechanics, data structures, or concrete failure recovery steps.';
+      ? 'The candidate gave a strong answer. Acknowledge briefly and challenge them with a high-stakes edge case, scale bottleneck (e.g. 20x traffic spike or network partition), or defend non-obvious engineering trade-offs.'
+      : 'The candidate answered at a high level or missed implementation details. Probe deeper into their specific mechanics, failure recovery, or quantitative outcomes.';
 
-    const prompt = `You are a Principal Software Engineer conducting an interview for ${config.role} at ${config.companyName}.
-Initial Question: "${question.questionText}"
-Candidate's Transcribed Answer: "${answer}"
+    const prompt = `You are a professional, empathetic, yet sharp technical and behavioral interviewer conducting an interview for college placements and tech jobs in India (tailored for ${config.companyName || 'top tech companies'}, role: ${config.role}, ${config.experienceLevel || 'fresher'} level).
+
+Current Question Asked: "${question.questionText}"
+Candidate's Transcribed Spoken Answer: "${answer}"
 ${adaptiveTone}
 ${excludedListFormatted}
+${formattedConversationHistory}
 
-Generate ONE probing follow-up question that directly addresses the candidate's actual statements, challenges their architectural assumptions, and tests deeper depth.
-The follow-up MUST be completely novel and not repeat any concept already covered.
+INTERVIEWER PERSONA & REASONING INSTRUCTIONS:
+You are an empathetic, encouraging, yet technically sharp interviewer.
+Listen attentively to what the candidate actually said in their transcribed answer.
 
-Respond ONLY with a JSON object:
+STEP 1: ANALYZE THE CANDIDATE'S TRANSCRIBED ANSWER:
+- Check if the candidate explicitly mentioned any specific technology, framework, database, tool, or architectural pattern (e.g., Redux, React, Node.js, Express, MongoDB, PostgreSQL, Redis, Kafka, Docker, Kubernetes, AWS, WebSockets, JWT, microservices, indexing, caching).
+- Check if the answer is brief, vague, or missing critical implementation details, edge cases, or STAR metrics.
+- Check if the answer is already complete, accurate, and thorough.
+
+STEP 2: FORMULATE YOUR INTERVIEWER RESPONSE:
+- IF THEY MENTIONED A SPECIFIC TECHNOLOGY OR CONCEPT:
+  Generate a natural 1-sentence follow-up question drilling directly into that specific technology or concept.
+  For example: "You mentioned using Redux for state management—how did you handle asynchronous actions like API calls in that setup?"
+  For example: "You mentioned using MongoDB for storage—how did you approach schema validation and indexing for your highest-frequency read queries?"
+- IF THE ANSWER WAS BRIEF OR MISSING KEY DETAILS:
+  Generate a targeted 1-sentence follow-up asking for the missing concrete implementation mechanics, failure handling, or metrics.
+  For example: "Could you elaborate on how your service handles database reconnection if the primary database node fails?"
+- IF THE ANSWER WAS COMPLETE AND THOROUGH:
+  Acknowledge briefly with professional warmth (e.g., "That makes sense." or "Good point on that.") and either probe an edge case or transition smoothly to the next core dimension.
+
+FORMAT CONSTRAINTS FOR SPOKEN VOICE (CRITICAL):
+1. Output MUST be concise: 1 to 3 sentences maximum.
+2. The question will be read aloud immediately using Text-to-Speech (TTS). It must sound completely natural, spoken, and conversational.
+3. ABSOLUTELY NO MARKDOWN: NO bolding (**), NO italics (*), NO code ticks (\`), NO bullet points (* or -), NO numbered lists.
+4. ABSOLUTELY NO EMOJIS.
+5. Do NOT include filler headers like "Interviewer:" or "Follow-up Question:".
+
+Respond ONLY with a JSON object in this exact schema:
 {
-  "questionText": "Follow-up question text challenging their specific answer",
-  "category": "${question.category}",
-  "contextOrHints": "What specific engineering trade-off or depth the interviewer is testing"
+  "questionText": "Natural spoken follow-up question here (1 to 3 sentences, plain conversational text)",
+  "category": "${question.category || 'technical'}",
+  "contextOrHints": "What specific engineering depth or trade-off the interviewer is probing",
+  "followUpReason": "Brief explanation of why this follow-up was chosen from their answer"
 }`;
 
     let followUpQuestionText = '';
     let category = question.category || 'technical';
     let hints = '';
+    let followUpReason = '';
 
     try {
       const raw = await callGemini(prompt, 0.7);
       const parsed = cleanAndParseJson<any>(raw, {});
       if (parsed.questionText) {
-        const dupCheck = isDuplicateQuestion(parsed.questionText, historyList, 0.50);
-        if (!dupCheck.isDuplicate) {
-          followUpQuestionText = parsed.questionText;
-          category = parsed.category || question.category;
-          hints = parsed.contextOrHints || '';
+        const cleaned = cleanSpokenQuestion(parsed.questionText);
+        if (cleaned.length >= 15) {
+          const dupCheck = isDuplicateQuestion(cleaned, historyList, 0.50);
+          if (!dupCheck.isDuplicate) {
+            followUpQuestionText = cleaned;
+            category = parsed.category || question.category || 'technical';
+            hints = parsed.contextOrHints || '';
+            followUpReason = parsed.followUpReason || '';
+          }
         }
       }
     } catch (e) {
-      console.warn('Gemini follow-up generation notice, using dynamic contextual fallback:', e);
+      console.warn('Gemini follow-up generation notice, using intelligent fallback:', e);
     }
 
     if (!followUpQuestionText) {
-      // Dynamic contextual fallback ensuring uniqueness
-      const candidateSnippets = answer.split(/[.?!]/).filter(s => s.trim().length > 15);
-      const focusSnippet = candidateSnippets[0] ? `regarding "${candidateSnippets[0].trim().slice(0, 60)}..."` : '';
-      followUpQuestionText = `In your answer ${focusSnippet}, what happens if network latency increases tenfold or a critical downstream service crashes? What fallback or circuit-breaking mechanism would protect the user experience?`;
-      hints = 'Discuss timeout configurations, retry with exponential backoff, bulkheading, and graceful degradation.';
+      // Use intelligent technology-aware fallback matching the exact candidate answer
+      const fallback = generateIntelligentFollowUpFallback(question, answer, config);
+      followUpQuestionText = cleanSpokenQuestion(fallback.questionText);
+      category = fallback.category;
+      hints = fallback.hints;
+      followUpReason = fallback.followUpReason;
     }
 
     return {
@@ -657,6 +896,7 @@ Respond ONLY with a JSON object:
       questionText: followUpQuestionText,
       category,
       contextOrHints: hints,
+      followUpReason,
       isFollowUp: true,
       followUpToQuestionId: question.id,
       source: 'gemini'

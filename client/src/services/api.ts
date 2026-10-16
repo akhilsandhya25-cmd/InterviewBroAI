@@ -140,13 +140,21 @@ export const api = {
     answer: string, 
     config: InterviewConfig,
     previousQuestions: string[] = [],
-    previousScore?: number
+    previousScore?: number,
+    conversationHistory: Array<{ questionText: string; candidateAnswer: string; category?: string; score?: number }> = []
   ): Promise<InterviewQuestion | null> {
     try {
       const res = await fetch(`${API_BASE}/ai/follow-up`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ question, answer, config, previousQuestions, previousScore })
+        body: JSON.stringify({ 
+          question, 
+          answer, 
+          config, 
+          previousQuestions, 
+          previousScore,
+          conversationHistory 
+        })
       });
       if (res.ok) {
         const data = await res.json();
@@ -158,17 +166,71 @@ export const api = {
       console.warn('Backend /api/ai/follow-up not reachable, using intelligent fallback follow-up:', e);
     }
 
-    // Dynamic fallback follow-up referencing actual answer
-    const snippets = answer.split(/[.?!]/).filter(s => s.trim().length > 15);
-    const focus = snippets[0] ? `Regarding your mention of "${snippets[0].trim().slice(0, 50)}...", ` : '';
-    const followUpText = `${focus}how would this architecture behave if traffic suddenly surged by 25x or network latency spiked? What fault-tolerance and fallback mechanisms would you put in place?`;
+    // Technology-aware client fallback tailored for Indian tech and campus placement interviews
+    const norm = (answer || '').trim();
+    const lower = norm.toLowerCase();
+
+    let followUpText = '';
+    let hints = '';
+    let category = question.category || 'technical';
+    let followUpReason = '';
+
+    if (/\bredux\b/i.test(lower)) {
+      followUpText = 'You mentioned using Redux for state management—how did you handle asynchronous actions like API calls in that setup?';
+      hints = 'Discuss redux-thunk, redux-saga, action creators, middleware flow, and state immutability.';
+      followUpReason = 'Candidate mentioned Redux; probing async actions and middleware.';
+    } else if (/\breact\b/i.test(lower)) {
+      followUpText = 'You mentioned building with React—how did you optimize component re-renders and manage shared state across deep component trees?';
+      hints = 'Discuss React.memo, useMemo, useCallback, Context API vs external stores, and reconciliation.';
+      followUpReason = 'Candidate mentioned React; probing re-renders and state optimization.';
+    } else if (/\b(node|nodejs|express)\b/i.test(lower)) {
+      followUpText = 'You mentioned using Node.js and Express—how did you manage unhandled asynchronous rejections and structure error-handling middleware?';
+      hints = 'Discuss express error-handling middleware, process.on(unhandledRejection), and event loop safety.';
+      followUpReason = 'Candidate mentioned Node/Express; probing async error management.';
+    } else if (/\bmongo(?:db)?\b/i.test(lower)) {
+      followUpText = 'You mentioned using MongoDB for storage—how did you approach schema validation and indexing for your highest-frequency read queries?';
+      hints = 'Discuss compound indexes, explain plans, document embedding vs referencing, and write concerns.';
+      followUpReason = 'Candidate mentioned MongoDB; probing document schema and indexing.';
+    } else if (/\b(postgres|postgresql|mysql|sql|rdbms)\b/i.test(lower)) {
+      followUpText = 'You mentioned using a SQL database—how did you diagnose slow queries and determine the right indexing strategy without degrading write throughput?';
+      hints = 'Discuss EXPLAIN ANALYZE, B-tree indexes, foreign keys, transaction isolation, and connection pooling.';
+      followUpReason = 'Candidate referenced SQL databases; probing query tuning and indexes.';
+    } else if (/\bredis\b/i.test(lower)) {
+      followUpText = 'You mentioned using Redis for caching—what eviction policy did you configure, and how did you guard against cache stampedes or thundering herds?';
+      hints = 'Discuss TTL, LRU/LFU eviction, mutex locks, probabilistic early expiration, and cache invalidation.';
+      followUpReason = 'Candidate mentioned Redis; probing eviction policy and stampede prevention.';
+    } else if (/\bkafka\b/i.test(lower)) {
+      followUpText = 'You mentioned using Kafka for streaming—how did you guarantee at-least-once message processing and manage consumer group lag?';
+      hints = 'Discuss partition keys, consumer offset commits, dead letter topics, and idempotent consumers.';
+      followUpReason = 'Candidate mentioned Kafka; probing lag handling and delivery guarantees.';
+    } else if (/\bdocker\b/i.test(lower)) {
+      followUpText = 'You mentioned containerizing with Docker—how did you minimize container image layers and handle secrets during production container builds?';
+      hints = 'Discuss multi-stage builds, alpine/distroless bases, .dockerignore, and secret mounts.';
+      followUpReason = 'Candidate referenced Docker; probing image optimization and secret hygiene.';
+    } else if (/\b(jwt|token|oauth|authentication)\b/i.test(lower)) {
+      followUpText = 'You mentioned implementing authentication—how did you handle token expiration, silent refresh cycles, and immediate revocation for compromised sessions?';
+      hints = 'Discuss short-lived access tokens, refresh tokens in HttpOnly cookies, rotation, and blacklisting.';
+      followUpReason = 'Candidate mentioned auth tokens; probing refresh rotation and revocation.';
+    } else if (norm.split(/\s+/).filter(Boolean).length < 20) {
+      followUpText = 'Your answer introduces the high-level concept, but could you walk me through the specific implementation steps and how you handled potential edge cases?';
+      hints = 'Provide concrete architectural details, data flow, error handling, and quantitative outcomes.';
+      followUpReason = 'Candidate answer was brief; prompting for concrete implementation mechanics.';
+    } else {
+      const snippets = norm.split(/[.?!]/).map(s => s.trim()).filter(s => s.length > 15 && s.length < 80);
+      const focus = snippets[0] ? `regarding "${snippets[0]}"` : '';
+      followUpText = `Building on your point ${focus}, what happens if network latency increases tenfold or a critical downstream service crashes? What fallback or circuit-breaking mechanism protects the user experience?`;
+      hints = 'Discuss circuit breakers, exponential backoff, rate limiting, and graceful degradation.';
+      category = 'system_design';
+      followUpReason = 'Testing resiliency and fault isolation on stated architecture.';
+    }
 
     return {
       id: `q-followup-${Date.now()}`,
       orderIndex: question.orderIndex + 1,
       questionText: followUpText,
-      category: question.category || 'system_design',
-      contextOrHints: 'Discuss circuit breakers, exponential backoff, rate limiting, and graceful degradation.',
+      category,
+      contextOrHints: hints,
+      followUpReason,
       isFollowUp: true,
       followUpToQuestionId: question.id
     };

@@ -449,15 +449,21 @@ class NaturalTTS {
 
   /**
    * Sanitizes text for conversational speech.
+   * Strips formatting gimmicks (markdown bolding, italics, code ticks, bullets, numbered lists, emojis)
+   * and expands technical acronyms for clean, natural Text-to-Speech audio.
    */
   public sanitizeTextForSpeech(text: string): string {
     if (!text) return '';
     return text
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]/gu, '') // remove emojis
+      .replace(/^[\s*•\-–—\d.]+\s+/gm, '') // remove bullet points & list numbers
       .replace(/\*\*(.*?)\*\*/g, '$1') // remove bold asterisks
       .replace(/\*(.*?)\*/g, '$1') // remove italic asterisks
       .replace(/`([^`]+)`/g, '$1') // remove code backticks
       .replace(/#+\s/g, '') // remove markdown headings
+      .replace(/<[^>]+>/g, '') // remove HTML tags
       .replace(/\[(.*?)\]\(.*?\)/g, '$1') // clean markdown links
+      .replace(/[*_~`#]/g, '') // remove lingering markdown symbols
       .replace(/\bSTAR\b/g, 'S-T-A-R') // pronounce acronyms clearly
       .replace(/\bAPI\b/g, 'A-P-I')
       .replace(/\bOOPs?\b/gi, 'Object Oriented Programming')
@@ -465,6 +471,15 @@ class NaturalTTS {
       .replace(/\bNoSQL\b/gi, 'No Sequel')
       .replace(/\bAWS\b/g, 'A-W-S')
       .replace(/\bCI\/CD\b/g, 'Continuous Integration and Continuous Delivery')
+      .replace(/\bDSA\b/g, 'D-S-A')
+      .replace(/\bDBMS\b/g, 'D-B-M-S')
+      .replace(/\bTCS\b/g, 'T-C-S')
+      .replace(/\bLLD\b/g, 'Low Level Design')
+      .replace(/\bHLD\b/g, 'High Level Design')
+      .replace(/\bJWT\b/g, 'J-W-T')
+      .replace(/\bPR\b/g, 'Pull Request')
+      .replace(/\bUI\b/g, 'U-I')
+      .replace(/\s+/g, ' ')
       .trim();
   }
 

@@ -1041,6 +1041,20 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               </button>
             </div>
 
+            {currentQuestion.isFollowUp && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold text-[10px] flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <span>AI Follow-Up Challenge</span>
+                </span>
+                {currentQuestion.followUpReason && (
+                  <span className="text-[11px] text-slate-300 italic">
+                    Reason: {currentQuestion.followUpReason}
+                  </span>
+                )}
+              </div>
+            )}
+
             <p className="text-base sm:text-lg font-semibold text-white leading-relaxed">
               {currentQuestion.questionText}
             </p>
@@ -1514,6 +1528,25 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                       <p className="text-slate-300 text-[11px] leading-relaxed mt-1">
                         {currentQuestion.evaluation.betterAnswerExample}
                       </p>
+                    </div>
+                  )}
+
+                  {/* Challenge with Follow-up Action in Scorecard */}
+                  {!currentQuestion.isFollowUp && (
+                    <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div className="text-[11px] text-slate-300 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>Want to test your answer deeper with a realistic follow-up question?</span>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isEvaluating || isSubmitting}
+                        onClick={requestFollowUp}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-violet-600/30 hover:bg-violet-600/50 text-violet-200 border border-violet-500/40 transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
+                      >
+                        <Sparkles className="w-3 h-3 text-amber-300" />
+                        <span>Challenge with Follow-Up</span>
+                      </button>
                     </div>
                   )}
                 </>

@@ -99,6 +99,7 @@ export interface InterviewQuestion {
   evaluation?: QuestionEvaluation;
   followUpToQuestionId?: string;
   isFollowUp?: boolean;
+  followUpReason?: string;
 }
 
 export interface FeedbackReport {
