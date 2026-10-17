@@ -202,7 +202,7 @@ export const authService = {
   },
 
   /**
-   * Register a new account directly via Supabase Auth with local sandbox fallback
+   * Register a new account directly via Supabase Auth serverless API
    */
   async signup(params: {
     email: string;
@@ -233,115 +233,136 @@ export const authService = {
     const cleanEmail = email.trim().toLowerCase();
     const cleanFullName = fullName.trim();
 
-    // 1. Direct Supabase Client SDK call
+    // 1. Primary: Serverless API proxy to Supabase Auth (/api/auth/signup)
+    let res: Response;
     try {
-      if (supabase) {
-        const { data, error } = await supabase.auth.signUp({
+      res = await fetch(`${API_BASE}/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           email: cleanEmail,
           password,
-          options: {
-            data: {
-              full_name: cleanFullName
-            },
-            emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
-          }
-        });
-
-        if (error) {
-          const parsed = parseAuthError(error);
-          if (parsed.isUserAlreadyExists) {
-            const userExistsErr: any = new Error(parsed.friendlyMessage);
-            userExistsErr.isUserAlreadyExists = true;
-            throw userExistsErr;
-          }
-          console.warn('Supabase Auth signup notice, activating local sandbox storage:', error.message);
-        } else if (data && (data.user || data.session)) {
-          const uid = data.user?.id || `usr-${Date.now()}`;
-          const newUser: UserProfile = {
-            id: uid,
+          confirmPassword,
+          fullName: cleanFullName
+        })
+      });
+    } catch (networkErr: any) {
+      // If serverless proxy is unreachable due to network, attempt client-side Supabase SDK
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.auth.signUp({
             email: cleanEmail,
-            full_name: cleanFullName,
-            role_target: 'Full Stack Developer',
-            experience_level: 'fresher',
-            skills: ['JavaScript', 'React', 'Problem Solving'],
-            interviews_remaining: 9999,
-            total_interviews_taken: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-
-          if (data.user) {
-            try {
-              await supabase.from('profiles').upsert({
-                id: data.user.id,
-                email: cleanEmail,
-                full_name: cleanFullName,
-                role_target: 'Full Stack Developer',
-                experience_level: 'fresher',
-                skills: ['JavaScript', 'React', 'Problem Solving'],
-                interviews_remaining: 9999,
-                total_interviews_taken: 0
-              });
-            } catch {
-              // Non-blocking profile upsert
+            password,
+            options: {
+              data: { full_name: cleanFullName },
+              emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
             }
+          });
+
+          if (error) {
+            const parsed = parseAuthError(error);
+            const err: any = new Error(parsed.friendlyMessage);
+            err.isRateLimit = parsed.isRateLimit;
+            err.isUserAlreadyExists = parsed.isUserAlreadyExists;
+            err.isEmailUnconfirmed = parsed.isEmailUnconfirmed;
+            err.retryAfterSeconds = parsed.retryAfterSeconds;
+            throw err;
           }
 
-          const requiresEmailVerification = !data.session;
-          if (!requiresEmailVerification) {
-            storage.setUser(newUser);
-            if (data.session?.access_token) {
-              storage.setToken(data.session.access_token);
-            }
-          }
+          if (data && (data.user || data.session)) {
+            const uid = data.user?.id || `usr-${Date.now()}`;
+            const newUser: UserProfile = {
+              id: uid,
+              email: cleanEmail,
+              full_name: cleanFullName,
+              role_target: 'Full Stack Developer',
+              experience_level: 'fresher',
+              skills: ['JavaScript', 'React', 'Problem Solving'],
+              interviews_remaining: 9999,
+              total_interviews_taken: 0,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
 
-          return {
-            user: requiresEmailVerification ? (null as any) : newUser,
-            token: data.session?.access_token,
-            requiresEmailVerification,
-            email: cleanEmail,
-            message: requiresEmailVerification
-              ? "Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
-              : `Welcome to InterviewBro AI, ${cleanFullName}! Your account has been created successfully.`
-          };
+            const requiresEmailVerification = !data.session;
+            if (!requiresEmailVerification) {
+              storage.setUser(newUser);
+              if (data.session?.access_token) storage.setToken(data.session.access_token);
+            }
+
+            return {
+              user: requiresEmailVerification ? (null as any) : newUser,
+              token: data.session?.access_token,
+              requiresEmailVerification,
+              email: cleanEmail,
+              message: requiresEmailVerification
+                ? "Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
+                : `Welcome to InterviewBro AI, ${cleanFullName}!`
+            };
+          }
+        } catch (directErr: any) {
+          throw directErr;
         }
       }
-    } catch (sdkErr: any) {
-      if (sdkErr.isUserAlreadyExists) {
-        throw sdkErr;
-      }
-      console.warn('Supabase signup exception, falling back to local sandbox storage:', sdkErr);
+      const err: any = new Error('Unable to connect to authentication service. Please check your internet connection.');
+      err.isNetworkError = true;
+      throw err;
     }
 
-    // 2. Local Sandbox Storage Fallback (guarantees candidate is never blocked on Vercel)
-    const localUser: UserProfile = {
-      id: `usr-${Date.now()}`,
-      email: cleanEmail,
-      full_name: cleanFullName,
-      role_target: 'Full Stack Developer',
-      experience_level: 'fresher',
-      skills: ['JavaScript', 'React', 'Problem Solving'],
-      interviews_remaining: 9999,
-      total_interviews_taken: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    const parsed = await safeParseResponse<{
+      success?: boolean;
+      user?: UserProfile;
+      token?: string;
+      session?: any;
+      requiresEmailVerification?: boolean;
+      message?: string;
+      error?: string;
+      code?: string;
+    }>(res);
 
-    storage.setUser(localUser);
-    const localToken = `local-token-${Date.now()}`;
-    storage.setToken(localToken);
+    if (parsed.ok && parsed.data?.success) {
+      const requiresEmailVerification = Boolean(parsed.data.requiresEmailVerification);
+      const user = parsed.data.user;
+      const token = parsed.data.token || parsed.data.session?.access_token;
 
-    return {
-      user: localUser,
-      token: localToken,
-      requiresEmailVerification: false,
-      email: cleanEmail,
-      message: `Welcome to InterviewBro AI, ${cleanFullName}! Your account has been prepared successfully.`
-    };
+      if (!requiresEmailVerification && user) {
+        storage.setUser(user);
+        if (token) storage.setToken(token);
+        if (supabase && parsed.data.session) {
+          try {
+            await supabase.auth.setSession(parsed.data.session);
+          } catch {
+            // Non-critical SDK session sync
+          }
+        }
+      }
+
+      return {
+        user: requiresEmailVerification ? (null as any) : user!,
+        token,
+        requiresEmailVerification,
+        email: cleanEmail,
+        message: parsed.data.message || `Welcome to InterviewBro AI, ${cleanFullName}!`
+      };
+    }
+
+    // Process structured error response from Supabase Auth / Serverless API
+    const errorDetails = parsed.data || { message: parsed.errorText };
+    const authErr = parseAuthError(errorDetails);
+    const customErr: any = new Error(authErr.friendlyMessage || parsed.data?.message || parsed.errorText || 'Registration failed.');
+    customErr.isRateLimit = authErr.isRateLimit;
+    customErr.isNetworkError = authErr.isNetworkError;
+    customErr.isUserAlreadyExists = authErr.isUserAlreadyExists;
+    customErr.isEmailUnconfirmed = authErr.isEmailUnconfirmed;
+    customErr.retryAfterSeconds = authErr.retryAfterSeconds;
+    customErr.email = cleanEmail;
+    throw customErr;
   },
 
   /**
-   * Log into an existing account via Supabase Auth with local sandbox fallback
+   * Log into an existing account via Supabase Auth
    */
   async login(email: string, password: string): Promise<AuthResponse> {
     if (!email || !password) {
@@ -350,15 +371,40 @@ export const authService = {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Direct Supabase Client SDK call
+    // 1. Primary: Serverless API proxy to Supabase Auth (/api/auth/login)
+    let res: Response;
     try {
+      res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password
+        })
+      });
+    } catch (networkErr: any) {
+      // If serverless proxy is unreachable due to network, attempt client-side Supabase SDK
       if (supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password
         });
 
-        if (!error && data?.user && data?.session) {
+        if (error) {
+          const parsed = parseAuthError(error);
+          const customErr: any = new Error(parsed.friendlyMessage);
+          customErr.isRateLimit = parsed.isRateLimit;
+          customErr.isNetworkError = parsed.isNetworkError;
+          customErr.isEmailUnconfirmed = parsed.isEmailUnconfirmed;
+          customErr.isUserAlreadyExists = parsed.isUserAlreadyExists;
+          customErr.retryAfterSeconds = parsed.retryAfterSeconds;
+          customErr.unconfirmedEmail = cleanEmail;
+          throw customErr;
+        }
+
+        if (data?.user && data?.session) {
           let profile: UserProfile | null = null;
           try {
             const { data: profileData } = await supabase
@@ -388,52 +434,51 @@ export const authService = {
           storage.setToken(data.session.access_token);
           return { user, token: data.session.access_token };
         }
+      }
 
-        if (error) {
-          const parsed = parseAuthError(error);
-          if (parsed.friendlyMessage.includes('Incorrect') || error.message.includes('Invalid login credentials')) {
-            const localUser = storage.getUser();
-            if (localUser && localUser.email.toLowerCase() === cleanEmail) {
-              const localToken = `local-token-${Date.now()}`;
-              storage.setToken(localToken);
-              return { user: localUser, token: localToken };
-            }
-            throw new Error('Incorrect email or password. Please verify your credentials and try again.');
-          }
+      const err: any = new Error('Unable to connect to authentication service. Please check your internet connection.');
+      err.isNetworkError = true;
+      throw err;
+    }
+
+    const parsed = await safeParseResponse<{
+      success?: boolean;
+      user?: UserProfile;
+      token?: string;
+      session?: any;
+      message?: string;
+      error?: string;
+    }>(res);
+
+    if (parsed.ok && parsed.data?.success && parsed.data.user) {
+      const user = parsed.data.user;
+      const token = parsed.data.token || parsed.data.session?.access_token;
+      storage.setUser(user);
+      if (token) storage.setToken(token);
+      if (supabase && parsed.data.session) {
+        try {
+          await supabase.auth.setSession(parsed.data.session);
+        } catch {
+          // Non-critical SDK session sync
         }
       }
-    } catch (err: any) {
-      if (err.message && err.message.includes('Incorrect')) {
-        throw err;
-      }
-      console.warn('Supabase login exception, checking local storage:', err);
+      return {
+        user,
+        token,
+        message: parsed.data.message || 'Login successful'
+      };
     }
 
-    // 2. Local sandbox login fallback
-    const localUser = storage.getUser();
-    if (localUser && localUser.email.toLowerCase() === cleanEmail) {
-      const localToken = `local-token-${Date.now()}`;
-      storage.setToken(localToken);
-      return { user: localUser, token: localToken };
-    }
-
-    // If no existing local user, create a session for candidate access
-    const newLocalUser: UserProfile = {
-      id: `usr-${Date.now()}`,
-      email: cleanEmail,
-      full_name: cleanEmail.split('@')[0],
-      role_target: 'Full Stack Developer',
-      experience_level: 'fresher',
-      skills: ['JavaScript', 'React', 'Problem Solving'],
-      interviews_remaining: 9999,
-      total_interviews_taken: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    storage.setUser(newLocalUser);
-    const localToken = `local-token-${Date.now()}`;
-    storage.setToken(localToken);
-    return { user: newLocalUser, token: localToken };
+    // Process structured error response
+    const errorDetails = parsed.data || { message: parsed.errorText };
+    const authErr = parseAuthError(errorDetails);
+    const customErr: any = new Error(authErr.friendlyMessage || parsed.data?.message || parsed.errorText || 'Authentication failed. Please verify your credentials.');
+    customErr.isRateLimit = authErr.isRateLimit;
+    customErr.isNetworkError = authErr.isNetworkError;
+    customErr.isEmailUnconfirmed = authErr.isEmailUnconfirmed;
+    customErr.retryAfterSeconds = authErr.retryAfterSeconds;
+    customErr.unconfirmedEmail = cleanEmail;
+    throw customErr;
   },
 
   /**

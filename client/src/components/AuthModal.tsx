@@ -1058,7 +1058,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <span>
             {isSupabaseConnected 
               ? 'Secured by Supabase Auth (Cloud PostgreSQL RLS Active)' 
-              : 'Local Sandbox Mode (PBKDF2 Password Hashing Active)'}
+              : 'Secured by Supabase Auth (Cloud Authentication Active)'}
           </span>
         </div>
       </div>
