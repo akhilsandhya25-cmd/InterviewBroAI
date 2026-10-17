@@ -8,6 +8,15 @@ import {
   updateSupabaseProfile 
 } from '../services/supabaseService.js';
 
+function maskEmail(email: string): string {
+  if (!email || typeof email !== 'string') return 'unknown';
+  const parts = email.split('@');
+  if (parts.length !== 2) return 'invalid-email';
+  const name = parts[0];
+  const maskedName = name.length <= 2 ? name[0] + '*' : name[0] + '*'.repeat(Math.max(1, name.length - 2)) + name[name.length - 1];
+  return `${maskedName}@${parts[1]}`;
+}
+
 export const authRouter = Router();
 
 // GET /api/auth/status - Check auth service configuration
@@ -18,6 +27,14 @@ authRouter.get('/status', (_req: Request, res: Response) => {
     isSupabaseConfigured: isServerSupabaseConfigured,
     supportsPasswordReset: true,
     supportsUserIsolation: true
+  });
+});
+
+// GET /api/auth/signup - Rejection for browser GET navigation
+authRouter.get('/signup', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/auth/signup endpoint requires a POST request with email, password, and fullName in the request body.'
   });
 });
 
@@ -41,6 +58,8 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const cleanFullName = fullName.trim();
+    console.log(`[Server Auth] Signup attempt received for ${maskEmail(cleanEmail)}`);
 
     // Route directly to Supabase Auth when available
     if (isServerSupabaseConfigured && serverSupabase) {
@@ -48,22 +67,40 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
         email: cleanEmail,
         password,
         options: {
-          data: { full_name: fullName.trim() }
+          data: { full_name: cleanFullName }
         }
       });
 
       if (error) {
+        console.warn(`[Server Auth] Supabase signup error for ${maskEmail(cleanEmail)}: HTTP ${error.status || 400}`, {
+          code: error.code,
+          message: error.message
+        });
+
+        let friendlyMsg = error.message;
+        if (error.code === 'over_email_send_rate_limit' || error.message.includes('rate limit')) {
+          friendlyMsg = 'Too many verification email requests. Please wait a while before trying again.';
+        } else if (error.code === 'user_already_exists' || error.message.includes('already registered')) {
+          friendlyMsg = 'An account with this email address already exists. Please log in instead.';
+        } else if (error.code === 'validation_failed') {
+          friendlyMsg = 'Unable to validate email address. Please provide a valid email format.';
+        } else if (error.code === 'weak_password') {
+          friendlyMsg = 'Password must be at least 6 characters long.';
+        }
+
         return res.status(error.status || 400).json({
           error: error.message,
-          message: error.message,
+          message: friendlyMsg,
           code: error.code
         });
       }
 
+      console.log(`[Server Auth] Supabase signup succeeded for ${maskEmail(cleanEmail)}, user ID: ${data.user?.id}`);
+
       const user = {
         id: data.user?.id || `usr-${Date.now()}`,
         email: data.user?.email || cleanEmail,
-        full_name: data.user?.user_metadata?.full_name || fullName.trim(),
+        full_name: data.user?.user_metadata?.full_name || cleanFullName,
         role_target: 'Full Stack Developer',
         experience_level: 'fresher',
         skills: ['JavaScript', 'React', 'Problem Solving'],
@@ -99,7 +136,7 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
     const { user, token } = serverAuthService.registerUser({
       email: cleanEmail,
       password,
-      full_name: fullName
+      full_name: cleanFullName
     });
 
     return res.status(201).json({
@@ -109,11 +146,20 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
       token
     });
   } catch (error: any) {
-    return res.status(400).json({
+    console.error('[Server Auth] Exception during signup:', error.message || error);
+    return res.status(500).json({
       error: 'Registration failed',
       message: error.message || 'Could not complete registration'
     });
   }
+});
+
+// GET /api/auth/login - Rejection for browser GET navigation
+authRouter.get('/login', (_req: Request, res: Response) => {
+  return res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'The /api/auth/login endpoint requires a POST request with email and password in the request body.'
+  });
 });
 
 // POST /api/auth/login
@@ -129,6 +175,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    console.log(`[Server Auth] Login attempt received for ${maskEmail(cleanEmail)}`);
 
     // Route directly to Supabase Auth when available
     if (isServerSupabaseConfigured && serverSupabase) {
@@ -138,6 +185,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       });
 
       if (error) {
+        console.warn(`[Server Auth] Supabase login error for ${maskEmail(cleanEmail)}: HTTP ${error.status || 400}`, error.message);
         return res.status(error.status || 400).json({
           error: error.message,
           message: error.message

@@ -120,34 +120,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setQuota(storage.getQuota(response.user.id));
       }
       return response;
-    } catch (err: any) {
-      if (err.message && (err.message.includes('JSON') || err.message.includes('json') || err.message.includes('Unexpected end'))) {
-        console.warn('Caught JSON stream error during signup, activating client sandbox fallback:', err);
-        const fallbackUser: UserProfile = {
-          id: `usr-${Date.now()}`,
-          email: email.trim().toLowerCase(),
-          full_name: fullName || email.split('@')[0],
-          role_target: 'Full Stack Developer',
-          experience_level: 'fresher',
-          skills: ['JavaScript', 'React', 'Problem Solving'],
-          interviews_remaining: 9999,
-          total_interviews_taken: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        storage.setUser(fallbackUser);
-        storage.setToken(`local-token-${Date.now()}`);
-        setUser(fallbackUser);
-        setQuota(storage.getQuota(fallbackUser.id));
-        return {
-          user: fallbackUser,
-          token: `local-token-${Date.now()}`,
-          requiresEmailVerification: false,
-          email: email.trim().toLowerCase(),
-          message: `Welcome to InterviewBro AI, ${fullName || 'Candidate'}! You are signed in.`
-        };
-      }
-      throw err;
     } finally {
       setIsLoading(false);
     }
