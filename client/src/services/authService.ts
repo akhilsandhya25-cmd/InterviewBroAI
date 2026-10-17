@@ -1,5 +1,5 @@
 import { UserProfile } from '../types';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured, DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from './supabase';
 import { storage } from './storage';
 
 const API_BASE = '/api/auth';
@@ -232,21 +232,141 @@ export const authService = {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. If Supabase is connected, register with Supabase Auth
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: {
-          data: {
-            full_name: fullName.trim()
-          },
-          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+    // 1. Direct Supabase Auth Client SDK
+    try {
+      if (supabase) {
+        const { data, error } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim()
+            },
+            emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+          }
+        });
+
+        if (error) {
+          const parsed = parseAuthError(error);
+          const customErr: any = new Error(parsed.friendlyMessage);
+          customErr.isRateLimit = parsed.isRateLimit;
+          customErr.isNetworkError = parsed.isNetworkError;
+          customErr.isUserAlreadyExists = parsed.isUserAlreadyExists;
+          customErr.retryAfterSeconds = parsed.retryAfterSeconds;
+          customErr.email = cleanEmail;
+          throw customErr;
         }
+
+        if (data && (data.user || data.session)) {
+          const uid = data.user?.id || `usr-${Date.now()}`;
+          const newUser: UserProfile = {
+            id: uid,
+            email: cleanEmail,
+            full_name: fullName.trim(),
+            role_target: 'Full Stack Developer',
+            experience_level: 'fresher',
+            skills: ['JavaScript', 'React', 'Problem Solving'],
+            interviews_remaining: 9999,
+            total_interviews_taken: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          if (data.user) {
+            try {
+              await supabase.from('profiles').upsert({
+                id: data.user.id,
+                email: cleanEmail,
+                full_name: fullName.trim(),
+                role_target: 'Full Stack Developer',
+                experience_level: 'fresher',
+                skills: ['JavaScript', 'React', 'Problem Solving'],
+                interviews_remaining: 9999,
+                total_interviews_taken: 0
+              });
+            } catch {
+              // Handled by Postgres trigger if present
+            }
+          }
+
+          const requiresEmailVerification = !data.session;
+          if (!requiresEmailVerification) {
+            storage.setUser(newUser);
+            if (data.session?.access_token) {
+              storage.setToken(data.session.access_token);
+            }
+          }
+
+          return { 
+            user: requiresEmailVerification ? (null as any) : newUser, 
+            token: data.session?.access_token,
+            requiresEmailVerification,
+            email: cleanEmail,
+            message: requiresEmailVerification
+              ? "Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
+              : `Welcome to InterviewBro AI, ${fullName.trim()}! Your account has been created successfully.`
+          };
+        }
+      }
+    } catch (sdkErr: any) {
+      if (sdkErr.isRateLimit || sdkErr.isUserAlreadyExists || sdkErr.isEmailUnconfirmed) {
+        throw sdkErr;
+      }
+      console.warn('Supabase SDK signup notice, trying direct REST fallback:', sdkErr);
+    }
+
+    // 2. Direct Supabase Auth REST Endpoint Fallback (bypasses any SDK transport anomalies)
+    try {
+      const restRes = await fetch(`${DEFAULT_SUPABASE_URL}/auth/v1/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': DEFAULT_SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password,
+          data: { full_name: fullName.trim() }
+        })
       });
 
-      if (error) {
-        const parsed = parseAuthError(error);
+      const restParsed = await safeParseResponse<any>(restRes);
+      if (restParsed.ok && restParsed.data) {
+        const requiresEmailVerification = !restParsed.data.session;
+        const uid = restParsed.data.id || restParsed.data.user?.id || `usr-${Date.now()}`;
+        const restUser: UserProfile = {
+          id: uid,
+          email: cleanEmail,
+          full_name: fullName.trim(),
+          role_target: 'Full Stack Developer',
+          experience_level: 'fresher',
+          skills: ['JavaScript', 'React', 'Problem Solving'],
+          interviews_remaining: 9999,
+          total_interviews_taken: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        if (!requiresEmailVerification) {
+          storage.setUser(restUser);
+          if (restParsed.data.session?.access_token) {
+            storage.setToken(restParsed.data.session.access_token);
+          }
+        }
+
+        return {
+          user: requiresEmailVerification ? (null as any) : restUser,
+          token: restParsed.data.session?.access_token,
+          requiresEmailVerification,
+          email: cleanEmail,
+          message: requiresEmailVerification
+            ? "Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
+            : `Welcome to InterviewBro AI, ${fullName.trim()}! Your account has been created successfully.`
+        };
+      }
+
+      if (restParsed.data) {
+        const parsed = parseAuthError(restParsed.data);
         const customErr: any = new Error(parsed.friendlyMessage);
         customErr.isRateLimit = parsed.isRateLimit;
         customErr.isNetworkError = parsed.isNetworkError;
@@ -255,60 +375,14 @@ export const authService = {
         customErr.email = cleanEmail;
         throw customErr;
       }
-
-      const uid = data.user?.id || `usr-${Date.now()}`;
-      const newUser: UserProfile = {
-        id: uid,
-        email: cleanEmail,
-        full_name: fullName.trim(),
-        role_target: 'Full Stack Developer',
-        experience_level: 'fresher',
-        skills: ['JavaScript', 'React', 'Problem Solving'],
-        interviews_remaining: 9999,
-        total_interviews_taken: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      if (data.user) {
-        try {
-          await supabase.from('profiles').upsert({
-            id: data.user.id,
-            email: cleanEmail,
-            full_name: fullName.trim(),
-            role_target: 'Full Stack Developer',
-            experience_level: 'fresher',
-            skills: ['JavaScript', 'React', 'Problem Solving'],
-            interviews_remaining: 9999,
-            total_interviews_taken: 0
-          });
-        } catch {
-          // Handled by Postgres trigger if present
-        }
+    } catch (restErr: any) {
+      if (restErr.isRateLimit || restErr.isUserAlreadyExists || restErr.isEmailUnconfirmed) {
+        throw restErr;
       }
-
-      // Check whether session exists (auto-confirm enabled) or verification is required
-      const requiresEmailVerification = !data.session;
-
-      if (!requiresEmailVerification) {
-        storage.setUser(newUser);
-        if (data.session?.access_token) {
-          storage.setToken(data.session.access_token);
-        }
-      }
-
-      return { 
-        user: requiresEmailVerification ? (null as any) : newUser, 
-        token: data.session?.access_token,
-        requiresEmailVerification,
-        email: cleanEmail,
-        message: requiresEmailVerification
-          ? "Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
-          : `Welcome to InterviewBro AI, ${fullName.trim()}! Your account has been created successfully.`
-      };
+      console.warn('Direct Supabase REST signup failed, falling back to serverless API:', restErr);
     }
 
-    // 2. Local Secure Server Mode (Express API with salted hash)
+    // 3. Vercel Serverless API Fallback (/api/auth/signup -> Supabase Auth on server)
     try {
       const res = await fetch(`${API_BASE}/signup`, {
         method: 'POST',
@@ -316,33 +390,37 @@ export const authService = {
         body: JSON.stringify({ email: cleanEmail, password, confirmPassword, fullName })
       });
 
-      const parsed = await safeParseResponse<{ user: UserProfile; token: string; message?: string; error?: string }>(res);
-      if (parsed.ok && parsed.data?.user) {
-        storage.setUser(parsed.data.user);
-        if (parsed.data.token) {
-          storage.setToken(parsed.data.token);
+      const parsed = await safeParseResponse<{ user?: UserProfile; token?: string; session?: any; requiresEmailVerification?: boolean; message?: string; error?: string }>(res);
+      if (parsed.ok && parsed.data) {
+        if (parsed.data.user || parsed.data.session) {
+          const user = parsed.data.user;
+          const token = parsed.data.token || parsed.data.session?.access_token;
+          const requiresVerification = Boolean(parsed.data.requiresEmailVerification);
+          if (!requiresVerification && user) {
+            storage.setUser(user);
+            if (token) storage.setToken(token);
+          }
+          return { 
+            user: requiresVerification ? (null as any) : user!, 
+            token, 
+            requiresEmailVerification: requiresVerification, 
+            email: cleanEmail,
+            message: parsed.data.message
+          };
         }
-        return { 
-          user: parsed.data.user, 
-          token: parsed.data.token, 
-          requiresEmailVerification: false, 
-          email: cleanEmail 
-        };
       }
 
       if (parsed.data?.message || parsed.data?.error) {
         throw new Error(parsed.data.message || parsed.data.error);
       }
-
-      console.warn(`Auth API /signup returned status ${res.status}:`, parsed.errorText);
     } catch (apiErr: any) {
-      if (apiErr.message && !apiErr.message.includes('fetch') && !apiErr.message.includes('JSON') && !apiErr.message.includes('HTTP')) {
+      if (apiErr.isRateLimit || apiErr.isUserAlreadyExists || apiErr.isEmailUnconfirmed) {
         throw apiErr;
       }
-      console.warn('Backend signup unreachable or returned non-JSON, activating resilient local sandbox:', apiErr);
+      console.warn('Serverless signup endpoint failed, activating local sandbox:', apiErr);
     }
 
-    // 3. Resilient Local Sandbox Fallback (ensures user is never blocked on static Vercel deployments)
+    // 4. Resilient Local Sandbox Fallback (ensures user is never blocked on static deployments)
     const localUser: UserProfile = {
       id: `usr-${Date.now()}`,
       email: cleanEmail,
@@ -376,56 +454,117 @@ export const authService = {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Supabase Mode
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password
+    // 1. Direct Supabase Auth Client SDK
+    try {
+      if (supabase) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password
+        });
+
+        if (error) {
+          const parsed = parseAuthError(error);
+          const customErr: any = new Error(parsed.friendlyMessage);
+          customErr.isRateLimit = parsed.isRateLimit;
+          customErr.isNetworkError = parsed.isNetworkError;
+          customErr.isEmailUnconfirmed = parsed.isEmailUnconfirmed;
+          customErr.isUserAlreadyExists = parsed.isUserAlreadyExists;
+          customErr.retryAfterSeconds = parsed.retryAfterSeconds;
+          customErr.unconfirmedEmail = cleanEmail;
+          throw customErr;
+        }
+
+        if (data?.user && data?.session) {
+          let profile: UserProfile | null = null;
+          try {
+            const { data: profileData, error: profileErr } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', data.user.id)
+              .maybeSingle();
+            if (!profileErr && profileData) profile = profileData;
+          } catch (e) {
+            // Fallback profile if DB table not yet created
+          }
+
+          const user: UserProfile = profile || {
+            id: data.user.id,
+            email: data.user.email || cleanEmail,
+            full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
+            role_target: 'Full Stack Developer',
+            experience_level: 'fresher',
+            skills: ['JavaScript', 'React', 'Problem Solving'],
+            interviews_remaining: 9999,
+            total_interviews_taken: 0,
+            created_at: data.user.created_at,
+            updated_at: new Date().toISOString()
+          };
+
+          storage.setUser(user);
+          storage.setToken(data.session.access_token);
+          return { user, token: data.session.access_token };
+        }
+      }
+    } catch (sdkErr: any) {
+      if (sdkErr.isRateLimit || sdkErr.isEmailUnconfirmed || sdkErr.isUserAlreadyExists || sdkErr.message?.includes('credentials')) {
+        throw sdkErr;
+      }
+      console.warn('Supabase SDK login notice, trying direct REST fallback:', sdkErr);
+    }
+
+    // 2. Direct Supabase REST Fallback
+    try {
+      const restRes = await fetch(`${DEFAULT_SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': DEFAULT_SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password
+        })
       });
 
-      if (error) {
-        const parsed = parseAuthError(error);
+      const restParsed = await safeParseResponse<any>(restRes);
+      if (restParsed.ok && restParsed.data?.access_token) {
+        const u = restParsed.data.user || {};
+        const user: UserProfile = {
+          id: u.id || `usr-${Date.now()}`,
+          email: u.email || cleanEmail,
+          full_name: u.user_metadata?.full_name || cleanEmail.split('@')[0],
+          role_target: 'Full Stack Developer',
+          experience_level: 'fresher',
+          skills: ['JavaScript', 'React', 'Problem Solving'],
+          interviews_remaining: 9999,
+          total_interviews_taken: 0,
+          created_at: u.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        storage.setUser(user);
+        storage.setToken(restParsed.data.access_token);
+        return { user, token: restParsed.data.access_token };
+      }
+
+      if (restParsed.data) {
+        const parsed = parseAuthError(restParsed.data);
         const customErr: any = new Error(parsed.friendlyMessage);
         customErr.isRateLimit = parsed.isRateLimit;
         customErr.isNetworkError = parsed.isNetworkError;
         customErr.isEmailUnconfirmed = parsed.isEmailUnconfirmed;
-        customErr.isUserAlreadyExists = parsed.isUserAlreadyExists;
         customErr.retryAfterSeconds = parsed.retryAfterSeconds;
         customErr.unconfirmedEmail = cleanEmail;
         throw customErr;
       }
-
-      let profile: UserProfile | null = null;
-      try {
-        const { data: profileData, error: profileErr } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .maybeSingle();
-        if (!profileErr && profileData) profile = profileData;
-      } catch (e) {
-        // Fallback profile if DB table not yet created
+    } catch (restErr: any) {
+      if (restErr.isRateLimit || restErr.isEmailUnconfirmed || restErr.isUserAlreadyExists || restErr.message?.includes('credentials')) {
+        throw restErr;
       }
-
-      const user: UserProfile = profile || {
-        id: data.user.id,
-        email: data.user.email || cleanEmail,
-        full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
-        role_target: 'Full Stack Developer',
-        experience_level: 'fresher',
-        skills: ['JavaScript', 'React', 'Problem Solving'],
-        interviews_remaining: 9999,
-        total_interviews_taken: 0,
-        created_at: data.user.created_at,
-        updated_at: new Date().toISOString()
-      };
-
-      storage.setUser(user);
-      storage.setToken(data.session.access_token);
-      return { user, token: data.session.access_token };
+      console.warn('Direct Supabase REST login failed, falling back to serverless API:', restErr);
     }
 
-    // 2. Local Secure Server Mode
+    // 3. Serverless API Fallback (/api/auth/login -> Supabase Auth on server)
     try {
       const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',

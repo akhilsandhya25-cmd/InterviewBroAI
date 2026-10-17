@@ -3,6 +3,7 @@ import { serverAuthService } from '../services/authService.js';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth.js';
 import { 
   isServerSupabaseConfigured, 
+  serverSupabase,
   getSupabaseProfile, 
   updateSupabaseProfile 
 } from '../services/supabaseService.js';
@@ -23,13 +24,6 @@ authRouter.get('/status', (_req: Request, res: Response) => {
 // POST /api/auth/signup
 authRouter.post('/signup', async (req: Request, res: Response) => {
   try {
-    if (isServerSupabaseConfigured) {
-      return res.status(400).json({
-        error: 'Cloud authentication active',
-        message: 'Supabase Auth is active. Please register directly using Supabase Auth.'
-      });
-    }
-
     const { email, password, confirmPassword, fullName } = req.body;
 
     if (!email || !password || !fullName) {
@@ -46,8 +40,56 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
       });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Route directly to Supabase Auth when available
+    if (isServerSupabaseConfigured && serverSupabase) {
+      const { data, error } = await serverSupabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: { full_name: fullName.trim() }
+        }
+      });
+
+      if (error) {
+        return res.status(error.status || 400).json({
+          error: error.message,
+          message: error.message,
+          code: error.code
+        });
+      }
+
+      const user = {
+        id: data.user?.id || `usr-${Date.now()}`,
+        email: data.user?.email || cleanEmail,
+        full_name: data.user?.user_metadata?.full_name || fullName.trim(),
+        role_target: 'Full Stack Developer',
+        experience_level: 'fresher',
+        skills: ['JavaScript', 'React', 'Problem Solving'],
+        interviews_remaining: 9999,
+        total_interviews_taken: 0,
+        created_at: data.user?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const requiresEmailVerification = !data.session;
+      return res.status(200).json({
+        success: true,
+        user: requiresEmailVerification ? null : user,
+        token: data.session?.access_token,
+        session: data.session,
+        requiresEmailVerification,
+        email: cleanEmail,
+        message: requiresEmailVerification
+          ? "Account created successfully! We've sent a verification link to your email address."
+          : `Welcome to InterviewBro AI, ${user.full_name}!`
+      });
+    }
+
+    // Local Secure Server Mode fallback
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
+    if (!emailRegex.test(cleanEmail)) {
       return res.status(400).json({
         error: 'Invalid email',
         message: 'Please provide a valid email address.'
@@ -55,7 +97,7 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
     }
 
     const { user, token } = serverAuthService.registerUser({
-      email,
+      email: cleanEmail,
       password,
       full_name: fullName
     });
@@ -77,13 +119,6 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
 // POST /api/auth/login
 authRouter.post('/login', async (req: Request, res: Response) => {
   try {
-    if (isServerSupabaseConfigured) {
-      return res.status(400).json({
-        error: 'Cloud authentication active',
-        message: 'Supabase Auth is active. Please log in directly using Supabase Auth.'
-      });
-    }
-
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -93,7 +128,46 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    const { user, token } = serverAuthService.loginUser(email, password);
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Route directly to Supabase Auth when available
+    if (isServerSupabaseConfigured && serverSupabase) {
+      const { data, error } = await serverSupabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password
+      });
+
+      if (error) {
+        return res.status(error.status || 400).json({
+          error: error.message,
+          message: error.message
+        });
+      }
+
+      const user = {
+        id: data.user.id,
+        email: data.user.email || cleanEmail,
+        full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
+        role_target: 'Full Stack Developer',
+        experience_level: 'fresher',
+        skills: ['JavaScript', 'React', 'Problem Solving'],
+        interviews_remaining: 9999,
+        total_interviews_taken: 0,
+        created_at: data.user.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      return res.json({
+        success: true,
+        message: 'Login successful',
+        user,
+        token: data.session.access_token,
+        session: data.session
+      });
+    }
+
+    // Local Secure Server Mode fallback
+    const { user, token } = serverAuthService.loginUser(cleanEmail, password);
 
     return res.json({
       success: true,
