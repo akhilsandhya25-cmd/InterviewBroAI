@@ -14,7 +14,8 @@ import {
   Target,
   BarChart3,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Construction
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useInterview } from '../context/InterviewContext';
@@ -136,6 +137,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
               <FileText className="w-4 h-4 text-cyan-400" />
               <span>Scan Resume</span>
             </button>
+          </div>
+        </div>
+
+        {/* Notice of Active Development */}
+        <div className="relative z-10 mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between gap-3 text-xs text-slate-400">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-bold uppercase tracking-wide">
+              <Construction className="w-3 h-3 text-amber-400" />
+              <span>In Active Development</span>
+            </span>
+            <span className="text-[11px] text-slate-300">
+              Features, AI follow-up models, and company blueprints are continuously being updated. Your practice data and feedback directly improve the platform.
+            </span>
           </div>
         </div>
       </div>

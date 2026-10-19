@@ -20,6 +20,7 @@ import { PrivacyCenterPage } from './pages/PrivacyCenterPage';
 import { IntroSplashAnimation } from './components/IntroSplashAnimation';
 import { Shield, Lock, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { BrandIcon } from './components/brand/BrandIcon';
+import { DevelopmentNoticeBanner } from './components/DevelopmentNoticeBanner';
 import { storage } from './services/storage';
 import { UserProfile } from './types';
 
@@ -340,6 +341,9 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#080b11] text-slate-100 flex flex-col font-sans">
+      {/* Active Development Notice Banner */}
+      <DevelopmentNoticeBanner onLearnMore={() => navigateTo('legal:terms')} />
+
       {/* Top Navbar */}
       <Navbar
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}

@@ -19,7 +19,8 @@ import {
   Camera,
   Layers,
   GraduationCap,
-  Briefcase
+  Briefcase,
+  Construction
 } from 'lucide-react';
 import { COMPANY_PRESETS } from '../data/presets';
 import { BrandIcon } from '../components/brand/BrandIcon';
@@ -68,9 +69,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPracticing, onN
           {/* Brand Emblem & Placement Badge */}
           <div className="flex flex-col items-center justify-center mb-8">
             <BrandIcon size="xl" glow={true} className="mb-5 animate-pulse" />
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-violet-500/30 text-xs font-semibold text-violet-300 shadow-sm backdrop-blur-sm">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Built for Indian College Placements & Global Tech Interviews</span>
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-violet-500/30 text-xs font-semibold text-violet-300 shadow-sm backdrop-blur-sm">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Built for Indian College Placements & Global Tech Interviews</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs font-semibold text-amber-300 shadow-sm backdrop-blur-sm">
+                <Construction className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                <span>Preview • Platform In Active Development</span>
+              </div>
             </div>
           </div>
 

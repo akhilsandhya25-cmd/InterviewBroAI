@@ -47,6 +47,7 @@ export const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
         heading: '2. Educational Purpose & Nature of Service',
         content: [
           'InterviewBro AI is an educational simulation tool designed to assist college students, recent graduates, and software job seekers in practicing mock interviews and analyzing resume keywords.',
+          'ACTIVE DEVELOPMENT PREVIEW NOTICE: The Platform is currently under active development. Core capabilities including generative AI question generation, audio speech recognition, natural voice synthesis, and ATS resume scoring are actively evolving and subject to iterative enhancements.',
           'THE PLATFORM IS NOT AN EMPLOYER, RECRUITER, OR EMPLOYMENT AGENCY. WE DO NOT GUARANTEE INTERVIEW CALLS, JOB OFFERS, SALARY LEVELS, OR HIRING OUTCOMES AT ANY COMPANY (INCLUDING COMPANIES FEATURED IN PRACTICE BLUEPRINTS LIKE FLIPKART, SWIGGY, GOOGLE, INFOSYS, OR TCS).',
           'Company names, brand blueprints, and interview round formats are utilized solely for contextual educational role-play and preparation purposes and do not imply sponsorship, affiliation, endorsement, or partnership with those companies.'
         ]

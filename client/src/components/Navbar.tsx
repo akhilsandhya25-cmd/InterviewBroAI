@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, User, Video, ShieldCheck, Flame, Menu, X } from 'lucide-react';
+import { Sparkles, User, Video, ShieldCheck, Flame, Menu, X, Construction } from 'lucide-react';
 import { BrandLogo } from './brand/BrandLogo';
 
 interface NavbarProps {
@@ -38,6 +38,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             size="md"
             showTagline={true}
           />
+
+          {/* Under Development Pill */}
+          <div 
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-bold tracking-wide uppercase select-none"
+            title="InterviewBro AI is in active development"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+            <Construction className="w-3 h-3 text-amber-400" />
+            <span>Under Development</span>
+          </div>
         </div>
 
         {/* Center: Quick navigation links for Landing view */}
