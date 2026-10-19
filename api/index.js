@@ -330,20 +330,23 @@ export default async function handler(req, res) {
       }
     }
 
-    const targetUserId = authenticatedUserId || requestedUserId;
-    if (!targetUserId) {
+    // Enforce strict server-side authentication: caller must provide a valid, verified token
+    if (!authenticatedUserId) {
       return res.status(401).json({
         error: 'Unauthorized',
-        message: 'A valid authenticated session or User ID is required to process account deletion.'
+        message: 'A valid, unexpired authentication Bearer token is required to delete an account.'
       });
     }
 
-    if (authenticatedUserId && requestedUserId && authenticatedUserId !== requestedUserId) {
+    if (requestedUserId && requestedUserId !== authenticatedUserId) {
       return res.status(403).json({
         error: 'Forbidden',
         message: 'Cross-user deletion rejected.'
       });
     }
+
+    const targetUserId = authenticatedUserId;
+
 
     try {
       let adminDeleted = false;

@@ -315,6 +315,52 @@ authRouter.post('/logout', (req: Request, res: Response) => {
   return res.json({ success: true, message: 'Logged out successfully' });
 });
 
+// POST /api/auth/delete-account - Permanent account & data erasure
+authRouter.post('/delete-account', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const requestedUserId = req.body?.userId;
+
+    if (requestedUserId && requestedUserId !== userId) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'You cannot delete another user account.'
+      });
+    }
+
+    // 1. Delete user records from Supabase tables if configured
+    if (isServerSupabaseConfigured && serverSupabase) {
+      const tables = ['feedback_reports', 'interview_sessions', 'resume_analyses', 'profiles'];
+      for (const table of tables) {
+        const idCol = table === 'profiles' ? 'id' : 'user_id';
+        await serverSupabase.from(table).delete().eq(idCol, userId);
+      }
+    }
+
+    // 2. Erase from local storage engine
+    serverAuthService.deleteUser(userId);
+
+    // 3. Invalidate session token
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7).trim();
+      serverAuthService.invalidateSession(token);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Account and associated records have been permanently erased.'
+    });
+  } catch (err: any) {
+    console.error('[Auth Route] Delete account error:', err);
+    return res.status(500).json({
+      error: 'Deletion Error',
+      message: err.message || 'Failed to delete account'
+    });
+  }
+});
+
+
 
 // POST /api/auth/forgot-password
 authRouter.post('/forgot-password', (req: Request, res: Response) => {

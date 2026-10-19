@@ -358,6 +358,27 @@ class ServerAuthService {
     }
     return null;
   }
+
+  /**
+   * Permanently erase user from local storage
+   */
+  deleteUser(userId: string): boolean {
+    for (const [email, user] of this.users.entries()) {
+      if (user.id === userId) {
+        this.users.delete(email);
+        for (const [token, session] of this.sessions.entries()) {
+          if (session.userId === userId) {
+            this.sessions.delete(token);
+          }
+        }
+        this.persistUsers();
+        this.persistSessions();
+        return true;
+      }
+    }
+    return false;
+  }
 }
+
 
 export const serverAuthService = new ServerAuthService();

@@ -116,9 +116,10 @@ async function runLegalPrivacyTests() {
     mockRes as any
   );
 
-  assert(statusCode === 200 || statusCode === 401 || statusCode === 403, `Safe termination on invalid/mismatched auth token (got HTTP ${statusCode})`);
+  assert(statusCode === 401, `Invalid or forged auth token strictly rejected with HTTP 401 (got HTTP ${statusCode})`);
 
   console.log('\n🎉 ALL LEGAL, PRIVACY, AI TRANSPARENCY, & IDOR AUDIT TESTS PASSED!\n');
+
 }
 
 runLegalPrivacyTests().catch(err => {
