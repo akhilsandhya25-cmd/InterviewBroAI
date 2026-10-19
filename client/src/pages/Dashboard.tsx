@@ -20,7 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { useInterview } from '../context/InterviewContext';
 import { storage } from '../services/storage';
 import { COMPANY_PRESETS } from '../data/presets';
-import { InterviewSession } from '../types';
+import { InterviewSession, FeedbackReport } from '../types';
 import { BrandIcon } from '../components/brand/BrandIcon';
 import { CompanyBadge } from '../components/CompanyBadge';
 
@@ -35,7 +35,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
   const [sessions, setSessions] = React.useState<InterviewSession[]>(() => storage.getSessions(user?.id));
   
   React.useEffect(() => {
-    setSessions(storage.getSessions(user?.id));
+    const refresh = () => setSessions(storage.getSessions(user?.id));
+    refresh();
+    window.addEventListener('interviewbro_storage_synced', refresh);
+    return () => window.removeEventListener('interviewbro_storage_synced', refresh);
   }, [user?.id]);
 
   const reports = storage.getReports(user?.id);
@@ -44,28 +47,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
   const completedSessions = sessions.filter(s => s.status === 'completed');
   const totalInterviews = completedSessions.length;
 
-  // Calculate average scores
-  const avgOverallScore = completedSessions.length > 0
-    ? Math.round(completedSessions.reduce((acc, s) => acc + (s.feedbackReport?.overallScore || 80), 0) / completedSessions.length)
-    : 84;
+  // Gather all valid evaluated reports (from session feedback reports or stored reports)
+  const reportMap = new Map<string, FeedbackReport>();
+  reports.forEach(r => {
+    if (r && typeof r.overallScore === 'number') {
+      reportMap.set(r.sessionId || r.id, r);
+    }
+  });
+  completedSessions.forEach(s => {
+    if (s.feedbackReport && typeof s.feedbackReport.overallScore === 'number') {
+      reportMap.set(s.id, s.feedbackReport);
+    }
+  });
+  const validReports = Array.from(reportMap.values());
+  const hasEvaluatedScores = validReports.length > 0;
 
-  const avgTechnicalScore = completedSessions.length > 0
-    ? Math.round(completedSessions.reduce((acc, s) => acc + (s.feedbackReport?.technicalAccuracyScore || 82), 0) / completedSessions.length)
-    : 86;
+  // Calculate average scores only from real completed evaluation reports
+  const avgOverallScore = hasEvaluatedScores
+    ? Math.round(validReports.reduce((acc, r) => acc + (r.overallScore || 0), 0) / validReports.length)
+    : null;
 
-  const avgCommunicationScore = completedSessions.length > 0
-    ? Math.round(completedSessions.reduce((acc, s) => acc + (s.feedbackReport?.communicationScore || 78), 0) / completedSessions.length)
-    : 81;
+  const avgTechnicalScore = hasEvaluatedScores
+    ? Math.round(validReports.reduce((acc, r) => acc + (r.technicalAccuracyScore || 0), 0) / validReports.length)
+    : null;
 
-  const avgStarScore = completedSessions.length > 0
-    ? Math.round(completedSessions.reduce((acc, s) => acc + (s.feedbackReport?.structureStarScore || 80), 0) / completedSessions.length)
-    : 83;
+  const avgCommunicationScore = hasEvaluatedScores
+    ? Math.round(validReports.reduce((acc, r) => acc + (r.communicationScore || 0), 0) / validReports.length)
+    : null;
+
+  const avgStarScore = hasEvaluatedScores
+    ? Math.round(validReports.reduce((acc, r) => acc + (r.structureStarScore || 0), 0) / validReports.length)
+    : null;
 
   const handleDeleteSession = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm('Delete this interview session and its feedback report?')) {
-      storage.deleteSession(id);
-      setSessions(storage.getSessions());
+      storage.deleteSession(id, user?.id);
+      setSessions(storage.getSessions(user?.id));
     }
   };
 
@@ -154,7 +172,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
             </div>
             <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" />
-              <span>{quota.interviewsUsed} sessions recorded</span>
+              <span>{totalInterviews === 1 ? '1 session recorded' : `${totalInterviews} sessions recorded`}</span>
             </div>
           </div>
           <div className="w-11 h-11 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
@@ -167,11 +185,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
           <div>
             <div className="text-xs font-medium text-slate-400">Average Score</div>
             <div className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-              {avgOverallScore}<span className="text-sm font-semibold text-slate-500">/100</span>
+              {hasEvaluatedScores ? (
+                <>
+                  {avgOverallScore}<span className="text-sm font-semibold text-slate-500">/100</span>
+                </>
+              ) : (
+                <span className="text-slate-400">--<span className="text-sm font-normal text-slate-600">/100</span></span>
+              )}
             </div>
-            <div className="text-[11px] text-blue-400 mt-1 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" />
-              <span>Top 15% Candidate Tier</span>
+            <div className="text-[11px] mt-1 flex items-center gap-1">
+              {hasEvaluatedScores ? (
+                <span className="text-blue-400 flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>
+                    {avgOverallScore! >= 85 ? 'Top 15% Candidate Tier' : avgOverallScore! >= 70 ? 'Proficient Candidate' : 'Developing Candidate'}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-slate-500 flex items-center gap-1">
+                  <Target className="w-3 h-3 text-slate-500" />
+                  <span>No interviews taken yet</span>
+                </span>
+              )}
             </div>
           </div>
           <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
@@ -224,10 +259,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
                 <BarChart3 className="w-4 h-4 text-violet-400" />
                 <span>Competency Scores by Category</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Calculated across your evaluated answers</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {hasEvaluatedScores 
+                  ? 'Calculated across your evaluated answers' 
+                  : 'Complete an interview to generate baseline competency scores'}
+              </p>
             </div>
             <span className="text-[11px] font-semibold text-slate-400 px-2 py-1 rounded bg-slate-800">
-              Transparent Rubric
+              {hasEvaluatedScores ? 'Transparent Rubric' : 'No Interviews Yet'}
             </span>
           </div>
 
@@ -235,12 +274,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
             <div>
               <div className="flex justify-between text-xs font-medium mb-1.5">
                 <span className="text-slate-300">Technical Accuracy & Problem Solving</span>
-                <span className="text-blue-400 font-bold">{avgTechnicalScore}%</span>
+                <span className={hasEvaluatedScores ? "text-blue-400 font-bold" : "text-slate-500 font-bold"}>
+                  {hasEvaluatedScores ? `${avgTechnicalScore}%` : '--'}
+                </span>
               </div>
               <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                 <div 
-                  className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all"
-                  style={{ width: `${avgTechnicalScore}%` }}
+                  className={`h-full rounded-full transition-all ${
+                    hasEvaluatedScores ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-slate-700'
+                  }`}
+                  style={{ width: `${hasEvaluatedScores ? avgTechnicalScore : 0}%` }}
                 />
               </div>
             </div>
@@ -248,12 +291,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
             <div>
               <div className="flex justify-between text-xs font-medium mb-1.5">
                 <span className="text-slate-300">Communication Clarity & Articulation</span>
-                <span className="text-violet-400 font-bold">{avgCommunicationScore}%</span>
+                <span className={hasEvaluatedScores ? "text-violet-400 font-bold" : "text-slate-500 font-bold"}>
+                  {hasEvaluatedScores ? `${avgCommunicationScore}%` : '--'}
+                </span>
               </div>
               <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                 <div 
-                  className="bg-gradient-to-r from-violet-500 to-purple-500 h-full rounded-full transition-all"
-                  style={{ width: `${avgCommunicationScore}%` }}
+                  className={`h-full rounded-full transition-all ${
+                    hasEvaluatedScores ? 'bg-gradient-to-r from-violet-500 to-purple-500' : 'bg-slate-700'
+                  }`}
+                  style={{ width: `${hasEvaluatedScores ? avgCommunicationScore : 0}%` }}
                 />
               </div>
             </div>
@@ -261,12 +308,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
             <div>
               <div className="flex justify-between text-xs font-medium mb-1.5">
                 <span className="text-slate-300">Answer Structure (STAR Methodology)</span>
-                <span className="text-cyan-400 font-bold">{avgStarScore}%</span>
+                <span className={hasEvaluatedScores ? "text-cyan-400 font-bold" : "text-slate-500 font-bold"}>
+                  {hasEvaluatedScores ? `${avgStarScore}%` : '--'}
+                </span>
               </div>
               <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                 <div 
-                  className="bg-gradient-to-r from-cyan-500 to-teal-500 h-full rounded-full transition-all"
-                  style={{ width: `${avgStarScore}%` }}
+                  className={`h-full rounded-full transition-all ${
+                    hasEvaluatedScores ? 'bg-gradient-to-r from-cyan-500 to-teal-500' : 'bg-slate-700'
+                  }`}
+                  style={{ width: `${hasEvaluatedScores ? avgStarScore : 0}%` }}
                 />
               </div>
             </div>
@@ -276,7 +327,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
           <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-3">
             <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div className="text-xs text-slate-300 leading-relaxed">
-              <strong className="text-white">Coach Tip:</strong> Your technical answers are clear! To reach the top tier, explicitly state metrics (e.g. "reduced latency by 30%") and explain trade-offs before concluding.
+              {hasEvaluatedScores ? (
+                <>
+                  <strong className="text-white">Coach Tip:</strong> Your technical answers are clear! To reach the top tier, explicitly state metrics (e.g. "reduced latency by 30%") and explain trade-offs before concluding.
+                </>
+              ) : (
+                <>
+                  <strong className="text-white">Coach Tip:</strong> Ready to practice? Take your first mock interview to establish your baseline competency scores and receive tailored feedback.
+                </>
+              )}
             </div>
           </div>
         </div>
