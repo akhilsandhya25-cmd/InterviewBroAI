@@ -15,11 +15,14 @@ import { HistoryPage } from './pages/HistoryPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PricingPage } from './pages/PricingPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { LegalCenterPage } from './pages/LegalCenterPage';
+import { PrivacyCenterPage } from './pages/PrivacyCenterPage';
 import { IntroSplashAnimation } from './components/IntroSplashAnimation';
 import { Shield, Lock, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { BrandIcon } from './components/brand/BrandIcon';
 import { storage } from './services/storage';
 import { UserProfile } from './types';
+
 
 const PROTECTED_ROUTES = new Set([
   'dashboard',
@@ -39,12 +42,14 @@ const AppContent: React.FC = () => {
   // Intro Splash Animation State (only on initial launch)
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
-  // Navigation route: 'landing' | 'dashboard' | 'setup' | 'interview' | 'reports' | 'resume' | 'history' | 'profile' | 'pricing' | 'settings'
+  // Navigation route: 'landing' | 'dashboard' | 'setup' | 'interview' | 'reports' | 'resume' | 'history' | 'profile' | 'pricing' | 'settings' | 'legal' | 'privacy-center'
   const [currentRoute, setCurrentRoute] = useState<string>('landing');
+  const [activeLegalDoc, setActiveLegalDoc] = useState<string>('terms');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot_password' | 'update_password'>('login');
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
+
 
   // Handle URL hash fragments (Supabase Auth redirects for email verification & password recovery)
   useEffect(() => {
@@ -113,6 +118,17 @@ const AppContent: React.FC = () => {
   }, [isAuthenticated, isLoading, user]);
 
   const navigateTo = (route: string) => {
+    // Handle legal center sub-documents (e.g. 'legal:privacy', 'legal:ai-disclaimer')
+    if (route.startsWith('legal')) {
+      const parts = route.split(':');
+      if (parts[1]) {
+        setActiveLegalDoc(parts[1]);
+      }
+      setCurrentRoute('legal');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     // If route is protected and user is not authenticated, open auth modal and preserve intended destination
     if (PROTECTED_ROUTES.has(route) && !isAuthenticated) {
       setPendingRoute(route);
@@ -131,6 +147,7 @@ const AppContent: React.FC = () => {
     setCurrentRoute(route);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
 
   const handleStartPreset = (_presetId: string) => {
     if (isAuthenticated && !isProfileComplete(user)) {
@@ -296,7 +313,16 @@ const AppContent: React.FC = () => {
       case 'pricing':
         return <PricingPage onNavigate={navigateTo} />;
       case 'settings':
-        return <SettingsPage />;
+        return <SettingsPage onNavigate={navigateTo} />;
+      case 'legal':
+        return (
+          <LegalCenterPage 
+            initialDocId={activeLegalDoc} 
+            onNavigate={navigateTo} 
+          />
+        );
+      case 'privacy-center':
+        return <PrivacyCenterPage onNavigate={navigateTo} />;
       case 'dashboard':
       default:
         return (
@@ -308,9 +334,9 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // If in pure landing page mode or full screen interview room mode, adjust layout
+  // If in pure landing page mode, full screen interview room mode, or public legal/privacy mode, adjust layout
   const isInterviewRoom = currentRoute === 'interview';
-  const isLanding = currentRoute === 'landing';
+  const isFullWidth = currentRoute === 'landing' || (!isAuthenticated && (currentRoute === 'legal' || currentRoute === 'privacy-center'));
 
   return (
     <div className="min-h-screen bg-[#080b11] text-slate-100 flex flex-col font-sans">
@@ -324,8 +350,8 @@ const AppContent: React.FC = () => {
       />
 
       <div className="flex-1 flex">
-        {/* Persistent Desktop & Drawer Mobile Sidebar (Hidden on landing page or during live interview room) */}
-        {!isLanding && !isInterviewRoom && (
+        {/* Persistent Desktop & Drawer Mobile Sidebar (Hidden on landing/full-width pages or during live interview room) */}
+        {!isFullWidth && !isInterviewRoom && (
           <Sidebar
             currentRoute={currentRoute}
             onNavigate={navigateTo}
@@ -337,7 +363,7 @@ const AppContent: React.FC = () => {
         {/* Main Content Area */}
         <main 
           className={`flex-1 transition-all duration-200 ${
-            !isLanding && !isInterviewRoom ? 'lg:pl-64' : ''
+            !isFullWidth && !isInterviewRoom ? 'lg:pl-64' : ''
           }`}
         >
           {isLoading ? (
@@ -355,12 +381,14 @@ const AppContent: React.FC = () => {
       <AuthModal 
         isOpen={isAuthModalOpen} 
         initialMode={authModalMode}
+        onNavigate={navigateTo}
         onClose={() => {
           setIsAuthModalOpen(false);
           setPendingRoute(null);
         }} 
         onSuccess={handleAuthSuccess}
       />
+
 
       {/* Intro Animation Before Webapp Starts */}
       {showSplash && (

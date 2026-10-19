@@ -94,8 +94,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isOp
           })}
 
           <div className="pt-4 px-3 py-2 text-[11px] font-semibold tracking-wider uppercase text-slate-500">
-            Public & Support
+            Trust & Governance
           </div>
+
+          <button
+            onClick={() => handleNavClick('privacy-center')}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+              currentRoute === 'privacy-center'
+                ? 'bg-gradient-to-r from-violet-600/20 to-blue-600/10 text-white border border-violet-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Shield className="w-4 h-4 text-emerald-400" />
+              <span>Privacy Center</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleNavClick('legal:terms')}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+              currentRoute === 'legal'
+                ? 'bg-gradient-to-r from-violet-600/20 to-blue-600/10 text-white border border-violet-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <FileText className="w-4 h-4 text-violet-400" />
+              <span>Legal & Policies</span>
+            </div>
+          </button>
 
           <button
             onClick={() => handleNavClick('landing')}
@@ -107,11 +135,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isOp
           >
             <div className="flex items-center gap-3">
               <Sparkles className="w-4 h-4 text-amber-400" />
-              <span>Landing Page</span>
+              <span>Public Landing Page</span>
             </div>
             <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
           </button>
         </div>
+
 
         {/* Bottom Quota Box */}
         <div className="p-4 border-t border-slate-800/80">

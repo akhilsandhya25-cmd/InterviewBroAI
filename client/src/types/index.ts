@@ -176,3 +176,12 @@ export interface UsageQuota {
   planName: 'Free Tier' | 'Student Pro' | 'Placement Unlimited';
   resetsAt?: string;
 }
+
+export interface PrivacyPreferences {
+  saveTranscriptsLocally: boolean;
+  allowVoiceSimulation: boolean;
+  optInAnonymousDiagnostics: boolean;
+  consentAcknowledgedAt?: string;
+  consentVersion?: string;
+}
+

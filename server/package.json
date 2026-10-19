@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "test": "node node_modules/tsx/dist/cli.mjs src/test-ai-followup.ts",
+    "test": "node node_modules/tsx/dist/cli.mjs src/test-ai-followup.ts && node node_modules/tsx/dist/cli.mjs src/test-legal-privacy.ts",
+    "test:compliance": "node node_modules/tsx/dist/cli.mjs src/test-legal-privacy.ts",
     "start": "node dist/index.js"
+
   },
   "dependencies": {
     "@google/genai": "^2.30.0",

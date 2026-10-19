@@ -20,12 +20,14 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { BrandIcon } from './brand/BrandIcon';
+import { storage } from '../services/storage';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'login' | 'signup' | 'forgot_password' | 'update_password';
   onSuccess?: () => void;
+  onNavigate?: (route: string) => void;
 }
 
 type ModalMode = 
@@ -41,8 +43,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen, 
   onClose, 
   initialMode = 'login',
-  onSuccess 
+  onSuccess,
+  onNavigate
 }) => {
+
   const { login, signup, forgotPassword, resetPassword, resendVerification, isSupabaseConnected } = useAuth();
   
   const [mode, setMode] = useState<ModalMode>(initialMode);
@@ -67,6 +71,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [emailDeliveryConfigured, setEmailDeliveryConfigured] = useState<boolean>(true);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
 
   // Email verification state
   const [registeredEmail, setRegisteredEmail] = useState<string>('');
@@ -106,11 +111,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setResetCode('');
     setNewPassword('');
     setConfirmNewPassword('');
+    setTermsAccepted(false);
     setIsEmailUnconfirmed(false);
     setUnconfirmedEmail('');
     setResendStatusMsg(null);
     setErrorType(null);
   };
+
 
   const handleSwitchMode = (newMode: ModalMode) => {
     resetFormState();
@@ -203,6 +210,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setErrorMsg('Passwords do not match. Please verify both password fields.');
         return;
       }
+      if (!termsAccepted) {
+        setErrorMsg('Please review and check the agreement box for Terms of Service and Privacy Policy to create an account.');
+        return;
+      }
     } else {
       if (!password) {
         setErrorMsg('Please enter your password.');
@@ -215,6 +226,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (mode === 'signup') {
         const result = await signup(cleanEmail, password, confirmPassword, fullName);
         setRegisteredEmail(cleanEmail);
+
+        // Record auditable consent timestamp under DPDP Act 2023 Section 6
+        storage.savePrivacyPreferences({
+          consentAcknowledgedAt: new Date().toISOString(),
+          consentVersion: '1.2'
+        });
 
         if (result.requiresEmailVerification) {
           // Supabase cloud mode: Email verification is required before login
@@ -232,6 +249,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           }, 1300);
         }
       } else {
+
         await login(cleanEmail, password);
         onClose();
         if (onSuccess) onSuccess();
@@ -799,7 +817,54 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             )}
 
+            {mode === 'signup' && (
+              <div className="pt-2 pb-1">
+                <label className="flex items-start gap-2.5 cursor-pointer text-slate-300 select-none group">
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded bg-slate-950 border border-slate-700 text-violet-600 focus:ring-violet-500 shrink-0 cursor-pointer"
+                  />
+                  <span className="text-[11px] leading-relaxed text-slate-400">
+                    I agree to the{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onClose();
+                        if (onNavigate) {
+                          onNavigate('legal:terms');
+                        }
+                      }}
+                      className="text-violet-400 hover:text-violet-300 underline font-semibold inline"
+                    >
+                      Terms of Service
+                    </button>{' '}
+                    and{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onClose();
+                        if (onNavigate) {
+                          onNavigate('legal:privacy');
+                        }
+                      }}
+                      className="text-violet-400 hover:text-violet-300 underline font-semibold inline"
+                    >
+                      Privacy Policy
+                    </button>
+                    , and acknowledge that AI mock scoring and ATS metrics are educational simulation aids.
+                  </span>
+                </label>
+              </div>
+            )}
+
             <button
+
               type="submit"
               disabled={loading}
               className="w-full py-3 rounded-xl font-bold text-xs gradient-button flex items-center justify-center gap-2 mt-3 shadow-lg disabled:opacity-50"

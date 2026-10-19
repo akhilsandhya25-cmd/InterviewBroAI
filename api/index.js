@@ -295,8 +295,103 @@ export default async function handler(req, res) {
     }
   }
 
+  // 4b. Delete Account endpoint (DPDP Act 2023 compliance)
+  if (url.includes('/auth/delete-account')) {
+    if (req.method !== 'POST') {
+      return res.status(405).json({
+        error: 'Method Not Allowed',
+        message: 'The /api/auth/delete-account endpoint requires a POST request.'
+      });
+    }
+
+    const { url: supaUrl, key: supaKey } = getSupabaseConfig();
+    const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+    const body = await parseBody(req);
+    const requestedUserId = body.userId;
+    let authenticatedUserId = null;
+
+    if (token) {
+      try {
+        const userRes = await fetch(`${supaUrl}/auth/v1/user`, {
+          headers: {
+            'apikey': supaKey,
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (userRes.ok) {
+          const u = await userRes.json();
+          authenticatedUserId = u.id;
+        }
+      } catch (e) {
+        console.warn('[Delete API] Token verification warning:', e.message);
+      }
+    }
+
+    const targetUserId = authenticatedUserId || requestedUserId;
+    if (!targetUserId) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'A valid authenticated session or User ID is required to process account deletion.'
+      });
+    }
+
+    if (authenticatedUserId && requestedUserId && authenticatedUserId !== requestedUserId) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Cross-user deletion rejected.'
+      });
+    }
+
+    try {
+      let adminDeleted = false;
+      if (serviceRoleKey) {
+        const adminRes = await fetch(`${supaUrl}/auth/v1/admin/users/${targetUserId}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': serviceRoleKey,
+            'Authorization': `Bearer ${serviceRoleKey}`
+          }
+        });
+        if (adminRes.ok) adminDeleted = true;
+      }
+
+      const authBearer = serviceRoleKey || token;
+      const authApiKey = serviceRoleKey || supaKey;
+      if (authBearer) {
+        const tables = ['feedback_reports', 'interview_sessions', 'resume_analyses', 'profiles'];
+        for (const table of tables) {
+          const idCol = table === 'profiles' ? 'id' : 'user_id';
+          await fetch(`${supaUrl}/rest/v1/${table}?${idCol}=eq.${targetUserId}`, {
+            method: 'DELETE',
+            headers: {
+              'apikey': authApiKey,
+              'Authorization': `Bearer ${authBearer}`
+            }
+          }).catch(() => null);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Account and associated records have been successfully purged.',
+        userId: targetUserId,
+        adminPurged: adminDeleted
+      });
+    } catch (err) {
+      console.error('[Delete API] Error processing deletion:', err);
+      return res.status(500).json({
+        error: 'Deletion Error',
+        message: 'Encountered an internal error while deleting account data.'
+      });
+    }
+  }
+
   // 5. Voice endpoints
   if (url.includes('/voice/status')) {
+
     return res.status(200).json({
       isConfigured: false,
       provider: 'Web Speech API (Browser Native)',

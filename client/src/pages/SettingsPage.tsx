@@ -14,11 +14,15 @@ import {
   Volume2,
   Play,
   Square,
-  Sparkles
+  Sparkles,
+  Download,
+  Lock,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isSupabaseConfigured } from '../services/supabase';
 import { tts } from '../services/speech';
+import { storage } from '../services/storage';
 import { BrandIcon } from '../components/brand/BrandIcon';
 
 interface VoiceOption {
@@ -29,9 +33,14 @@ interface VoiceOption {
   description?: string;
 }
 
-export const SettingsPage: React.FC = () => {
+interface SettingsPageProps {
+  onNavigate?: (route: string) => void;
+}
+
+export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
   const { user, quota, isSupabaseConnected } = useAuth();
   const [deviceTestSuccess, setDeviceTestSuccess] = useState<string | null>(null);
+
 
   // Voice Engine States
   const [voiceList, setVoiceList] = useState<VoiceOption[]>([]);
@@ -319,24 +328,105 @@ export const SettingsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Reset & Privacy */}
+      {/* Trust, Legal & Compliance */}
+      <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Trust, Governance & Statutory Compliance</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Digital Personal Data Protection Act 2023 baseline, transparent AI scoring notices, and candidate rights.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {onNavigate && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('legal:terms')}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700 flex items-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Terms & Policies</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('privacy-center')}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 transition-colors flex items-center gap-1.5"
+                >
+                  <Lock className="w-3.5 h-3.5 text-violet-400" />
+                  <span>Privacy Center</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => onNavigate && onNavigate('legal:ai-disclaimer')}
+            className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-left hover:border-slate-700 transition-colors"
+          >
+            <div className="text-xs font-semibold text-slate-200">AI Scoring Disclaimer</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Placement readiness simulation without hiring guarantees</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate && onNavigate('legal:voice-video')}
+            className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-left hover:border-slate-700 transition-colors"
+          >
+            <div className="text-xs font-semibold text-slate-200">Media & Biometrics Notice</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Local browser video mirror; zero facial biometric scanning</div>
+          </button>
+        </div>
+      </div>
+
+      {/* Reset, Data Export & Account Deletion */}
       <div className="p-6 rounded-2xl bg-slate-900/60 border border-rose-500/20 space-y-4">
         <h2 className="text-sm font-bold text-rose-400 flex items-center gap-2">
           <Trash2 className="w-4 h-4" />
-          <span>Data Storage & Privacy Reset</span>
+          <span>Candidate Data Portability & Account Erasure</span>
         </h2>
         <p className="text-xs text-slate-400 leading-relaxed">
-          Clear all locally saved interview sessions, audio records, uploaded resumes, and cached scores from your current browser storage.
+          Download a complete portable JSON archive of your interview questions, evaluation reports, and resume analyses, or exercise your statutory right to account erasure.
         </p>
 
-        <button
-          type="button"
-          onClick={handleResetData}
-          className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition-colors"
-        >
-          Clear All Local Session Data
-        </button>
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <button
+            type="button"
+            onClick={() => storage.exportAllUserData(user?.id)}
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 flex items-center gap-2 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Export Data Archive (.JSON)</span>
+          </button>
+
+          {onNavigate && (
+            <button
+              type="button"
+              onClick={() => onNavigate('privacy-center')}
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition-colors flex items-center gap-2"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Manage Erasure / Delete Account</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleResetData}
+            className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            Clear Browser Cache Only
+          </button>
+        </div>
       </div>
     </div>
   );
 };
+

@@ -507,22 +507,152 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPracticing, onN
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-slate-800 bg-[#06080e] py-12 text-xs text-slate-500">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-6">
-          <BrandLogo size="sm" showTagline={false} />
+      <footer className="mt-auto border-t border-slate-800 bg-[#06080e] py-14 text-xs text-slate-500">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-10">
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            
+            {/* Brand & Purpose */}
+            <div className="space-y-3 md:col-span-1">
+              <BrandLogo size="sm" showTagline={false} />
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                India's student-first AI mock interview & career readiness simulator. Practice realistic technical & behavioral interviews with honest, actionable feedback.
+              </p>
+              <div className="pt-1 flex items-center gap-2 text-[11px] text-emerald-400 font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                <span>DPDP Act 2023 Baseline</span>
+              </div>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-6 text-slate-400">
-            <button onClick={() => alert('InterviewBro AI is dedicated to empowering students and job seekers with high-quality AI interview preparation.')} className="hover:text-white transition-colors">About</button>
-            <button onClick={() => alert('Reach our team at support@interviewbro.ai')} className="hover:text-white transition-colors">Contact & Support</button>
-            <button onClick={() => alert('Privacy Policy: All video streams and speech recognition are processed strictly in your browser or with your informed consent.')} className="hover:text-white transition-colors">Privacy Policy</button>
-            <button onClick={() => alert('Terms of Service: Free educational AI interview simulator designed for placement readiness.')} className="hover:text-white transition-colors">Terms of Service</button>
+            {/* Platform & Practice */}
+            <div className="space-y-2.5">
+              <div className="font-bold uppercase tracking-wider text-slate-300 text-[11px]">
+                Practice Studio
+              </div>
+              <ul className="space-y-2 text-slate-400">
+                <li>
+                  <button onClick={() => onNavigate('setup')} className="hover:text-white transition-colors">
+                    Mock Interview Studio
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('resume')} className="hover:text-white transition-colors">
+                    Resume ATS Scanner
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('pricing')} className="hover:text-white transition-colors">
+                    Plans & Quotas
+                  </button>
+                </li>
+                <li>
+                  <button onClick={onStartPracticing} className="hover:text-white transition-colors text-violet-400">
+                    Start Free Mock Session
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Legal & Compliance (All 8 Policies) */}
+            <div className="space-y-2.5">
+              <div className="font-bold uppercase tracking-wider text-slate-300 text-[11px]">
+                Trust & Governance
+              </div>
+              <ul className="space-y-1.5 text-slate-400">
+                <li>
+                  <button onClick={() => onNavigate('legal:terms')} className="hover:text-white transition-colors text-left">
+                    Terms of Service
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('legal:privacy')} className="hover:text-white transition-colors text-left">
+                    Privacy Policy
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('legal:ai-disclaimer')} className="hover:text-white transition-colors text-left">
+                    AI & Scoring Disclaimer
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('legal:voice-video')} className="hover:text-white transition-colors text-left">
+                    Voice & Video Processing
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('legal:retention')} className="hover:text-white transition-colors text-left">
+                    Data Retention & Erasure
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('legal:cookies')} className="hover:text-white transition-colors text-left">
+                    Cookie & Storage Notice
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('legal:pricing')} className="hover:text-white transition-colors text-left">
+                    Pricing, Usage & Refunds
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Candidate Privacy Controls */}
+            <div className="space-y-2.5">
+              <div className="font-bold uppercase tracking-wider text-slate-300 text-[11px]">
+                Privacy & Rights
+              </div>
+              <ul className="space-y-2 text-slate-400">
+                <li>
+                  <button 
+                    onClick={() => onNavigate('privacy-center')} 
+                    className="hover:text-white text-violet-300 transition-colors flex items-center gap-1.5 font-semibold text-left"
+                  >
+                    <span>Candidate Privacy Center</span>
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('privacy-center')} className="hover:text-white transition-colors text-left">
+                    Export Data (.JSON)
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('privacy-center')} className="hover:text-rose-400 transition-colors text-left">
+                    Request Account Erasure
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('legal:contact')} className="hover:text-white transition-colors text-left">
+                    Grievance Officer Contact
+                  </button>
+                </li>
+              </ul>
+            </div>
+
           </div>
 
-          <p className="text-[11px] text-slate-600">
-            © {new Date().getFullYear()} InterviewBro AI. Built for candidates everywhere.
-          </p>
+          <div className="pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+            <div>
+              © {new Date().getFullYear()} InterviewBro AI. Educational mock simulation tool for career placement practice.
+            </div>
+            <div className="flex items-center gap-4 text-slate-400">
+              <button onClick={() => onNavigate('legal:ai-disclaimer')} className="hover:text-white transition-colors">
+                No Guaranteed Hiring
+              </button>
+              <span>•</span>
+              <button onClick={() => onNavigate('legal:voice-video')} className="hover:text-white transition-colors">
+                Client-Side Video
+              </button>
+              <span>•</span>
+              <button onClick={() => onNavigate('privacy-center')} className="hover:text-white transition-colors">
+                Privacy Controls
+              </button>
+            </div>
+          </div>
+
         </div>
       </footer>
+
     </div>
   );
 };

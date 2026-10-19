@@ -34,6 +34,7 @@ alter table public.profiles enable row level security;
 drop policy if exists "Users can view own profile" on public.profiles;
 drop policy if exists "Users can update own profile" on public.profiles;
 drop policy if exists "Users can insert own profile" on public.profiles;
+drop policy if exists "Users can delete own profile" on public.profiles;
 
 -- RLS Policy: Users can only view their own profile
 create policy "Users can view own profile" 
@@ -49,6 +50,12 @@ create policy "Users can insert own profile"
 create policy "Users can update own profile" 
   on public.profiles for update 
   using (auth.uid() = id);
+
+-- RLS Policy: Users can delete their own profile (DPDP Act 2023 Right to Erasure)
+create policy "Users can delete own profile" 
+  on public.profiles for delete 
+  using (auth.uid() = id);
+
 
 -- Trigger to automatically provision a profile row on new auth.users signup
 create or replace function public.handle_new_user()
