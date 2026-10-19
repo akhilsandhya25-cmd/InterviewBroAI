@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, ArrowRight, ShieldCheck, Cpu, Volume2 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 interface IntroSplashAnimationProps {
   onComplete: () => void;
@@ -54,90 +54,210 @@ export const IntroSplashAnimation: React.FC<IntroSplashAnimationProps> = ({
   return (
     <div 
       onClick={handleSkip}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#06080F] transition-all duration-500 cursor-pointer select-none ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#05070D] transition-all duration-500 cursor-pointer select-none ${
         isFadingOut ? 'opacity-0 scale-105 pointer-events-none' : 'opacity-100 scale-100'
       }`}
       aria-label="Startup Intro Animation"
     >
+      <style>{`
+        @keyframes frameDraw {
+          0% {
+            stroke-dasharray: 2400;
+            stroke-dashoffset: 2400;
+            opacity: 0.3;
+          }
+          100% {
+            stroke-dasharray: 2400;
+            stroke-dashoffset: 0;
+            opacity: 1;
+          }
+        }
+        @keyframes neckDrop {
+          0% {
+            transform: translateY(-25px);
+            opacity: 0;
+          }
+          100% {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        @keyframes leftWingUnfold {
+          0% {
+            transform: translate(-30px, -20px) rotate(-6deg);
+            opacity: 0;
+          }
+          100% {
+            transform: translate(0, 0) rotate(0deg);
+            opacity: 1;
+          }
+        }
+        @keyframes rightWingUnfold {
+          0% {
+            transform: translate(30px, -20px) rotate(6deg);
+            opacity: 0;
+          }
+          100% {
+            transform: translate(0, 0) rotate(0deg);
+            opacity: 1;
+          }
+        }
+        @keyframes knotPopIn {
+          0% {
+            transform: scale(0.3);
+            opacity: 0;
+          }
+          65% {
+            transform: scale(1.15);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        @keyframes tieCascadeDown {
+          0% {
+            transform: translateY(-35px) scaleY(0.7);
+            opacity: 0;
+          }
+          100% {
+            transform: translateY(0) scaleY(1);
+            opacity: 1;
+          }
+        }
+        @keyframes shineSweep {
+          0% {
+            transform: translateX(-150%) skewX(-25deg);
+            opacity: 0;
+          }
+          50% {
+            opacity: 0.6;
+          }
+          100% {
+            transform: translateX(250%) skewX(-25deg);
+            opacity: 0;
+          }
+        }
+        .anim-frame {
+          animation: frameDraw 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .anim-neck {
+          animation: neckDrop 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+        }
+        .anim-wing-left {
+          transform-origin: 184px 77px;
+          animation: leftWingUnfold 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both;
+        }
+        .anim-wing-right {
+          transform-origin: 442px 77px;
+          animation: rightWingUnfold 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both;
+        }
+        .anim-knot {
+          transform-origin: 313.5px 232.5px;
+          animation: knotPopIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.55s both;
+        }
+        .anim-tie-body {
+          transform-origin: 313.5px 280px;
+          animation: tieCascadeDown 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.65s both;
+        }
+        .anim-shine {
+          animation: shineSweep 1.6s ease-in-out 1.1s infinite;
+        }
+      `}</style>
+
       {/* Ambient Atmospheric Radial Glows */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-tr from-violet-600/20 via-indigo-600/15 to-cyan-500/15 rounded-full blur-[100px] pointer-events-none animate-pulse duration-2000" />
-      <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] bg-gradient-to-tr from-violet-600/25 via-indigo-600/15 to-cyan-500/20 rounded-full blur-[110px] pointer-events-none animate-pulse duration-2000" />
+      <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[340px] h-[340px] bg-cyan-500/15 rounded-full blur-[90px] pointer-events-none" />
 
       {/* Main Container */}
       <div className="relative z-10 flex flex-col items-center text-center px-4 max-w-md mx-auto">
         
         {/* Animated Badge / Logo Container */}
         <div className="relative mb-6 group">
-          {/* Outer Pulsing Glow Ring */}
-          <div className="absolute -inset-3 rounded-3xl bg-gradient-to-tr from-violet-600/40 via-cyan-400/30 to-blue-500/20 blur-xl opacity-75 animate-pulse" />
+          {/* Outer Pulsing Glow Aura */}
+          <div className="absolute -inset-4 rounded-[2.5rem] bg-gradient-to-tr from-violet-600/40 via-cyan-400/35 to-blue-500/30 blur-2xl opacity-80 animate-pulse" />
 
-          {/* Official Logo Display */}
-          <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-3xl bg-[#090D17] border-2 border-white/80 p-2 shadow-2xl flex items-center justify-center overflow-hidden transform hover:scale-105 transition-transform duration-300">
+          {/* Official Logo Display Container */}
+          <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-[2rem] bg-[#04060B] border border-white/20 p-2.5 shadow-[0_0_35px_rgba(255,255,255,0.15)] flex items-center justify-center overflow-hidden transform hover:scale-105 transition-transform duration-300">
+            {/* Shimmer Light Reflection Sweep Across Logo */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+              <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent anim-shine" />
+            </div>
+
             {/* SVG Vector Collar & Tie Symbol */}
             <svg
-              viewBox="0 0 100 100"
+              viewBox="0 0 633 661"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              className="w-full h-full drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+              className="w-full h-full drop-shadow-[0_0_16px_rgba(255,255,255,0.45)]"
             >
               <defs>
-                <linearGradient id="intro-tie-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <linearGradient id="splash-tie-grad" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#FFFFFF" />
-                  <stop offset="60%" stopColor="#F1F5F9" />
+                  <stop offset="60%" stopColor="#F8FAFC" />
+                  <stop offset="100%" stopColor="#E2E8F0" />
+                </linearGradient>
+
+                <linearGradient id="splash-knot-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#FFFFFF" />
+                  <stop offset="50%" stopColor="#F1F5F9" />
                   <stop offset="100%" stopColor="#CBD5E1" />
                 </linearGradient>
 
-                <linearGradient id="intro-accent-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#A78BFA" />
-                  <stop offset="50%" stopColor="#818CF8" />
-                  <stop offset="100%" stopColor="#38BDF8" />
+                <linearGradient id="splash-border-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#FFFFFF" />
+                  <stop offset="50%" stopColor="#F1F5F9" />
+                  <stop offset="100%" stopColor="#E2E8F0" />
                 </linearGradient>
               </defs>
 
-              {/* Shirt Inner Collar Cutout */}
-              <path
-                d="M 33 24 L 67 24 L 59 34 L 41 34 Z"
-                fill="none"
-                stroke="#FFFFFF"
-                strokeWidth="3.5"
-                strokeLinejoin="round"
-                className="animate-pulse"
+              {/* 1. Outer Rounded Rectangle Frame with Drawing Animation */}
+              <rect
+                x="27.5"
+                y="16.5"
+                width="578"
+                height="628"
+                rx="80"
+                fill="#04060B"
+                stroke="url(#splash-border-grad)"
+                strokeWidth="25"
+                className="anim-frame"
               />
 
-              {/* Left Collar Wing */}
+              {/* 2. Shirt Inner Collar Neck Band */}
               <path
-                d="M 31 24 L 44 45 L 36 43 L 26 27 Z"
-                fill="url(#intro-tie-grad)"
-                stroke="#94A3B8"
-                strokeWidth="1"
-                strokeLinejoin="round"
+                d="M 197 64 L 429 65 L 388 116 L 239 116 Z"
+                fill="#FFFFFF"
+                className="anim-neck"
               />
 
-              {/* Right Collar Wing */}
+              {/* 3. Left Collar Wing */}
               <path
-                d="M 69 24 L 56 45 L 64 43 L 74 27 Z"
-                fill="url(#intro-tie-grad)"
-                stroke="#94A3B8"
-                strokeWidth="1"
-                strokeLinejoin="round"
+                d="M 183 77 L 278 195 L 236 269 L 155 117 Z"
+                fill="url(#splash-tie-grad)"
+                className="anim-wing-left"
               />
 
-              {/* Tie Knot */}
+              {/* 4. Right Collar Wing */}
               <path
-                d="M 45 37 L 55 37 L 57 44 L 43 44 Z"
-                fill="url(#intro-accent-grad)"
-                stroke="#A78BFA"
-                strokeWidth="1.2"
-                strokeLinejoin="round"
+                d="M 442 77 L 471 117 L 392 269 L 350 195 Z"
+                fill="url(#splash-tie-grad)"
+                className="anim-wing-right"
               />
 
-              {/* Tie Body & Arrowhead Blade */}
+              {/* 5. Tie Knot */}
               <path
-                d="M 44.5 45 L 55.5 45 L 58.5 70 L 50 82 L 41.5 70 Z"
-                fill="url(#intro-tie-grad)"
-                stroke="#CBD5E1"
-                strokeWidth="1"
-                strokeLinejoin="round"
+                d="M 297 202 L 330 202 L 336 207 L 351 248 L 351 255 L 346 261 L 286 263 L 277 257 L 276 249 L 290 209 Z"
+                fill="url(#splash-knot-grad)"
+                className="anim-knot"
+              />
+
+              {/* 6. Tie Body & Arrowhead Blade */}
+              <path
+                d="M 286 280 L 342 282 L 389 523 L 314 610 L 238 525 Z"
+                fill="url(#splash-tie-grad)"
+                className="anim-tie-body"
               />
             </svg>
           </div>

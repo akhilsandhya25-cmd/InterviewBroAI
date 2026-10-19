@@ -1,29 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 633 661" fill="none">
   <defs>
     <linearGradient id="fav-bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stopColor="#0B0F19" />
-      <stop offset="100%" stopColor="#080C15" />
-    </linearGradient>
-    <linearGradient id="fav-border" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stopColor="#8B5CF6" />
-      <stop offset="50%" stopColor="#06B6D4" />
-      <stop offset="100%" stopColor="#3B82F6" />
-    </linearGradient>
-    <linearGradient id="fav-tie" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stopColor="#FFFFFF" />
-      <stop offset="100%" stopColor="#E2E8F0" />
+      <stop offset="100%" stopColor="#050811" />
     </linearGradient>
   </defs>
-  <!-- Outer Rounded Rectangle -->
-  <rect x="6" y="6" width="88" height="88" rx="20" fill="url(#fav-bg)" stroke="url(#fav-border)" stroke-width="4.5"/>
-  <!-- Collar Cutout -->
-  <path d="M 33 24 L 67 24 L 59 34 L 41 34 Z" fill="none" stroke="#E2E8F0" stroke-width="3.5" stroke-linejoin="round"/>
-  <!-- Left Wing -->
-  <path d="M 31 24 L 44 45 L 36 43 L 26 27 Z" fill="url(#fav-tie)" stroke="#94A3B8" stroke-width="1.2" stroke-linejoin="round"/>
-  <!-- Right Wing -->
-  <path d="M 69 24 L 56 45 L 64 43 L 74 27 Z" fill="url(#fav-tie)" stroke="#94A3B8" stroke-width="1.2" stroke-linejoin="round"/>
+  <!-- Background base -->
+  <rect width="633" height="661" fill="url(#fav-bg)" rx="90" />
+  <!-- Outer Rounded Rectangle Frame -->
+  <rect x="27.5" y="16.5" width="578" height="628" rx="80" fill="#000000" stroke="#FFFFFF" stroke-width="25" />
+  <!-- Collar Neck Band -->
+  <path d="M 197 64 L 429 65 L 388 116 L 239 116 Z" fill="#FFFFFF" />
+  <!-- Left Collar Wing -->
+  <path d="M 183 77 L 278 195 L 236 269 L 155 117 Z" fill="#FFFFFF" />
+  <!-- Right Collar Wing -->
+  <path d="M 442 77 L 471 117 L 392 269 L 350 195 Z" fill="#FFFFFF" />
   <!-- Tie Knot -->
-  <path d="M 45 37 L 55 37 L 57 44 L 43 44 Z" fill="#8B5CF6" stroke="#A78BFA" stroke-width="1.2" stroke-linejoin="round"/>
-  <!-- Tie Body -->
-  <path d="M 44.5 45 L 55.5 45 L 58.5 70 L 50 82 L 41.5 70 Z" fill="url(#fav-tie)" stroke="#CBD5E1" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M 297 202 L 330 202 L 336 207 L 351 248 L 351 255 L 346 261 L 286 263 L 277 257 L 276 249 L 290 209 Z" fill="#FFFFFF" />
+  <!-- Tie Body / Blade -->
+  <path d="M 286 280 L 342 282 L 389 523 L 314 610 L 238 525 Z" fill="#FFFFFF" />
 </svg>
