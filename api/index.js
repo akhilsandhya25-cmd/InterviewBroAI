@@ -1,5 +1,16 @@
-const SUPABASE_URL = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://ochbpanyltnoltelpguk.supabase.co').trim();
-const SUPABASE_ANON_KEY = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_MqZB3tEluAhgl6NAqhyxew_6NQ1vYp2').trim();
+function getSupabaseConfig() {
+  let url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+  if (!url || !url.startsWith('http') || url.includes('undefined')) {
+    url = 'https://ochbpanyltnoltelpguk.supabase.co';
+  }
+  url = url.replace(/\/+$/, '');
+
+  let key = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+  if (!key || key.length < 20 || key.includes('undefined')) {
+    key = 'sb_publishable_MqZB3tEluAhgl6NAqhyxew_6NQ1vYp2';
+  }
+  return { url, key };
+}
 
 function maskEmail(email) {
   if (!email || typeof email !== 'string') return 'unknown';
@@ -11,17 +22,23 @@ function maskEmail(email) {
 }
 
 async function parseBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body;
-  if (typeof req.body === 'string') {
-    try { return JSON.parse(req.body); } catch { return {}; }
+  if (req.body) {
+    if (typeof req.body === 'object') return req.body;
+    if (typeof req.body === 'string') {
+      try { return JSON.parse(req.body); } catch { return {}; }
+    }
+  }
+  if (req.readableEnded) {
+    return {};
   }
   return new Promise((resolve) => {
     let data = '';
     req.on('data', chunk => { data += chunk; });
     req.on('end', () => {
-      try { resolve(JSON.parse(data)); } catch { resolve({}); }
+      try { resolve(JSON.parse(data || '{}')); } catch { resolve({}); }
     });
     req.on('error', () => resolve({}));
+    setTimeout(() => resolve({}), 1000);
   });
 }
 
@@ -39,10 +56,13 @@ export default async function handler(req, res) {
 
   // 1. Health check
   if (url.includes('/health')) {
+    const { url: sUrl, key: sKey } = getSupabaseConfig();
     return res.status(200).json({
       status: 'ok',
       service: 'InterviewBro AI Vercel API',
       provider: 'Supabase Auth',
+      supabaseUrlHost: new URL(sUrl).hostname,
+      hasKey: Boolean(sKey),
       timestamp: new Date().toISOString()
     });
   }
@@ -89,12 +109,15 @@ export default async function handler(req, res) {
 
     console.log(`[Auth API] Signup attempt received for ${maskEmail(cleanEmail)}`);
 
+    const { url: supaUrl, key: supaKey } = getSupabaseConfig();
+
     try {
-      const supaRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      const supaRes = await fetch(`${supaUrl}/auth/v1/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY
+          'apikey': supaKey,
+          'Authorization': `Bearer ${supaKey}`
         },
         body: JSON.stringify({
           email: cleanEmail,
@@ -202,12 +225,15 @@ export default async function handler(req, res) {
 
     console.log(`[Auth API] Login attempt received for ${maskEmail(cleanEmail)}`);
 
+    const { url: supaUrl, key: supaKey } = getSupabaseConfig();
+
     try {
-      const supaRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      const supaRes = await fetch(`${supaUrl}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY
+          'apikey': supaKey,
+          'Authorization': `Bearer ${supaKey}`
         },
         body: JSON.stringify({
           email: cleanEmail,
