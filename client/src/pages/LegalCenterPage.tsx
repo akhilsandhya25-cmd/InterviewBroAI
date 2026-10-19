@@ -134,24 +134,22 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
         </div>
 
         {/* Hero Banner */}
-        <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#0c1222] via-[#0b101c] to-[#070a12] border border-slate-800 shadow-2xl overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
-          
+        <div className="relative p-6 sm:p-8 rounded-3xl bg-[#121826] border border-white/[0.08] shadow-xl overflow-hidden">
           <div className="relative z-10 max-w-3xl space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               <span>Digital Personal Data Protection (DPDP) Act 2023 Baseline</span>
             </div>
 
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-[#F5F7FA] tracking-tight">
               InterviewBro AI Trust & Compliance Center
             </h1>
 
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#9AA4B2] leading-relaxed">
               We believe in radical transparency. Explore our legally drafted policies, verified technical media disclosures, and candidate privacy rights governing mock interviews, voice synthesis, and resume evaluations.
             </p>
 
-            <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-[#9AA4B2]">
               <span className="inline-flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Zero webcam recording to server</span>
@@ -169,7 +167,7 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
         </div>
 
         {/* Notice for App Owner */}
-        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-3">
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-start gap-3">
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="font-semibold text-white">Notice: Operational Status & Governance Baseline</p>
@@ -193,13 +191,13 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search policies, terms, keywords..."
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                className="w-full pl-9 pr-4 py-2 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-slate-500 focus:outline-none focus:border-[#C5F36B] focus:ring-1 focus:ring-[#C5F36B]"
               />
             </div>
 
             {/* Document Navigation Buttons */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-2 space-y-1">
-              <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="bg-[#121826] border border-white/[0.08] rounded-2xl p-2 space-y-1">
+              <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-[#9AA4B2]">
                 Governance Documents ({docList.length})
               </div>
 
@@ -220,18 +218,18 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
                       }}
                       className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
                         isActive
-                          ? 'bg-violet-600/20 text-white border border-violet-500/40 shadow-md'
-                          : 'text-slate-300 hover:text-white hover:bg-slate-800/60 border border-transparent'
+                          ? 'bg-white/[0.08] text-[#F5F7FA] border border-white/[0.12] shadow-sm'
+                          : 'text-[#9AA4B2] hover:text-[#F5F7FA] hover:bg-white/[0.04] border border-transparent'
                       }`}
                     >
                       <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${
-                        isActive ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-400'
+                        isActive ? 'bg-[#C5F36B] text-[#080B11]' : 'bg-white/[0.06] text-slate-400'
                       }`}>
                         <Icon className="w-3.5 h-3.5" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-xs font-semibold truncate">{doc.title}</div>
-                        <div className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{doc.summary}</div>
+                        <div className="text-[11px] text-[#9AA4B2] line-clamp-1 mt-0.5">{doc.summary}</div>
                       </div>
                     </button>
                   );
@@ -240,18 +238,18 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
             </div>
 
             {/* Data Protection / Redressal Quick Card */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-[#0c1220] border border-slate-800 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
+            <div className="p-5 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#F5F7FA]">
                 <HelpCircle className="w-4 h-4 text-cyan-400" />
                 <span>Need Data Assistance?</span>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-xs text-[#9AA4B2] leading-relaxed">
                 Under the Indian DPDP Act 2023, you have the right to access, rectify, and permanently erase your personal data.
               </p>
               <div className="pt-1 flex flex-col gap-2">
                 <button
                   onClick={() => onNavigate('privacy-center')}
-                  className="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] transition-all shadow-md shadow-[#C5F36B]/15 flex items-center justify-center gap-1.5"
                 >
                   <Lock className="w-3.5 h-3.5" />
                   <span>Manage My Data / Delete Account</span>
@@ -261,7 +259,7 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
                     setActiveDocId('contact');
                     window.scrollTo({ top: 200, behavior: 'smooth' });
                   }}
-                  className="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 transition-colors flex items-center justify-center gap-1.5"
                 >
                   <Mail className="w-3.5 h-3.5" />
                   <span>Contact Grievance Officer</span>
@@ -272,27 +270,27 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
 
           {/* Right Column: Active Document Viewer (8 cols) */}
           <div className="lg:col-span-8">
-            <div className="p-6 sm:p-10 rounded-3xl bg-[#0c111c] border border-slate-800 shadow-xl space-y-8 print:bg-white print:text-black print:border-none print:shadow-none">
+            <div className="p-6 sm:p-10 rounded-3xl bg-[#121826] border border-white/[0.08] shadow-xl space-y-8 print:bg-white print:text-black print:border-none print:shadow-none">
               
               {/* Document Header */}
-              <div className="border-b border-slate-800/80 pb-6 space-y-3">
+              <div className="border-b border-white/[0.08] pb-6 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs font-semibold">
-                    <ActiveIcon className="w-3.5 h-3.5 text-violet-400" />
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-[#C5F36B] text-xs font-semibold">
+                    <ActiveIcon className="w-3.5 h-3.5 text-[#C5F36B]" />
                     <span>Official Policy Document</span>
                   </div>
-                  <div className="text-xs text-slate-400 flex items-center gap-2">
-                    <span>Version <strong className="text-slate-200">{activeDoc.version}</strong></span>
+                  <div className="text-xs text-[#9AA4B2] flex items-center gap-2">
+                    <span>Version <strong className="text-[#F5F7FA]">{activeDoc.version}</strong></span>
                     <span>•</span>
-                    <span>Effective: <strong className="text-slate-200">{activeDoc.lastUpdated}</strong></span>
+                    <span>Effective: <strong className="text-[#F5F7FA]">{activeDoc.lastUpdated}</strong></span>
                   </div>
                 </div>
 
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA] tracking-tight">
                   {activeDoc.title}
                 </h2>
 
-                <p className="text-xs sm:text-sm text-slate-300 italic bg-slate-900/60 p-3.5 rounded-xl border border-slate-800/80">
+                <p className="text-xs sm:text-sm text-[#9AA4B2] italic bg-[#080B11] p-3.5 rounded-xl border border-white/[0.08]">
                   {activeDoc.summary}
                 </p>
               </div>
@@ -301,8 +299,8 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
               <div className="space-y-8 text-xs sm:text-sm text-slate-300 leading-relaxed">
                 {activeDoc.sections.map((section, sIdx) => (
                   <div key={sIdx} className="space-y-3">
-                    <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <span className="w-1.5 h-4 rounded-full bg-violet-500 inline-block"></span>
+                    <h3 className="text-base sm:text-lg font-bold text-[#F5F7FA] flex items-center gap-2">
+                      <span className="w-1.5 h-4 rounded-full bg-[#C5F36B] inline-block"></span>
                       <span>{section.heading}</span>
                     </h3>
 
@@ -313,16 +311,16 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
                     ))}
 
                     {section.subsections && section.subsections.length > 0 && (
-                      <div className="space-y-3 pl-3 sm:pl-4 border-l-2 border-slate-800 mt-3">
+                      <div className="space-y-3 pl-3 sm:pl-4 border-l-2 border-white/[0.08] mt-3">
                         {section.subsections.map((sub, subIdx) => (
                           <div key={subIdx} className="space-y-2">
-                            <h4 className="text-xs font-bold text-violet-300 uppercase tracking-wide">
+                            <h4 className="text-xs font-bold text-[#C5F36B] uppercase tracking-wide">
                               {sub.title}
                             </h4>
                             <ul className="space-y-1.5 text-xs text-slate-300">
                               {sub.bullets.map((bullet, bIdx) => (
                                 <li key={bIdx} className="flex items-start gap-2">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0 mt-1.5" />
+                                  <div className="w-1.5 h-1.5 rounded-full bg-[#C5F36B] shrink-0 mt-1.5" />
                                   <span>{renderLegalText(bullet)}</span>
                                 </li>
                               ))}
@@ -336,7 +334,7 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
               </div>
 
               {/* Document Footer */}
-              <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+              <div className="pt-8 border-t border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#9AA4B2]">
                 <div>
                   InterviewBro AI Governance • Updated {activeDoc.lastUpdated}
                 </div>
@@ -351,7 +349,7 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
                   <span>•</span>
                   <button
                     onClick={() => onNavigate('privacy-center')}
-                    className="text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-1"
+                    className="text-[#C5F36B] hover:underline transition-colors flex items-center gap-1"
                   >
                     <Lock className="w-3.5 h-3.5" />
                     <span>Privacy Controls</span>

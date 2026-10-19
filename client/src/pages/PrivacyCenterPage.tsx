@@ -129,24 +129,22 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
         </div>
 
         {/* Hero Section */}
-        <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#0c1222] via-[#0b101c] to-[#070a12] border border-slate-800 shadow-2xl overflow-hidden">
-          <div className="absolute top-0 right-0 w-72 h-72 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
-
+        <div className="relative p-6 sm:p-8 rounded-3xl bg-[#121826] border border-white/[0.08] shadow-xl overflow-hidden">
           <div className="relative z-10 max-w-3xl space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5 text-violet-400" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-[#C5F36B] text-xs font-semibold">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#C5F36B]" />
               <span>Digital Personal Data Protection Act, 2023 Candidate Portal</span>
             </div>
 
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-[#F5F7FA] tracking-tight">
               Privacy Center & Data Controls
             </h1>
 
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#9AA4B2] leading-relaxed">
               You own your mock interview history and career preparation data. Exercise your statutory rights to access your data in a portable JSON archive, configure purpose-specific processing, or exercise your right to permanent account erasure.
             </p>
 
-            <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-slate-400">
+            <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-[#9AA4B2]">
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Client-Side Local Video Mirror</span>
@@ -164,21 +162,21 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
         </div>
 
         {/* Data Stored on Platform Card */}
-        <div className="p-6 rounded-3xl bg-[#0c111c] border border-slate-800 space-y-6">
+        <div className="p-6 rounded-3xl bg-[#121826] border border-white/[0.08] space-y-6 shadow-xl">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                <Database className="w-4 h-4 text-cyan-400" />
+              <h2 className="text-base sm:text-lg font-bold text-[#F5F7FA] flex items-center gap-2">
+                <Database className="w-4 h-4 text-[#C5F36B]" />
                 <span>Your Data Breakdown on InterviewBro AI</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Data linked to your authenticated identity (<span className="text-slate-200 font-mono">{user?.email || 'Guest / Local Session'}</span>)
+              <p className="text-xs text-[#9AA4B2] mt-1">
+                Data linked to your authenticated identity (<span className="text-[#F5F7FA] font-mono">{user?.email || 'Guest / Local Session'}</span>)
               </p>
             </div>
 
             <button
               onClick={handleExportData}
-              className="px-4 py-2.5 rounded-xl font-bold text-xs gradient-button flex items-center gap-2 shadow-lg shrink-0 self-start sm:self-auto"
+              className="px-4 py-2.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] flex items-center gap-2 shadow-lg shadow-[#C5F36B]/15 transition-all shrink-0 self-start sm:self-auto"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export Full Data Archive (.JSON)</span>
@@ -186,48 +184,48 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-1">
-              <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+            <div className="p-4 rounded-2xl bg-[#080B11] border border-white/[0.08] space-y-1">
+              <div className="text-xs text-[#9AA4B2] flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                 <span>Mock Interview Sessions</span>
               </div>
-              <div className="text-2xl font-extrabold text-white">{sessionCount}</div>
+              <div className="text-2xl font-extrabold text-[#F5F7FA]">{sessionCount}</div>
               <div className="text-[11px] text-slate-500">Includes interview questions, elapsed time & transcripts</div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-1">
-              <div className="text-xs text-slate-400 flex items-center gap-1.5">
+            <div className="p-4 rounded-2xl bg-[#080B11] border border-white/[0.08] space-y-1">
+              <div className="text-xs text-[#9AA4B2] flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Evaluation Reports</span>
               </div>
-              <div className="text-2xl font-extrabold text-white">{reportCount}</div>
+              <div className="text-2xl font-extrabold text-[#F5F7FA]">{reportCount}</div>
               <div className="text-[11px] text-slate-500">STAR rubric scores, model answers & improvement plans</div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-1">
-              <div className="text-xs text-slate-400 flex items-center gap-1.5">
+            <div className="p-4 rounded-2xl bg-[#080B11] border border-white/[0.08] space-y-1">
+              <div className="text-xs text-[#9AA4B2] flex items-center gap-1.5">
                 <Database className="w-4 h-4 text-cyan-400" />
                 <span>Resume ATS Scans</span>
               </div>
-              <div className="text-2xl font-extrabold text-white">{resumeCount}</div>
+              <div className="text-2xl font-extrabold text-[#F5F7FA]">{resumeCount}</div>
               <div className="text-[11px] text-slate-500">Keyword gap analysis and extracted candidate skills</div>
             </div>
           </div>
 
           {/* Media Hardware Clarification Banner */}
-          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/90 text-xs space-y-2">
-            <div className="font-semibold text-slate-200 flex items-center gap-2">
-              <Camera className="w-4 h-4 text-violet-400" />
+          <div className="p-4 rounded-2xl bg-[#080B11] border border-white/[0.08] text-xs space-y-2">
+            <div className="font-semibold text-[#F5F7FA] flex items-center gap-2">
+              <Camera className="w-4 h-4 text-[#C5F36B]" />
               <span>Media & Biometrics Disclosure:</span>
             </div>
-            <p className="text-slate-400 leading-relaxed text-[11px]">
-              During live mock interviews, camera feed is attached directly to your local HTML5 video element mirror via <code className="text-cyan-300 bg-slate-900 px-1 py-0.5 rounded">srcObject</code>. No video frames, video recordings, or facial scans are ever uploaded to our servers or AI providers. We do not perform facial-expression recognition, emotion detection, or biometric profiling.
+            <p className="text-[#9AA4B2] leading-relaxed text-[11px]">
+              During live mock interviews, camera feed is attached directly to your local HTML5 video element mirror via <code className="text-[#C5F36B] bg-white/[0.06] px-1 py-0.5 rounded">srcObject</code>. No video frames, video recordings, or facial scans are ever uploaded to our servers or AI providers. We do not perform facial-expression recognition, emotion detection, or biometric profiling.
             </p>
           </div>
         </div>
 
         {/* Essential Core Service Processing Disclosure */}
-        <div className="p-6 rounded-3xl bg-[#0c111c] border border-slate-800 space-y-4">
+        <div className="p-6 rounded-3xl bg-[#121826] border border-white/[0.08] shadow-xl space-y-4">
           <div className="flex items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
             <div>
               <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
@@ -267,13 +265,13 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
         </div>
 
         {/* Purpose-Specific Optional Candidate Controls */}
-        <div className="p-6 rounded-3xl bg-[#0c111c] border border-slate-800 space-y-6">
-          <div className="border-b border-slate-800/80 pb-4">
-            <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+        <div className="p-6 rounded-3xl bg-[#121826] border border-white/[0.08] space-y-6 shadow-xl">
+          <div className="border-b border-white/[0.08] pb-4">
+            <h2 className="text-base sm:text-lg font-bold text-[#F5F7FA] flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>Optional Candidate Privacy Preferences</span>
             </h2>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[#9AA4B2] mt-1">
               Configure optional choices under Section 6 of the DPDP Act 2023. You can toggle these preferences at any time.
             </p>
           </div>
@@ -288,15 +286,15 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
           <div className="space-y-4">
             
             {/* Toggle 1: Ephemeral Practice Mode (Zero Transcript Retention) */}
-            <div className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
+            <div className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-[#080B11] border border-white/[0.06]">
               <div className="space-y-1">
-                <div className="text-xs font-bold text-white flex items-center gap-2">
+                <div className="text-xs font-bold text-[#F5F7FA] flex items-center gap-2">
                   <span>Ephemeral Practice Mode (Zero Transcript Retention)</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-                    Opt-In (Unselected by Default)
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/[0.06] text-slate-300 border border-white/[0.08]">
+                    Opt-In
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 max-w-xl leading-relaxed">
+                <p className="text-[11px] text-[#9AA4B2] max-w-xl leading-relaxed">
                   When enabled, your spoken and typed answer transcripts are automatically scrubbed and omitted before saving to your session history. Your feedback scores are preserved, but transcript text is never retained.
                 </p>
               </div>
@@ -308,20 +306,20 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
                   onChange={(e) => handleTogglePref('ephemeralPracticeMode', e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C5F36B] peer-checked:after:bg-[#080B11]"></div>
               </label>
             </div>
 
             {/* Toggle 2: AI Interviewer Voice Synthesis (TTS) */}
-            <div className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
+            <div className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-[#080B11] border border-white/[0.06]">
               <div className="space-y-1">
-                <div className="text-xs font-bold text-white flex items-center gap-2">
+                <div className="text-xs font-bold text-[#F5F7FA] flex items-center gap-2">
                   <span>AI Interviewer Voice Synthesis (TTS)</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/10 text-violet-300 border border-violet-500/20">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     Voice Practice
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 max-w-xl leading-relaxed">
+                <p className="text-[11px] text-[#9AA4B2] max-w-xl leading-relaxed">
                   Allows the AI interviewer to speak questions aloud using browser speech synthesis or ElevenLabs. When disabled, the AI interviewer is silenced for quiet reading practice.
                 </p>
               </div>
@@ -333,20 +331,20 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
                   onChange={(e) => handleTogglePref('voiceSynthesisEnabled', e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C5F36B] peer-checked:after:bg-[#080B11]"></div>
               </label>
             </div>
 
             {/* Toggle 3: Anonymous Platform Analytics */}
-            <div className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
+            <div className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-[#080B11] border border-white/[0.06]">
               <div className="space-y-1">
-                <div className="text-xs font-bold text-white flex items-center gap-2">
+                <div className="text-xs font-bold text-[#F5F7FA] flex items-center gap-2">
                   <span>Anonymous Platform Analytics</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/[0.06] text-slate-400 border border-white/[0.08]">
                     Zero Trackers Active
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 max-w-xl leading-relaxed">
+                <p className="text-[11px] text-[#9AA4B2] max-w-xl leading-relaxed">
                   Permits anonymous error logs without identifying account credentials to help improve platform stability. Note: InterviewBro AI uses zero advertising cookies and zero third-party marketing pixels.
                 </p>
               </div>
@@ -358,7 +356,7 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
                   onChange={(e) => handleTogglePref('analyticsOptIn', e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C5F36B] peer-checked:after:bg-[#080B11]"></div>
               </label>
             </div>
 
@@ -371,19 +369,19 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
         </div>
 
         {/* DPDP Grievance Redressal Card */}
-        <div className="p-6 rounded-3xl bg-[#0c111c] border border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 text-base font-bold text-white">
-            <Mail className="w-4 h-4 text-violet-400" />
+        <div className="p-6 rounded-3xl bg-[#121826] border border-white/[0.08] shadow-xl space-y-4">
+          <div className="flex items-center gap-2 text-base font-bold text-[#F5F7FA]">
+            <Mail className="w-4 h-4 text-cyan-400" />
             <span>DPDP Grievance Redressal & Right to Correction</span>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
+          <p className="text-xs text-[#9AA4B2] leading-relaxed">
             InterviewBro AI is operated by an individual developer as an educational platform. Under the Digital Personal Data Protection Act, 2023, you have the right to grievance redressal, correction, and erasure. All data export and account erasure requests can be completed instantly using the self-service controls above and below.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-1">
             <button
               onClick={() => onNavigate('legal:contact')}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 flex items-center justify-center gap-2 transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.1] text-slate-200 border border-white/[0.08] flex items-center justify-center gap-2 transition-colors"
             >
               <FileText className="w-3.5 h-3.5 text-cyan-400" />
               <span>View Statutory Contact Notice & Operator Details</span>
@@ -392,7 +390,7 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
         </div>
 
         {/* Danger Zone: Account Deletion (Right to Erasure) */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-rose-950/20 border border-rose-500/30 space-y-4">
+        <div className="p-6 sm:p-8 rounded-3xl bg-[#121826] border border-rose-500/20 shadow-xl space-y-4">
           <div className="flex items-center gap-2 text-base font-bold text-rose-400">
             <Trash2 className="w-5 h-5 text-rose-400" />
             <span>Permanent Account & Data Erasure</span>
@@ -422,7 +420,7 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
       {/* Confirmation Modal for Account Deletion */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md p-6 rounded-3xl bg-[#0e1320] border border-rose-500/40 shadow-2xl space-y-5">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-[#121826] border border-rose-500/30 shadow-2xl space-y-5">
             
             <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
               <AlertTriangle className="w-6 h-6" />
@@ -430,7 +428,7 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
 
             <div className="text-center space-y-1">
               <h3 className="text-lg font-bold text-white">Permanently Delete Account?</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-xs text-[#9AA4B2] leading-relaxed">
                 This action is <strong className="text-rose-400">irreversible</strong>. All your mock interview records, STAR scores, ATS resume analyses, and credentials will be permanently erased.
               </p>
             </div>
@@ -452,7 +450,7 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
                     value={confirmInput}
                     onChange={(e) => setConfirmInput(e.target.value)}
                     placeholder="Type DELETE"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-rose-500 font-mono"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.08] text-xs text-white placeholder-slate-600 focus:outline-none focus:border-rose-500 font-mono"
                   />
                 </div>
 
@@ -468,7 +466,7 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
                     type="button"
                     disabled={isDeleting}
                     onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 transition-colors border border-slate-800"
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 transition-colors border border-white/[0.08]"
                   >
                     Cancel
                   </button>

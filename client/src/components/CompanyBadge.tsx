@@ -1,22 +1,26 @@
 import React from 'react';
 
 interface CompanyBadgeProps {
-  name: string;
+  name?: string;
+  companyId?: string;
   code?: string;
   category?: string;
+  showCategory?: boolean;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
 }
 
 export const CompanyBadge: React.FC<CompanyBadgeProps> = ({
   name,
+  companyId,
   code,
   size = 'md',
   className = ''
 }) => {
+  const displayName = name || companyId || 'Company';
   const getMonogram = () => {
     if (code && code.trim().length > 0) return code.trim();
-    const clean = name.replace(/\([^)]*\)/g, '').trim();
+    const clean = displayName.replace(/\([^)]*\)/g, '').trim();
     const words = clean.split(/\s+/).filter(Boolean);
     if (words.length >= 2) {
       return (words[0][0] + words[1][0]).toUpperCase();
@@ -36,8 +40,8 @@ export const CompanyBadge: React.FC<CompanyBadgeProps> = ({
   return (
     <div
       className={`inline-flex items-center justify-center font-mono font-bold tracking-wider bg-slate-900 border border-slate-700/80 text-slate-100 shadow-sm shrink-0 select-none ${sizeClasses[size]} ${className}`}
-      title={name}
-      aria-label={name}
+      title={displayName}
+      aria-label={displayName}
     >
       <span>{monogram}</span>
     </div>

@@ -8,20 +8,36 @@ export default {
   theme: {
     extend: {
       colors: {
+        dark: {
+          bg: '#080B11',
+          surface: '#0B0F19',
+          elevated: '#121826',
+          border: 'rgba(255, 255, 255, 0.08)',
+          'border-strong': '#1E293B',
+        },
+        text: {
+          primary: '#F5F7FA',
+          secondary: '#9AA4B2',
+          muted: '#64748B',
+        },
+        lime: {
+          DEFAULT: '#C5F36B',
+          hover: '#D2F68A',
+          active: '#B8E85E',
+          glow: 'rgba(197, 243, 107, 0.25)',
+        },
         brand: {
-          dark: '#0a0d14',
-          charcoal: '#111726',
-          surface: '#161f33',
-          card: '#1b263b',
-          border: '#283856',
-          blue: '#3b82f6',
-          'blue-light': '#60a5fa',
-          violet: '#8b5cf6',
-          'violet-light': '#a78bfa',
-          cyan: '#06b6d4',
-          emerald: '#10b981',
-          amber: '#f59e0b',
-          rose: '#f43f5e'
+          dark: '#080B11',
+          charcoal: '#0B0F19',
+          surface: '#121826',
+          card: '#161F32',
+          border: 'rgba(255, 255, 255, 0.08)',
+          lime: '#C5F36B',
+          cyan: '#06B6D4',
+          emerald: '#10B981',
+          amber: '#F59E0B',
+          rose: '#F43F5E',
+          purple: '#8B5CF6',
         }
       },
       fontFamily: {
@@ -29,12 +45,12 @@ export default {
       },
       animation: {
         'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'glow': 'glow 2s ease-in-out infinite alternate',
+        'fade-in': 'fadeIn 0.2s ease-out forwards',
       },
       keyframes: {
-        glow: {
-          '0%': { boxShadow: '0 0 15px rgba(139, 92, 246, 0.3)' },
-          '100%': { boxShadow: '0 0 25px rgba(59, 130, 246, 0.5)' },
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(4px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         }
       }
     },

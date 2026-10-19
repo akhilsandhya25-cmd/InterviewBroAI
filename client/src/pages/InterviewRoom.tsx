@@ -402,11 +402,11 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     return (
       <div className="max-w-2xl mx-auto py-20 text-center space-y-4">
         <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto" />
-        <h2 className="text-xl font-bold text-white">No Active Session Found</h2>
-        <p className="text-sm text-slate-400">Please configure your interview parameters first.</p>
+        <h2 className="text-xl font-bold text-[#F5F7FA]">No Active Session Found</h2>
+        <p className="text-sm text-[#9AA4B2]">Please configure your interview parameters first.</p>
         <button
           onClick={onExit}
-          className="px-6 py-2.5 rounded-xl font-semibold text-xs gradient-button"
+          className="px-6 py-2.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] shadow-lg shadow-[#C5F36B]/10 transition-all"
         >
           Go to Interview Setup
         </button>
@@ -419,31 +419,31 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     if (isTextOnly) {
       return (
         <div className="max-w-2xl mx-auto px-4 py-12 space-y-6 text-center">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold">
             <FileText className="w-3.5 h-3.5 text-emerald-400" />
             <span>Text-Based Mode Ready</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA]">
             Distraction-Free Interview Practice
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto">
+          <p className="text-xs sm:text-sm text-[#9AA4B2] max-w-lg mx-auto">
             You are ready to begin. The interviewer will present questions on screen, and you can formulate and submit your responses. Structured STAR evaluation and objective competency scoring are active.
           </p>
 
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 max-w-md mx-auto space-y-3 text-left">
-            <div className="flex items-center justify-between text-xs text-slate-300 border-b border-slate-800 pb-2.5">
+          <div className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] max-w-md mx-auto space-y-3 text-left">
+            <div className="flex items-center justify-between text-xs text-[#9AA4B2] border-b border-white/[0.08] pb-2.5">
               <span>Target Role:</span>
-              <strong className="text-white">{activeSession.config.role}</strong>
+              <strong className="text-[#F5F7FA]">{activeSession.config.role}</strong>
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-300 border-b border-slate-800 pb-2.5">
+            <div className="flex items-center justify-between text-xs text-[#9AA4B2] border-b border-white/[0.08] pb-2.5">
               <span>Company:</span>
-              <strong className="text-white">{activeSession.config.companyName}</strong>
+              <strong className="text-[#F5F7FA]">{activeSession.config.companyName}</strong>
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-300 border-b border-slate-800 pb-2.5">
+            <div className="flex items-center justify-between text-xs text-[#9AA4B2] border-b border-white/[0.08] pb-2.5">
               <span>Questions:</span>
-              <strong className="text-white">{activeSession.questions.length}</strong>
+              <strong className="text-[#F5F7FA]">{activeSession.questions.length}</strong>
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-300">
+            <div className="flex items-center justify-between text-xs text-[#9AA4B2]">
               <span>Microphone & Camera:</span>
               <span className="text-emerald-400 font-semibold">Bypassed (Not Required)</span>
             </div>
@@ -453,14 +453,14 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             <button
               type="button"
               onClick={handleExit}
-              className="px-5 py-3 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              className="px-5 py-3 rounded-xl font-semibold text-xs bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 transition-colors"
             >
               Back to Setup
             </button>
             <button
               type="button"
               onClick={() => setPreflightPassed(true)}
-              className="px-8 py-3.5 rounded-xl font-bold text-xs gradient-button inline-flex items-center gap-2 shadow-lg"
+              className="px-8 py-3.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] inline-flex items-center gap-2 shadow-lg shadow-[#C5F36B]/15 transition-all"
             >
               <span>Enter Text Interview Room</span>
               <Check className="w-4 h-4" />
@@ -631,12 +631,12 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
         )}
 
         {/* Start Button & Escape Hatch */}
-        <div className="p-6 rounded-2xl bg-gradient-to-r from-violet-950/50 via-slate-900 to-blue-950/50 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <div className="text-sm font-bold text-white">
+            <div className="text-sm font-bold text-[#F5F7FA]">
               {isVoiceOnly ? 'Ready for your voice interview?' : 'Ready for your video interview?'}
             </div>
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-[#9AA4B2] mt-0.5">
               {activeSession.config.companyName} • {activeSession.config.role} ({activeSession.questions.length} questions)
             </div>
           </div>
@@ -644,7 +644,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           <button
             type="button"
             onClick={() => setPreflightPassed(true)}
-            className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-xs gradient-button flex items-center justify-center gap-2 shadow-lg"
+            className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] flex items-center justify-center gap-2 shadow-lg shadow-[#C5F36B]/15 transition-all"
           >
             <span>{isVoiceOnly ? 'Enter Dedicated Voice Room' : 'Enter Live Video Room'}</span>
             <Check className="w-4 h-4" />
@@ -740,21 +740,21 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       )}
 
       {/* Top Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-md">
         <div className="flex items-center gap-3">
           <BrandIcon size="sm" glow={false} />
           <div>
-            <h2 className="text-xs font-bold text-white">
+            <h2 className="text-xs font-bold text-[#F5F7FA]">
               {activeSession.config.companyName} • {activeSession.config.role}
             </h2>
-            <div className="text-[11px] text-slate-400 flex items-center gap-2">
+            <div className="text-[11px] text-[#9AA4B2] flex items-center gap-2">
               <span className="capitalize">{activeSession.config.interviewType} Round</span>
               <span>•</span>
               <span className="capitalize">{isTextOnly ? 'Text-Based' : isVoiceOnly ? 'Voice-Only' : 'Video'} Mode</span>
               <span>•</span>
               <span className="capitalize">{activeSession.config.difficulty}</span>
               {currentQuestion.isFollowUp && (
-                <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold text-[10px]">
+                <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold text-[10px]">
                   Follow-Up Challenge
                 </span>
               )}
@@ -764,13 +764,13 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
         {/* Center: Question Progress & Timer */}
         <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 flex items-center gap-2 text-xs font-mono">
-            <Clock className={`w-3.5 h-3.5 ${isPaused ? 'text-amber-400' : 'text-blue-400 animate-pulse'}`} />
-            <span className="text-white font-bold">{formatTimer(elapsedSeconds)}</span>
+          <div className="px-3 py-1.5 rounded-xl bg-[#080B11] border border-white/[0.08] flex items-center gap-2 text-xs font-mono">
+            <Clock className={`w-3.5 h-3.5 ${isPaused ? 'text-amber-400' : 'text-[#C5F36B] animate-pulse'}`} />
+            <span className="text-[#F5F7FA] font-bold">{formatTimer(elapsedSeconds)}</span>
           </div>
 
-          <div className="text-xs text-slate-400">
-            Question <strong className="text-white">{currentQuestionIndex + 1}</strong> of <strong>{totalQuestions}</strong>
+          <div className="text-xs text-[#9AA4B2]">
+            Question <strong className="text-[#F5F7FA]">{currentQuestionIndex + 1}</strong> of <strong>{totalQuestions}</strong>
           </div>
         </div>
 
@@ -780,10 +780,10 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             <button
               type="button"
               onClick={() => setPreflightPassed(false)}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-colors"
+              className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-medium flex items-center gap-1.5 transition-colors"
               title="Test microphone input level and sound"
             >
-              <Headphones className="w-3.5 h-3.5 text-violet-400" />
+              <Headphones className="w-3.5 h-3.5 text-slate-400" />
               <span className="hidden sm:inline">Audio Check</span>
             </button>
           )}
@@ -792,7 +792,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             <button
               type="button"
               onClick={switchToTextMode}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-colors"
+              className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-medium flex items-center gap-1.5 transition-colors"
               title="Switch to typing mode without losing interview progress"
             >
               <FileText className="w-3.5 h-3.5 text-emerald-400" />
@@ -805,7 +805,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             className={`p-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
               isPaused 
                 ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' 
-                : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+                : 'bg-white/[0.06] hover:bg-white/[0.1] border-white/[0.08] text-slate-300 hover:text-white'
             }`}
             title={isPaused ? 'Resume Interview' : 'Pause Interview'}
           >
@@ -816,7 +816,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           <button
             onClick={handleFinishEarly}
             disabled={isEvaluating}
-            className="px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 hover:text-rose-200 text-xs font-semibold transition-colors disabled:opacity-50"
+            className="px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 hover:text-rose-200 text-xs font-semibold transition-colors disabled:opacity-50"
           >
             End & Generate Report
           </button>
@@ -829,13 +829,13 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
         <div className="lg:col-span-5 space-y-4">
           {isTextOnly ? (
             /* Dedicated Text-Based Interface Hub */
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-[#101728] to-slate-950 border border-emerald-500/30 shadow-2xl space-y-5">
+            <div className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-xl space-y-5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-300 flex items-center gap-2 uppercase tracking-wider">
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-2 uppercase tracking-wider">
                   <FileText className="w-4 h-4 text-emerald-400" />
                   <span>Text-Based Interview Hub</span>
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                   Mic-Free Mode
                 </span>
               </div>
@@ -850,33 +850,33 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 />
 
                 <div className="w-full max-w-xs space-y-1 text-center">
-                  <div className="text-xs font-semibold text-white">
+                  <div className="text-xs font-semibold text-[#F5F7FA]">
                     {activeSession.config.companyName} • {activeSession.config.role}
                   </div>
-                  <div className="text-[11px] text-slate-400">
+                  <div className="text-[11px] text-[#9AA4B2]">
                     Type your answer in the response editor and submit when ready.
                   </div>
                 </div>
               </div>
 
               {/* Spoken Question Audio Player */}
-              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <Volume2 className="w-4 h-4 text-violet-400" />
+              <div className="p-3.5 rounded-xl bg-[#080B11] border border-white/[0.08] flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-[#9AA4B2]">
+                  <Volume2 className="w-4 h-4 text-slate-400" />
                   <span>Interviewer Speech:</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleToggleQuestionAudio}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600/30 hover:bg-violet-600/40 text-violet-200 border border-violet-500/40 transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.1] text-slate-200 border border-white/[0.08] transition-colors"
                 >
                   {isSpeakingQuestion ? 'Stop Audio' : 'Play Question Aloud'}
                 </button>
               </div>
 
               {/* Tips Banner */}
-              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 space-y-1">
-                <div className="text-white font-semibold flex items-center gap-1.5">
+              <div className="p-3.5 rounded-xl bg-[#080B11] border border-white/[0.08] text-[11px] text-[#9AA4B2] space-y-1">
+                <div className="text-[#F5F7FA] font-semibold flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Typing Answer Tips</span>
                 </div>
@@ -887,18 +887,18 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             </div>
           ) : isVoiceOnly ? (
             /* Dedicated Voice-Only Interface Hub */
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-[#101728] to-slate-950 border border-violet-500/30 shadow-2xl space-y-5">
+            <div className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-xl space-y-5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-violet-300 flex items-center gap-2 uppercase tracking-wider">
-                  <Radio className="w-4 h-4 text-violet-400 animate-pulse" />
+                <span className="text-xs font-bold text-[#F5F7FA] flex items-center gap-2 uppercase tracking-wider">
+                  <Radio className="w-4 h-4 text-[#C5F36B] animate-pulse" />
                   <span>Voice Interview Channel</span>
                 </span>
                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                   isSpeakingQuestion 
-                    ? 'bg-violet-500/20 text-violet-300 border-violet-500/40 animate-pulse'
+                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30 animate-pulse'
                     : isListening 
-                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
-                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                    ? 'bg-rose-500/15 text-rose-300 border-rose-500/30 animate-pulse'
+                    : 'bg-white/[0.06] text-slate-400 border-white/[0.08]'
                 }`}>
                   {isSpeakingQuestion ? 'Interviewer Speaking' : isListening ? 'Listening to You' : 'Mic Ready'}
                 </span>
@@ -915,7 +915,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
                 <div className="w-full max-w-xs space-y-1 text-center">
                   <AudioVisualizer stream={videoStream} isActive={isMicOn && !isPaused && isListening} />
-                  <div className="text-[11px] text-slate-400 pt-1">
+                  <div className="text-[11px] text-[#9AA4B2] pt-1">
                     {isSpeakingQuestion 
                       ? 'Listen to the question... (Microphone pauses while interviewer speaks)' 
                       : isListening 
@@ -926,14 +926,14 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               </div>
 
               {/* Voice Actions Toolbar */}
-              <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-2">
+              <div className="pt-2 border-t border-white/[0.08] flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"
                   onClick={isListening ? stopSpeechCapture : startSpeechCapture}
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md ${
                     isListening
                       ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30'
-                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
+                      : 'bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] shadow-lg shadow-[#C5F36B]/15'
                   }`}
                 >
                   <Mic className="w-3.5 h-3.5" />
@@ -944,7 +944,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   type="button"
                   onClick={toggleMic}
                   className={`p-2 rounded-xl border text-xs font-semibold transition-colors ${
-                    isMicOn ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                    isMicOn ? 'bg-white/[0.06] hover:bg-white/[0.1] text-slate-200 border-white/[0.08]' : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                   }`}
                   title={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
                 >
@@ -1062,15 +1062,15 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
         {/* Right Column: AI Question & Response Interface (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
           {/* AI Question Box */}
-          <div className={`p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-[#121929] border shadow-lg space-y-3 transition-colors ${
-            isSpeakingQuestion ? 'border-violet-500/80 ring-2 ring-violet-500/20' : 'border-violet-500/30'
+          <div className={`p-5 sm:p-6 rounded-2xl bg-[#121826] border shadow-xl space-y-3 transition-colors ${
+            isSpeakingQuestion ? 'border-[#C5F36B]/60 ring-2 ring-[#C5F36B]/20' : 'border-white/[0.12]'
           }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-violet-300">
+                <div className="w-7 h-7 rounded-lg bg-white/[0.06] border border-white/[0.1] flex items-center justify-center text-[#C5F36B]">
                   <UserCheck className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-bold text-violet-300 uppercase tracking-wider">
+                <span className="text-xs font-bold text-[#F5F7FA] uppercase tracking-wider">
                   Lead Interviewer {isSpeakingQuestion && '(Speaking...)'}
                 </span>
               </div>
@@ -1081,8 +1081,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 onClick={handleToggleQuestionAudio}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                   isSpeakingQuestion
-                    ? 'bg-rose-600/30 text-rose-300 border-rose-500/50'
-                    : 'bg-violet-600 hover:bg-violet-500 text-white border-violet-500 shadow'
+                    ? 'bg-rose-600/20 text-rose-300 border-rose-500/40'
+                    : 'bg-white/[0.06] hover:bg-white/[0.1] text-slate-200 border-white/[0.08]'
                 }`}
                 title="Replay spoken question"
               >
@@ -1093,24 +1093,24 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
             {currentQuestion.isFollowUp && (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold text-[10px] flex items-center gap-1">
+                <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold text-[10px] flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-amber-400" />
                   <span>Follow-Up Deep Dive</span>
                 </span>
                 {currentQuestion.followUpReason && (
-                  <span className="text-[11px] text-slate-300 italic">
+                  <span className="text-[11px] text-[#9AA4B2] italic">
                     Reason: {currentQuestion.followUpReason}
                   </span>
                 )}
               </div>
             )}
 
-            <p className="text-base sm:text-lg font-semibold text-white leading-relaxed">
+            <p className="text-lg sm:text-xl font-bold text-[#F5F7FA] leading-relaxed">
               {currentQuestion.questionText}
             </p>
 
             {currentQuestion.contextOrHints && (
-              <div className="pt-2 text-xs text-slate-400 flex items-start gap-1.5 border-t border-slate-800/60">
+              <div className="pt-2 text-xs text-[#9AA4B2] flex items-start gap-1.5 border-t border-white/[0.06]">
                 <span className="text-slate-500 uppercase font-semibold text-[10px]">Context / Key Competencies:</span>
                 <span>{currentQuestion.contextOrHints}</span>
               </div>
@@ -1118,22 +1118,22 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           </div>
 
           {/* Response Panel */}
-          <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-4">
+          <div className="p-5 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <label className="text-xs font-bold text-white flex items-center gap-2">
+                <label className="text-xs font-bold text-[#F5F7FA] flex items-center gap-2">
                   <span>Candidate Response</span>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
                     isTextOnly
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                       : isVoiceOnly
-                      ? 'bg-violet-500/20 text-violet-300 border-violet-500/30'
-                      : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                      ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                      : 'bg-white/[0.06] text-slate-300 border-white/[0.08]'
                   }`}>
                     {isTextOnly ? 'Text Mode (Typing Only)' : isVoiceOnly ? 'Voice Mandatory' : 'Voice / Text Hybrid'}
                   </span>
                 </label>
-                <div className="text-[11px] text-slate-400 mt-0.5">
+                <div className="text-[11px] text-[#9AA4B2] mt-0.5">
                   {isTextOnly 
                     ? 'Type your structured response. Press Ctrl+Enter when ready to submit.'
                     : isVoiceOnly 
@@ -1310,19 +1310,19 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   type="button"
                   disabled={isEvaluating || isSubmitting}
                   onClick={handleSubmit}
-                  className="px-5 py-2.5 rounded-xl font-bold text-xs gradient-button flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-transform active:scale-[0.98]"
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#C5F36B]/15 transition-transform active:scale-[0.98]"
                   title="Submit your answer for evaluation (Ctrl+Enter)"
                 >
                   {isEvaluating || isSubmitting ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-[#080B11] border-t-transparent rounded-full animate-spin"></div>
                       <span>{isVoiceOnly ? 'Reviewing Spoken Response...' : 'Reviewing Response...'}</span>
                     </>
                   ) : (
                     <>
                       <Send className="w-3.5 h-3.5" />
                       <span>{isVoiceOnly ? 'Submit Spoken Answer' : 'Submit Answer'}</span>
-                      <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono bg-black/30 border border-white/20 rounded text-slate-200 ml-1">
+                      <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono bg-black/20 border border-black/20 rounded text-[#080B11] font-bold ml-1">
                         Ctrl+↵
                       </kbd>
                     </>
@@ -1335,7 +1335,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                     type="button"
                     disabled={isEvaluating || isSubmitting}
                     onClick={requestFollowUp}
-                    className="px-3.5 py-2.5 rounded-xl font-medium text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors flex items-center gap-1.5"
+                    className="px-3.5 py-2.5 rounded-xl font-medium text-xs bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-[#F5F7FA] transition-colors flex items-center gap-1.5"
                     title="Explore deeper with a realistic follow-up question"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -1351,7 +1351,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 type="button"
                 onClick={previousQuestion}
                 disabled={currentQuestionIndex === 0}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed hover:text-white text-xs flex items-center gap-1"
+                className="px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed hover:text-white text-xs flex items-center gap-1"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 <span>Previous</span>
@@ -1361,7 +1361,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 <button
                   type="button"
                   onClick={nextQuestion}
-                  className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs font-semibold flex items-center gap-1"
+                  className="px-4 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-semibold flex items-center gap-1"
                 >
                   <span>Next Question</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -1371,7 +1371,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   type="button"
                   onClick={handleFinishEarly}
                   disabled={isEvaluating}
-                  className="px-4 py-1.5 rounded-lg font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+                  className="px-4 py-1.5 rounded-lg font-bold text-xs bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] transition-colors shadow-md shadow-[#C5F36B]/10"
                 >
                   Finish Interview
                 </button>
@@ -1383,7 +1383,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           {currentQuestion.evaluation && (
             <div 
               ref={evaluationSectionRef}
-              className="p-5 rounded-2xl bg-slate-900/90 border border-emerald-500/40 shadow-xl space-y-4 transition-all"
+              className="p-5 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-xl space-y-4 transition-all"
             >
               {currentQuestion.evaluation.status === 'unavailable' ? (
                 <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
@@ -1391,29 +1391,29 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                     <AlertCircle className="w-4 h-4" />
                     <span>Automated Evaluation Offline (Local / Unconfigured Mode)</span>
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">
+                  <p className="text-xs text-[#9AA4B2] leading-relaxed">
                     {currentQuestion.evaluation.unavailableReason || currentQuestion.evaluation.feedback}
                   </p>
-                  <p className="text-[11px] text-slate-400 italic">
+                  <p className="text-[11px] text-slate-500 italic">
                     Your transcribed response has been safely recorded into the session history. InterviewBro AI will not fabricate an arbitrary score.
                   </p>
                 </div>
               ) : (
                 <>
                   {/* Scorecard Header */}
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <CheckCircle2 className="w-4 h-4 text-[#C5F36B]" />
                       <div>
-                        <span className="text-xs font-bold text-white uppercase tracking-wider">Interviewer Debrief & Review</span>
-                        <div className="text-[10px] text-slate-400">Encouraging rubric assessment</div>
+                        <span className="text-xs font-bold text-[#F5F7FA] uppercase tracking-wider">Interviewer Debrief & Review</span>
+                        <div className="text-[10px] text-[#9AA4B2]">Encouraging rubric assessment</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-black text-emerald-400 leading-none">
-                        {currentQuestion.evaluation.score}<span className="text-xs text-slate-500">/100</span>
+                      <div className="text-xl font-black text-[#C5F36B] leading-none">
+                        {currentQuestion.evaluation.score}<span className="text-xs text-[#9AA4B2]">/100</span>
                       </div>
-                      <div className="text-[10px] text-emerald-400/80 font-medium mt-0.5">
+                      <div className="text-[10px] text-[#C5F36B]/80 font-medium mt-0.5">
                         {currentQuestion.evaluation.score >= 80 ? 'Strong delivery' : currentQuestion.evaluation.score >= 65 ? 'Solid answer' : 'Good attempt'}
                       </div>
                     </div>
@@ -1422,7 +1422,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   {/* 5-Pillar Rubric Breakdown Grid */}
                   {currentQuestion.evaluation.rubricBreakdown && (
                     <div className="space-y-2 pt-1">
-                      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      <div className="text-[11px] font-bold text-[#9AA4B2] uppercase tracking-wider">
                         5-Pillar Competency Rubric:
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
@@ -1554,36 +1554,36 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   )}
 
                   {/* Verbal Feedback from Lead Interviewer */}
-                  <div className="p-3.5 rounded-xl bg-violet-950/20 border-l-4 border-l-violet-500 border-t border-r border-b border-violet-500/20 space-y-1">
-                    <div className="text-[11px] font-bold text-violet-300 flex items-center gap-1.5">
-                      <UserCheck className="w-3.5 h-3.5 text-violet-400" />
+                  <div className="p-3.5 rounded-xl bg-[#080B11] border-l-4 border-l-[#C5F36B] border-t border-r border-b border-white/[0.08] space-y-1">
+                    <div className="text-[11px] font-bold text-[#C5F36B] flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5" />
                       <span>Interviewer Verbal Feedback:</span>
                     </div>
-                    <p className="text-xs text-slate-200 leading-relaxed italic">
+                    <p className="text-xs text-[#F5F7FA] leading-relaxed italic">
                       "{currentQuestion.evaluation.feedback}"
                     </p>
                   </div>
 
                   {/* Strengths & Points to Improve */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
-                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                    <div className="p-3 rounded-xl bg-[#080B11] border border-white/[0.06]">
                       <div className="font-semibold text-emerald-400 mb-1 flex items-center gap-1">
                         <Check className="w-3.5 h-3.5" />
                         <span>What Worked Well:</span>
                       </div>
-                      <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[11px]">
+                      <ul className="list-disc list-inside space-y-0.5 text-[#9AA4B2] text-[11px]">
                         {currentQuestion.evaluation.strengths.map((s, idx) => (
                           <li key={idx}>{s}</li>
                         ))}
                       </ul>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                    <div className="p-3 rounded-xl bg-[#080B11] border border-white/[0.06]">
                       <div className="font-semibold text-amber-300 mb-1 flex items-center gap-1">
                         <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                         <span>Opportunities to Polish:</span>
                       </div>
-                      <ul className="list-disc list-inside space-y-0.5 text-slate-300 text-[11px]">
+                      <ul className="list-disc list-inside space-y-0.5 text-[#9AA4B2] text-[11px]">
                         {currentQuestion.evaluation.missedPoints.map((m, idx) => (
                           <li key={idx}>{m}</li>
                         ))}
@@ -1593,9 +1593,9 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
                   {/* Better Answer Example */}
                   {currentQuestion.evaluation.betterAnswerExample && (
-                    <div className="p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs">
-                      <span className="font-semibold text-violet-400">Coaching Model Response: </span>
-                      <p className="text-slate-300 text-[11px] leading-relaxed mt-1">
+                    <div className="p-3.5 rounded-xl bg-[#080B11] border border-white/[0.06] text-xs">
+                      <span className="font-semibold text-[#C5F36B]">Coaching Model Response: </span>
+                      <p className="text-[#9AA4B2] text-[11px] leading-relaxed mt-1">
                         {currentQuestion.evaluation.betterAnswerExample}
                       </p>
                     </div>
@@ -1603,8 +1603,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
                   {/* Challenge with Follow-up Action in Scorecard */}
                   {!currentQuestion.isFollowUp && (
-                    <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-                      <div className="text-[11px] text-slate-300 flex items-center gap-1.5">
+                    <div className="pt-2 border-t border-white/[0.08] flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div className="text-[11px] text-[#9AA4B2] flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                         <span>Want to test your answer deeper with a realistic follow-up question?</span>
                       </div>
@@ -1612,7 +1612,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                         type="button"
                         disabled={isEvaluating || isSubmitting}
                         onClick={requestFollowUp}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-violet-600/30 hover:bg-violet-600/50 text-violet-200 border border-violet-500/40 transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white/[0.06] hover:bg-white/[0.1] text-[#F5F7FA] border border-white/[0.08] transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
                       >
                         <Sparkles className="w-3 h-3 text-amber-300" />
                         <span>Explore Follow-Up Question</span>
