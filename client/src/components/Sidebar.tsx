@@ -12,9 +12,12 @@ import {
   ExternalLink,
   ChevronRight,
   Shield,
-  HelpCircle
+  HelpCircle,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { BrandLogo } from './brand/BrandLogo';
+import { BrandIcon } from './brand/BrandIcon';
 
 interface SidebarProps {
   currentRoute: string;
@@ -57,8 +60,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isOp
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } flex flex-col justify-between`}
       >
+        {/* Brand Header inside Sidebar */}
+        <div className="px-4 py-3.5 border-b border-slate-800/80 bg-slate-950/60 flex items-center justify-between">
+          <BrandLogo
+            size="sm"
+            showTagline={false}
+            onClick={() => handleNavClick(user ? 'dashboard' : 'landing')}
+          />
+          {isOpen && (
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 lg:hidden"
+              aria-label="Close sidebar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
         {/* Navigation Links */}
-        <div className="p-4 space-y-1 overflow-y-auto">
+        <div className="p-4 space-y-1 overflow-y-auto flex-1">
           <div className="px-3 py-2 text-[11px] font-semibold tracking-wider uppercase text-slate-500">
             Interview Studio
           </div>
@@ -148,8 +169,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isOp
             <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/10 rounded-full blur-xl group-hover:bg-violet-600/20 transition-all pointer-events-none"></div>
 
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold uppercase text-emerald-400 flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> Practice Quota
+              <span className="text-[11px] font-semibold uppercase text-emerald-400 flex items-center gap-1.5">
+                <BrandIcon size={16} glow={false} /> Practice Quota
               </span>
               <span className="text-xs font-bold text-emerald-400">
                 Unlimited

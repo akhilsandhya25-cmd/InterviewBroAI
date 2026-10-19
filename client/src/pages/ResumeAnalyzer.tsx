@@ -20,6 +20,7 @@ import { storage } from '../services/storage';
 import { ResumeAnalysis } from '../types';
 
 import { useAuth } from '../context/AuthContext';
+import { BrandIcon } from '../components/brand/BrandIcon';
 
 interface ResumeAnalyzerProps {
   onStartWithResume: (resumeQuestions: string[]) => void;
@@ -109,12 +110,17 @@ export const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({ onStartWithResum
           </span>
           <span className="text-xs text-slate-400">Secure Client-Side / Edge Processing</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          Analyze Your Resume for Campus & Off-Campus Hiring
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Extract skills, identify keyword gaps against your target role, and practice project interrogation questions before real interviews.
-        </p>
+        <div className="flex items-center gap-3">
+          <BrandIcon size="md" glow={true} className="hidden sm:inline-flex" />
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Analyze Your Resume for Campus & Off-Campus Hiring
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              Extract skills, identify keyword gaps against your target role, and practice project interrogation questions before real interviews.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Upload Box */}

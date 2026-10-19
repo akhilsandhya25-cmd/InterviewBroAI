@@ -53,6 +53,7 @@ import {
   BrowserVoiceCapabilities
 } from '../services/microphoneService';
 import { tts } from '../services/speech';
+import { BrandIcon } from '../components/brand/BrandIcon';
 
 interface InterviewSetupProps {
   onStart: () => void;
@@ -186,12 +187,17 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             </span>
             <span className="text-xs text-slate-400">Step 1 of 2</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Configure Your Mock Interview
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Tailor the questions to your exact target company, job description, and role.
-          </p>
+          <div className="flex items-center gap-3">
+            <BrandIcon size="md" glow={true} className="hidden sm:inline-flex" />
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                Configure Your Mock Interview
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                Tailor the questions to your exact target company, job description, and role.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Quota Badge */}
