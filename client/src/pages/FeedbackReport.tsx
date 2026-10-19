@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { useInterview } from '../context/InterviewContext';
 import { FeedbackReport as FeedbackReportType } from '../types';
-import { BrandIcon } from '../components/brand/BrandIcon';
 
 interface FeedbackReportProps {
   report?: FeedbackReportType;
@@ -67,17 +66,12 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Interview Session Completed & Evaluated</span>
             </div>
-            <div className="flex items-center gap-3">
-              <BrandIcon size="md" glow={true} className="hidden sm:inline-flex" />
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  Performance Evaluation Report
-                </h1>
-                <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                  Candidate: <strong className="text-white">{report.candidateName}</strong> • Target: <strong className="text-white">{report.company}</strong> ({report.role})
-                </p>
-              </div>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Performance Evaluation Report
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              Candidate: <strong className="text-white">{report.candidateName}</strong> • Target: <strong className="text-white">{report.company}</strong> ({report.role})
+            </p>
           </div>
 
           {/* Overall Score Badge */}
