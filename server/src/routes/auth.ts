@@ -114,16 +114,17 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
         updated_at: new Date().toISOString()
       };
 
-      const requiresEmailVerification = !data.session;
+      const sessionToken = data.session?.access_token || (data as any)?.access_token;
+      const requiresEmailVerification = !sessionToken;
       return res.status(200).json({
         success: true,
         user: requiresEmailVerification ? null : user,
-        token: data.session?.access_token,
+        token: sessionToken,
         session: data.session,
         requiresEmailVerification,
         email: cleanEmail,
         message: requiresEmailVerification
-          ? "Account created successfully! We've sent a verification link to your email address."
+          ? "Account created! Please check your inbox to confirm your email before logging in."
           : `Welcome to InterviewBro AI, ${user.full_name}!`
       });
     }

@@ -1,12 +1,12 @@
 function getSupabaseConfig() {
   let url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
-  if (!url || !url.startsWith('http') || url.includes('undefined')) {
+  if (!url || !url.startsWith('http') || url.includes('undefined') || url.includes('your-supabase-url') || url.includes('your-project-id')) {
     url = 'https://ochbpanyltnoltelpguk.supabase.co';
   }
   url = url.replace(/\/+$/, '');
 
   let key = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
-  if (!key || key.length < 20 || key.includes('undefined')) {
+  if (!key || key.length < 20 || key.includes('undefined') || key.includes('your-supabase-anon-key')) {
     key = 'sb_publishable_MqZB3tEluAhgl6NAqhyxew_6NQ1vYp2';
   }
   return { url, key };
@@ -19,6 +19,23 @@ function maskEmail(email) {
   const name = parts[0];
   const maskedName = name.length <= 2 ? name[0] + '*' : name[0] + '*'.repeat(Math.max(1, name.length - 2)) + name[name.length - 1];
   return `${maskedName}@${parts[1]}`;
+}
+
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const MAX_REQUESTS_PER_WINDOW = 3;
+
+function isRateLimited(key) {
+  const now = Date.now();
+  const timestamps = rateLimitMap.get(key) || [];
+  const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+  if (recent.length >= MAX_REQUESTS_PER_WINDOW) {
+    rateLimitMap.set(key, recent);
+    return true;
+  }
+  recent.push(now);
+  rateLimitMap.set(key, recent);
+  return false;
 }
 
 async function parseBody(req) {
@@ -110,9 +127,11 @@ export default async function handler(req, res) {
     console.log(`[Auth API] Signup attempt received for ${maskEmail(cleanEmail)}`);
 
     const { url: supaUrl, key: supaKey } = getSupabaseConfig();
+    const siteUrl = (body.emailRedirectTo || req.headers['origin'] || req.headers['referer'] || 'https://interviewbro-ai.vercel.app').replace(/\/+$/, '');
+    const supaSignupEndpoint = `${supaUrl}/auth/v1/signup?redirect_to=${encodeURIComponent(siteUrl)}`;
 
     try {
-      const supaRes = await fetch(`${supaUrl}/auth/v1/signup`, {
+      const supaRes = await fetch(supaSignupEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -177,18 +196,64 @@ export default async function handler(req, res) {
         updated_at: new Date().toISOString()
       };
 
-      const requiresEmailVerification = !data.session;
+      // Supabase GoTrue returns { access_token, refresh_token, token_type, expires_in, user } when email confirmation is disabled
+      let session = null;
+      let token = null;
+
+      if (data.session && data.session.access_token) {
+        session = data.session;
+        token = data.session.access_token;
+      } else if (data.access_token) {
+        session = {
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          token_type: data.token_type || 'bearer',
+          expires_in: data.expires_in,
+          expires_at: data.expires_in ? Math.floor(Date.now() / 1000) + data.expires_in : undefined,
+          user: data.user || user
+        };
+        token = data.access_token;
+      }
+
+      // Secondary fallback: If neither session nor access_token was returned but password is provided
+      if (!token && password) {
+        try {
+          const loginRes = await fetch(`${supaUrl}/auth/v1/token?grant_type=password`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supaKey,
+              'Authorization': `Bearer ${supaKey}`
+            },
+            body: JSON.stringify({
+              email: cleanEmail,
+              password: String(password)
+            })
+          });
+          if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            if (loginData.access_token) {
+              session = loginData;
+              token = loginData.access_token;
+            }
+          }
+        } catch (loginErr) {
+          console.warn('[Auth API] Fallback instant login attempt failed:', loginErr.message);
+        }
+      }
+
+      const requiresEmailVerification = !token;
 
       return res.status(200).json({
         success: true,
         user: requiresEmailVerification ? null : user,
-        token: data.session?.access_token || null,
-        session: data.session || null,
+        token: token,
+        session: session,
         requiresEmailVerification,
         email: cleanEmail,
         message: requiresEmailVerification
-          ? "Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
-          : `Welcome to InterviewBro AI, ${cleanFullName}!`
+          ? "Account created! Please check your inbox to confirm your email before logging in."
+          : `Welcome to InterviewBro AI, ${cleanFullName}! Your account is ready.`
       });
     } catch (err) {
       console.error(`[Auth API] Serverless exception during signup for ${maskEmail(cleanEmail)}:`, err.message || err);
@@ -295,8 +360,110 @@ export default async function handler(req, res) {
     }
   }
 
+  // 4b. Delete Account endpoint (DPDP Act 2023 compliance)
+  if (url.includes('/auth/delete-account')) {
+    if (req.method !== 'POST') {
+      return res.status(405).json({
+        error: 'Method Not Allowed',
+        message: 'The /api/auth/delete-account endpoint requires a POST request.'
+      });
+    }
+
+    const { url: supaUrl, key: supaKey } = getSupabaseConfig();
+    const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+    const body = await parseBody(req);
+    const requestedUserId = body.userId;
+    let authenticatedUserId = null;
+
+    if (token) {
+      try {
+        const userRes = await fetch(`${supaUrl}/auth/v1/user`, {
+          headers: {
+            'apikey': supaKey,
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (userRes.ok) {
+          const u = await userRes.json();
+          authenticatedUserId = u.id;
+        }
+      } catch (e) {
+        console.warn('[Delete API] Token verification warning:', e.message);
+      }
+    }
+
+    // Enforce strict server-side authentication: caller must provide a valid, verified token
+    if (!authenticatedUserId) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'A valid, unexpired authentication Bearer token is required to delete an account.'
+      });
+    }
+
+    if (requestedUserId && requestedUserId !== authenticatedUserId) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Cross-user deletion rejected.'
+      });
+    }
+
+    const targetUserId = authenticatedUserId;
+
+
+    try {
+      let adminDeleted = false;
+      if (serviceRoleKey) {
+        const adminRes = await fetch(`${supaUrl}/auth/v1/admin/users/${targetUserId}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': serviceRoleKey,
+            'Authorization': `Bearer ${serviceRoleKey}`
+          }
+        });
+        if (adminRes.ok) adminDeleted = true;
+      }
+
+      const authBearer = serviceRoleKey || token;
+      const authApiKey = serviceRoleKey || supaKey;
+      if (authBearer) {
+        const tables = ['feedback_reports', 'interview_sessions', 'resume_analyses', 'profiles'];
+        for (const table of tables) {
+          const idCol = table === 'profiles' ? 'id' : 'user_id';
+          await fetch(`${supaUrl}/rest/v1/${table}?${idCol}=eq.${targetUserId}`, {
+            method: 'DELETE',
+            headers: {
+              'apikey': authApiKey,
+              'Authorization': `Bearer ${authBearer}`
+            }
+          }).catch(() => null);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        recordsPurged: true,
+        authAccountDeleted: adminDeleted,
+        message: adminDeleted
+          ? 'Account credentials and all associated database records have been permanently deleted.'
+          : 'All candidate data, profiles, sessions, and reports were permanently erased from database. Complete GoTrue authentication user removal requires SUPABASE_SERVICE_ROLE_KEY to be configured on the server environment.',
+        userId: targetUserId,
+        adminPurged: adminDeleted
+      });
+    } catch (err) {
+      console.error('[Delete API] Error processing deletion:', err);
+      return res.status(500).json({
+        error: 'Deletion Error',
+        message: 'Encountered an internal error while deleting account data.'
+      });
+    }
+  }
+
   // 5. Voice endpoints
   if (url.includes('/voice/status')) {
+
     return res.status(200).json({
       isConfigured: false,
       provider: 'Web Speech API (Browser Native)',

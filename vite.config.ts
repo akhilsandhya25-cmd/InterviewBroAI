@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   plugins: [react()],
   root: path.resolve(__dirname, 'client'),
+  envDir: path.resolve(__dirname),
   publicDir: path.resolve(__dirname, 'client/public'),
   build: {
     outDir: path.resolve(__dirname, 'dist'),
@@ -17,6 +18,16 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  },
+  preview: {
+    port: 4173,
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

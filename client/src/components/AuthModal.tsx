@@ -118,7 +118,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorType(null);
   };
 
-
   const handleSwitchMode = (newMode: ModalMode) => {
     resetFormState();
     setMode(newMode);

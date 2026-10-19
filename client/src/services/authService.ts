@@ -233,23 +233,8 @@ export const authService = {
     const cleanEmail = email.trim().toLowerCase();
     const cleanFullName = fullName.trim();
 
-    // 1. Primary: Serverless API proxy to Supabase Auth (/api/auth/signup)
-    let res: Response;
-    try {
-      res = await fetch(`${API_BASE}/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: cleanEmail,
-          password,
-          confirmPassword,
-          fullName: cleanFullName
-        })
-      });
-    } catch (networkErr: any) {
-      // If serverless proxy is unreachable due to network, attempt client-side Supabase SDK
+    // Direct Supabase SDK signup fallback helper
+    const signUpDirectlyWithSupabase = async () => {
       if (supabase) {
         try {
           const { data, error } = await supabase.auth.signUp({
@@ -290,19 +275,20 @@ export const authService = {
               updated_at: new Date().toISOString()
             };
 
-            const requiresEmailVerification = !data.session;
+            const sessionToken = data.session?.access_token || (data as any)?.access_token;
+            const requiresEmailVerification = !sessionToken;
             if (!requiresEmailVerification) {
               storage.setUser(newUser);
-              if (data.session?.access_token) storage.setToken(data.session.access_token);
+              if (sessionToken) storage.setToken(sessionToken);
             }
 
             return {
               user: requiresEmailVerification ? (null as any) : newUser,
-              token: data.session?.access_token,
+              token: sessionToken,
               requiresEmailVerification,
               email: cleanEmail,
               message: requiresEmailVerification
-                ? "Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
+                ? "Account created! Please check your inbox to confirm your email before logging in."
                 : `Welcome to InterviewBro AI, ${cleanFullName}!`
             };
           }
@@ -313,6 +299,33 @@ export const authService = {
       const err: any = new Error('Unable to connect to authentication service. Please check your internet connection.');
       err.isNetworkError = true;
       throw err;
+    };
+
+    // 1. Primary: Serverless API proxy to Supabase Auth (/api/auth/signup)
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${API_BASE}/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password,
+          confirmPassword,
+          fullName: cleanFullName,
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+        })
+      });
+    } catch (networkErr: any) {
+      console.warn('[AuthService] /api/auth/signup network fetch failed, using direct Supabase fallback:', networkErr?.message || networkErr);
+      return await signUpDirectlyWithSupabase();
+    }
+
+    // 2. Gateway/Proxy resilience: If serverless proxy returned a 502/503/504 Bad Gateway, immediately fall back to direct Supabase SDK
+    if (res && !res.ok && (res.status === 502 || res.status === 503 || res.status === 504)) {
+      console.warn(`[AuthService] /api/auth/signup returned HTTP ${res.status}, falling back to direct Supabase SDK.`);
+      return await signUpDirectlyWithSupabase();
     }
 
     const parsed = await safeParseResponse<{
@@ -334,11 +347,14 @@ export const authService = {
       if (!requiresEmailVerification && user) {
         storage.setUser(user);
         if (token) storage.setToken(token);
-        if (supabase && parsed.data.session) {
+        if (supabase && parsed.data.session?.access_token && parsed.data.session?.refresh_token) {
           try {
-            await supabase.auth.setSession(parsed.data.session);
-          } catch {
-            // Non-critical SDK session sync
+            await supabase.auth.setSession({
+              access_token: parsed.data.session.access_token,
+              refresh_token: parsed.data.session.refresh_token
+            });
+          } catch (sessionErr) {
+            console.warn('[AuthService] Could not hydrate client Supabase session:', sessionErr);
           }
         }
       }
@@ -375,21 +391,8 @@ export const authService = {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Primary: Serverless API proxy to Supabase Auth (/api/auth/login)
-    let res: Response;
-    try {
-      res = await fetch(`${API_BASE}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: cleanEmail,
-          password
-        })
-      });
-    } catch (networkErr: any) {
-      // If serverless proxy is unreachable due to network, attempt client-side Supabase SDK
+    // Direct Supabase SDK login fallback helper
+    const signInDirectlyWithSupabase = async () => {
       if (supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
@@ -447,6 +450,30 @@ export const authService = {
       const err: any = new Error('Unable to connect to authentication service. Please check your internet connection.');
       err.isNetworkError = true;
       throw err;
+    };
+
+    // 1. Primary: Serverless API proxy to Supabase Auth (/api/auth/login)
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password
+        })
+      });
+    } catch (networkErr: any) {
+      console.warn('[AuthService] /api/auth/login network fetch failed, using direct Supabase fallback:', networkErr?.message || networkErr);
+      return await signInDirectlyWithSupabase();
+    }
+
+    // 2. Gateway/Proxy resilience: If serverless proxy returned 502/503/504 Bad Gateway, immediately fall back to direct Supabase SDK
+    if (res && !res.ok && (res.status === 502 || res.status === 503 || res.status === 504)) {
+      console.warn(`[AuthService] /api/auth/login returned HTTP ${res.status}, falling back to direct Supabase SDK.`);
+      return await signInDirectlyWithSupabase();
     }
 
     const parsed = await safeParseResponse<{
@@ -497,8 +524,13 @@ export const authService = {
       throw new Error('Please enter your email address to resend the verification link.');
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const cleanEmail = email.trim().toLowerCase();
+    if (!emailRegex.test(cleanEmail)) {
+      throw new Error('Please enter a valid email address.');
+    }
 
+    // Direct client-side Supabase SDK resend (requires no backend endpoint)
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -524,10 +556,26 @@ export const authService = {
       };
     }
 
-    return {
-      success: true,
-      message: `Verification link simulated for ${cleanEmail} (local sandbox mode).`
-    };
+    throw new Error('Verification email service is unavailable. Please check your connection.');
+  },
+
+  /**
+   * Initiate Google OAuth Sign-In via Supabase Auth
+   */
+  async signInWithGoogle(): Promise<void> {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+        }
+      });
+      if (error) {
+        throw new Error(error.message || 'Google sign-in could not be initiated.');
+      }
+      return;
+    }
+    throw new Error('Google Sign-In is unavailable because Supabase is not configured.');
   },
 
   /**

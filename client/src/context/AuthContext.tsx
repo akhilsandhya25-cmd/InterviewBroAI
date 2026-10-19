@@ -20,6 +20,7 @@ interface AuthContextType {
   }>;
   resetPassword: (email: string, code: string, newPassword: string, confirmNewPassword?: string) => Promise<{ message: string }>;
   resendVerification: (email: string) => Promise<{ success: boolean; message: string }>;
+  signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   decrementInterviewQuota: () => boolean;
@@ -65,6 +66,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else if (event === 'SIGNED_IN' && session?.user) {
           if (session.access_token) storage.setToken(session.access_token);
           storage.syncWithCloud(session.user.id);
+          authService.restoreSession().then((restored) => {
+            if (isMounted && restored) {
+              setUser(restored);
+              setQuota(storage.getQuota(restored.id));
+            }
+          }).catch(() => {});
         } else if (event === 'PASSWORD_RECOVERY') {
           if (session?.access_token) storage.setToken(session.access_token);
           window.dispatchEvent(new CustomEvent('interviewbro_password_recovery'));
@@ -137,6 +144,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return await authService.resetPassword({ email, code, newPassword, confirmNewPassword });
   };
 
+  const signInWithGoogle = async () => {
+    setIsLoading(true);
+    try {
+      await authService.signInWithGoogle();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     setIsLoading(true);
     try {
@@ -179,6 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         forgotPassword,
         resetPassword,
         resendVerification,
+        signInWithGoogle,
         logout,
         updateProfile,
         decrementInterviewQuota

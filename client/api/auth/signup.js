@@ -83,8 +83,11 @@ export default async function handler(req, res) {
 
   const { url: supaUrl, key: supaKey } = getSupabaseConfig();
 
+  const siteUrl = (body.emailRedirectTo || req.headers['origin'] || req.headers['referer'] || 'https://interviewbro-ai.vercel.app').replace(/\/+$/, '');
+  const supaSignupEndpoint = `${supaUrl}/auth/v1/signup?redirect_to=${encodeURIComponent(siteUrl)}`;
+
   try {
-    const supaRes = await fetch(`${supaUrl}/auth/v1/signup`, {
+    const supaRes = await fetch(supaSignupEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -153,18 +156,64 @@ export default async function handler(req, res) {
       updated_at: new Date().toISOString()
     };
 
-    const requiresEmailVerification = !data.session;
+    // Supabase GoTrue returns { access_token, refresh_token, token_type, expires_in, user } when email confirmation is disabled
+    let session = null;
+    let token = null;
+
+    if (data.session && data.session.access_token) {
+      session = data.session;
+      token = data.session.access_token;
+    } else if (data.access_token) {
+      session = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        token_type: data.token_type || 'bearer',
+        expires_in: data.expires_in,
+        expires_at: data.expires_in ? Math.floor(Date.now() / 1000) + data.expires_in : undefined,
+        user: data.user || user
+      };
+      token = data.access_token;
+    }
+
+    // Secondary fallback: If neither session nor access_token was returned but password is provided
+    if (!token && password) {
+      try {
+        const loginRes = await fetch(`${supaUrl}/auth/v1/token?grant_type=password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supaKey,
+            'Authorization': `Bearer ${supaKey}`
+          },
+          body: JSON.stringify({
+            email: cleanEmail,
+            password: String(password)
+          })
+        });
+        if (loginRes.ok) {
+          const loginData = await loginRes.json();
+          if (loginData.access_token) {
+            session = loginData;
+            token = loginData.access_token;
+          }
+        }
+      } catch (loginErr) {
+        console.warn('[Auth API] Fallback instant login attempt failed:', loginErr.message);
+      }
+    }
+
+    const requiresEmailVerification = !token;
 
     return res.status(200).json({
       success: true,
       user: requiresEmailVerification ? null : user,
-      token: data.session?.access_token || null,
-      session: data.session || null,
+      token: token,
+      session: session,
       requiresEmailVerification,
       email: cleanEmail,
       message: requiresEmailVerification
-        ? "Account created successfully! We've sent a verification link to your email address. Please check your inbox and spam folder, then verify your email before logging in."
-        : `Welcome to InterviewBro AI, ${cleanFullName}!`
+        ? "Account created! Please check your inbox to confirm your email before logging in."
+        : `Welcome to InterviewBro AI, ${cleanFullName}! Your account is ready.`
     });
   } catch (err) {
     console.error(`[Auth API] Serverless exception during signup for ${maskEmail(cleanEmail)}:`, err.message || err);
