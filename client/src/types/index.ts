@@ -178,9 +178,14 @@ export interface UsageQuota {
 }
 
 export interface PrivacyPreferences {
-  saveTranscriptsLocally: boolean;
-  allowVoiceSimulation: boolean;
-  optInAnonymousDiagnostics: boolean;
+  // Truly optional candidate preferences (unselected/opt-in by default where appropriate):
+  voiceSynthesisEnabled: boolean; // defaults to true; when false, tts.speak() in speech.ts is silenced immediately
+  ephemeralPracticeMode: boolean; // defaults to false (unselected); when true, transcripts are scrubbed before saving
+  analyticsOptIn: boolean; // defaults to false (unselected); honest disclosure that zero 3rd-party trackers are used
+  // Legacy compatibility fields:
+  saveTranscriptsLocally?: boolean;
+  allowVoiceSimulation?: boolean;
+  optInAnonymousDiagnostics?: boolean;
   consentAcknowledgedAt?: string;
   consentVersion?: string;
 }

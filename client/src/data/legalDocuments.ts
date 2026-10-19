@@ -5,9 +5,12 @@
  * Compliance Baseline: Digital Personal Data Protection Act, 2023 (India), 
  * Digital Personal Data Protection Rules, 2025, and Information Technology Act, 2000.
  *
- * NOTE FOR APPLICATION OWNER:
- * Items enclosed in square brackets (e.g. [Entity Name], [Office Address], [Grievance Officer Name])
- * represent organizational details that must be finalized with qualified legal counsel before commercial deployment.
+ * OPERATIONAL STATUS & LEGAL NOTICE:
+ * InterviewBro AI is an educational technology simulation platform operated by an individual developer in India.
+ * It is not currently incorporated as a corporate entity (Private Limited Company, LLP, or partnership).
+ * Placeholders enclosed in brackets marked [OWNER ACTION REQUIRED: ...] designate operational information
+ * (such as verified communication address, monitored contact channels, and court jurisdiction)
+ * that the platform owner must finalize before commercial deployment or monetization.
  */
 
 export interface LegalDocument {
@@ -31,12 +34,12 @@ export const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
     shortTitle: 'Terms',
     version: '1.2',
     lastUpdated: 'October 19, 2026',
-    summary: 'Governs your use of InterviewBro AI, an educational mock interview simulation platform designed for placement practice and career readiness.',
+    summary: 'Governs your use of InterviewBro AI, an educational mock interview simulation platform operated by an individual developer for placement practice and career readiness.',
     sections: [
       {
         heading: '1. Acceptance of Terms',
         content: [
-          'Welcome to InterviewBro AI (the "Platform", "we", "us", or "our"). By registering for an account, accessing, or using our mock interview studio, resume analyzer, feedback reports, and voice simulation services, you agree to be bound by these Terms of Service ("Terms") and our Privacy Policy.',
+          'Welcome to InterviewBro AI (the "Platform", "we", "us", or "our"), an educational career preparation platform operated by an individual developer [OWNER ACTION REQUIRED: Specify Individual Operator Legal Name or Registered Business Name upon formation] ("Operator"). By registering for an account, accessing, or using our mock interview studio, resume analyzer, feedback reports, and voice simulation services, you agree to be bound by these Terms of Service ("Terms") and our Privacy Policy.',
           'If you do not agree to these Terms, you must not access or use the Platform. If you are using the Platform on behalf of an educational institution, college placement cell, or employer, you represent and warrant that you have authority to bind that entity to these Terms.'
         ]
       },
@@ -91,7 +94,7 @@ export const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
         heading: '8. Governing Law & Dispute Resolution',
         content: [
           'These Terms shall be governed by and construed in accordance with the laws of the Republic of India, without regard to conflict of law principles.',
-          'Any legal disputes, controversies, or claims arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the competent courts located in [Bengaluru, Karnataka, India].'
+          'Any legal disputes, controversies, or claims arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the competent courts of the operator\'s verified domicile in India [OWNER ACTION REQUIRED: Designate appropriate city/district court jurisdiction upon legal counsel review].'
         ]
       }
     ]
@@ -110,9 +113,10 @@ export const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
         content: [
           'InterviewBro AI acts as a Data Fiduciary under the Digital Personal Data Protection Act, 2023 (DPDP Act) for the personal data collected from candidates practicing on our platform.',
           'This Privacy Policy describes what information we collect, the lawful basis for processing, how long data is retained, and how you can exercise your statutory rights to access, correct, and delete your data.',
-          'Organization / Data Fiduciary: [InterviewBro AI Technologies Private Limited / Authorized Platform Owner]',
-          'Official Contact / Privacy Office: privacy@interviewbro.ai',
-          'Registered Office: [Prestige Tech Park, Outer Ring Road, Bengaluru, Karnataka - 560103, India]'
+          'Data Fiduciary: Platform Operator (Individual Developer) [OWNER ACTION REQUIRED: Specify Individual Operator Legal Name or Registered Business Name upon formation]',
+          'Operational Status: Pre-incorporation educational project operated by an individual developer in India [Interim / Pre-Incorporation Draft]',
+          'Official Contact / Privacy Channel: In-app Privacy Center self-service controls [OWNER ACTION REQUIRED: Configure and publish monitored domain contact email e.g. privacy@interviewbro.ai or verified email address]',
+          'Registered / Communication Address: [OWNER ACTION REQUIRED: Designate verified physical communication address in India for statutory notices]'
         ]
       },
       {
@@ -187,9 +191,9 @@ export const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
           'Under the Digital Personal Data Protection Act, 2023 (Sections 11–14), you have clear statutory rights regarding your personal data:',
           '• Right to Access Information: Request a summary of your personal data processed by us and the processing activities undertaken.',
           '• Right to Correction & Erasure: Correct inaccurate profile data or permanently delete your account and associated session records.',
-          '• Right of Grievance Redressal: Lodge a grievance regarding your personal data processing with our designated Grievance Officer.',
+          '• Right of Grievance Redressal: Lodge a grievance regarding your personal data processing with our designated Grievance Contact.',
           '• Right to Nominate: Nominate another individual to exercise your rights in the event of death or incapacity.',
-          'To exercise any of these rights, visit our in-app Privacy Center or email privacy@interviewbro.ai.'
+          'To exercise any of these rights, visit our in-app Privacy Center for instant self-service export and deletion, or submit an inquiry to our designated privacy channel [OWNER ACTION REQUIRED: Monitored contact email, e.g. privacy@interviewbro.ai].'
         ]
       }
     ]
@@ -419,8 +423,10 @@ export const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
       {
         heading: '1. Customer Support & General Inquiries',
         content: [
-          'For technical issues, voice test diagnostics, bug reports, or feedback regarding our mock interview blueprints, reach out to our team:',
-          '• General Support Email: support@interviewbro.ai',
+          'For technical issues, voice test diagnostics, bug reports, or feedback regarding our mock interview blueprints:',
+          '• Primary In-App Channel: In-App Privacy Center & Account Settings (instant self-service data management)',
+          '• Project Repository: GitHub project repository issue tracker',
+          '• General Support Email: [OWNER ACTION REQUIRED: Designate and publish verified support email address, e.g. support@interviewbro.ai once provisioned]',
           '• Response Time: We endeavor to respond to technical inquiries within two (2) business days.'
         ]
       },
@@ -430,20 +436,20 @@ export const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
           'Under the Digital Personal Data Protection Act, 2023, you have the right to request access to, correction of, or erasure of your personal data.',
           'How to Submit a Request:',
           '• Self-Service (Instant): Use our in-app Privacy Center to download your complete data archive in JSON format or delete your account with one click.',
-          '• Email Request: Email privacy@interviewbro.ai with the subject line "DPDP Data Rights Request". Please send the email from the address associated with your InterviewBro AI account for identity verification.',
+          '• Email Request: Submit request to [OWNER ACTION REQUIRED: Monitored privacy email, e.g. privacy@interviewbro.ai] with the subject line "DPDP Data Rights Request". Please send the inquiry from the address associated with your InterviewBro AI account for identity verification.',
           '• Processing Time: Data access and correction requests are processed within thirty (30) days of receipt.'
         ]
       },
       {
         heading: '3. Statutory Grievance Redressal Officer (India)',
         content: [
-          'In accordance with the Information Technology Act, 2000 and the Digital Personal Data Protection Act, 2023, the designated Grievance Redressal Officer for InterviewBro AI is:',
-          '• Name: [Grievance Officer Name / Legal Representative]',
-          '• Designation: Head of Data Protection & Regulatory Compliance',
-          '• Entity: [InterviewBro AI Technologies Private Limited / Platform Operating Entity]',
-          '• Address: [Prestige Tech Park, Outer Ring Road, Bengaluru, Karnataka - 560103, India]',
-          '• Grievance Email: grievance@interviewbro.ai',
-          '• Acknowledgement: Grievances will be acknowledged within 48 hours and resolved within thirty (30) days as stipulated under applicable rules.'
+          'In accordance with the Information Technology Act, 2000 and the Digital Personal Data Protection Act, 2023, the designated Grievance Contact for InterviewBro AI is:',
+          '• Operator / Responsible Person: Individual Developer / Platform Operator [OWNER ACTION REQUIRED: Name of designated Grievance Officer / Responsible Individual]',
+          '• Capacity / Role: Platform Operator / Candidate Privacy Contact [OWNER ACTION REQUIRED: Confirm statutory designation]',
+          '• Operating Entity: Educational platform operated by an individual developer [OWNER ACTION REQUIRED: Registered Entity / Business Name upon incorporation]',
+          '• Physical Communication Address: [OWNER ACTION REQUIRED: Specify physical communication address in India for statutory notices]',
+          '• Grievance Redressal Channel: In-App Privacy Center or [OWNER ACTION REQUIRED: Monitored grievance email, e.g. grievance@interviewbro.ai]',
+          '• Timelines: Grievances will be acknowledged within 48 hours and resolved within thirty (30) days as stipulated under applicable statutory guidelines.'
         ]
       }
     ]

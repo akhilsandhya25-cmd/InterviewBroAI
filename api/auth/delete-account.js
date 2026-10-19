@@ -135,7 +135,11 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Account and associated records have been successfully purged.',
+      recordsPurged: true,
+      authAccountDeleted: adminDeleted,
+      message: adminDeleted
+        ? 'Account credentials and all associated database records have been permanently deleted.'
+        : 'All candidate data, profiles, sessions, and reports were permanently erased from database. Complete GoTrue authentication user removal requires SUPABASE_SERVICE_ROLE_KEY to be configured on the server environment.',
       userId: targetUserId,
       adminPurged: adminDeleted
     });

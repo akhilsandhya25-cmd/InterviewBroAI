@@ -1,6 +1,7 @@
 // =========================================================================
 // Web Speech API Service (STT & TTS) for Voice-First Interview Engine
 // =========================================================================
+import { storage } from './storage';
 
 export interface SpeechRecognitionService {
   isSupported: boolean;
@@ -508,6 +509,17 @@ class NaturalTTS {
    */
   public async speak(text: string, options: TTSOptions = {}): Promise<void> {
     this.stop(); // Stop any pending utterances or audio
+
+    // Check candidate privacy preferences: if voice synthesis is silenced, exit immediately
+    try {
+      const prefs = storage.getPrivacyPreferences();
+      if (prefs.voiceSynthesisEnabled === false || prefs.allowVoiceSimulation === false) {
+        if (options.onEnd) options.onEnd();
+        return;
+      }
+    } catch {
+      // Proceed if preference lookup is unavailable
+    }
 
     const cleaned = this.sanitizeTextForSpeech(text);
     if (!cleaned) {

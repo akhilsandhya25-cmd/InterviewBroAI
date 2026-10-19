@@ -161,13 +161,27 @@ export const storage = {
     // Attach user ownership
     session.userId = uid;
 
+    // Check candidate privacy preferences for Ephemeral Practice Mode (Zero Transcript Retention)
+    const prefs = this.getPrivacyPreferences(uid);
+    let sessionToSave = session;
+    if (prefs.ephemeralPracticeMode) {
+      sessionToSave = {
+        ...session,
+        questions: (session.questions || []).map(q => ({
+          ...q,
+          userAnswer: '[Scrubbed under Ephemeral Practice Mode]',
+          transcript: '[Scrubbed under Ephemeral Practice Mode]'
+        }))
+      };
+    }
+
     try {
       const sessions = this.getSessions(uid);
-      const index = sessions.findIndex(s => s.id === session.id);
+      const index = sessions.findIndex(s => s.id === sessionToSave.id);
       if (index >= 0) {
-        sessions[index] = session;
+        sessions[index] = sessionToSave;
       } else {
-        sessions.unshift(session);
+        sessions.unshift(sessionToSave);
       }
       localStorage.setItem(`interviewbro_sessions_${uid}`, JSON.stringify(sessions));
 
@@ -176,17 +190,17 @@ export const storage = {
         supabase
           .from('interview_sessions')
           .upsert({
-            id: session.id,
+            id: sessionToSave.id,
             user_id: uid,
-            title: session.title,
-            config: session.config,
-            status: session.status,
-            started_at: session.startedAt,
-            completed_at: session.completedAt || null,
-            elapsed_seconds: session.elapsedSeconds || 0,
-            current_question_index: session.currentQuestionIndex || 0,
-            questions: session.questions || [],
-            feedback_report: session.feedbackReport || null
+            title: sessionToSave.title,
+            config: sessionToSave.config,
+            status: sessionToSave.status,
+            started_at: sessionToSave.startedAt,
+            completed_at: sessionToSave.completedAt || null,
+            elapsed_seconds: sessionToSave.elapsedSeconds || 0,
+            current_question_index: sessionToSave.currentQuestionIndex || 0,
+            questions: sessionToSave.questions || [],
+            feedback_report: sessionToSave.feedbackReport || null
           })
           .then(({ error }: any) => {
             handleCloudStorageError('saveSession', error);
@@ -482,6 +496,10 @@ export const storage = {
   getPrivacyPreferences(userId?: string | null): PrivacyPreferences {
     const uid = userId || this.getActiveUserId();
     const defaultPrefs: PrivacyPreferences = {
+      voiceSynthesisEnabled: true,
+      ephemeralPracticeMode: false,
+      analyticsOptIn: false,
+      // Legacy compatibility mirrors
       saveTranscriptsLocally: true,
       allowVoiceSimulation: true,
       optInAnonymousDiagnostics: false,
@@ -490,7 +508,31 @@ export const storage = {
     try {
       const raw = localStorage.getItem(`interviewbro_privacy_prefs_${uid}`);
       if (!raw) return defaultPrefs;
-      return { ...defaultPrefs, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      
+      // Ensure sync between legacy and new explicit settings
+      const voiceEnabled = typeof parsed.voiceSynthesisEnabled === 'boolean'
+        ? parsed.voiceSynthesisEnabled
+        : (typeof parsed.allowVoiceSimulation === 'boolean' ? parsed.allowVoiceSimulation : true);
+
+      const ephemeral = typeof parsed.ephemeralPracticeMode === 'boolean'
+        ? parsed.ephemeralPracticeMode
+        : (parsed.saveTranscriptsLocally === false ? true : false);
+
+      const analytics = typeof parsed.analyticsOptIn === 'boolean'
+        ? parsed.analyticsOptIn
+        : (typeof parsed.optInAnonymousDiagnostics === 'boolean' ? parsed.optInAnonymousDiagnostics : false);
+
+      return {
+        ...defaultPrefs,
+        ...parsed,
+        voiceSynthesisEnabled: voiceEnabled,
+        ephemeralPracticeMode: ephemeral,
+        analyticsOptIn: analytics,
+        allowVoiceSimulation: voiceEnabled,
+        saveTranscriptsLocally: !ephemeral,
+        optInAnonymousDiagnostics: analytics
+      };
     } catch {
       return defaultPrefs;
     }
@@ -506,6 +548,26 @@ export const storage = {
       ...current,
       ...prefs
     };
+
+    // Keep legacy mirrors in sync
+    if (typeof prefs.voiceSynthesisEnabled === 'boolean') {
+      updated.allowVoiceSimulation = prefs.voiceSynthesisEnabled;
+    } else if (typeof prefs.allowVoiceSimulation === 'boolean') {
+      updated.voiceSynthesisEnabled = prefs.allowVoiceSimulation;
+    }
+
+    if (typeof prefs.ephemeralPracticeMode === 'boolean') {
+      updated.saveTranscriptsLocally = !prefs.ephemeralPracticeMode;
+    } else if (typeof prefs.saveTranscriptsLocally === 'boolean') {
+      updated.ephemeralPracticeMode = !prefs.saveTranscriptsLocally;
+    }
+
+    if (typeof prefs.analyticsOptIn === 'boolean') {
+      updated.optInAnonymousDiagnostics = prefs.analyticsOptIn;
+    } else if (typeof prefs.optInAnonymousDiagnostics === 'boolean') {
+      updated.analyticsOptIn = prefs.optInAnonymousDiagnostics;
+    }
+
     try {
       localStorage.setItem(`interviewbro_privacy_prefs_${uid}`, JSON.stringify(updated));
       if (typeof window !== 'undefined') {

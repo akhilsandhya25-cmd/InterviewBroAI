@@ -349,7 +349,9 @@ authRouter.post('/delete-account', requireAuth, async (req: AuthenticatedRequest
 
     return res.json({
       success: true,
-      message: 'Account and associated records have been permanently erased.'
+      recordsPurged: true,
+      authAccountDeleted: false,
+      message: 'Account records have been permanently erased from database.'
     });
   } catch (err: any) {
     console.error('[Auth Route] Delete account error:', err);

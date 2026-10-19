@@ -70,6 +70,27 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
     }
   };
 
+  const renderLegalText = (text: string) => {
+    if (!text.includes('[OWNER ACTION REQUIRED')) {
+      return text;
+    }
+    const parts = text.split(/(\[OWNER ACTION REQUIRED[^\]]*\])/g);
+    return (
+      <>
+        {parts.map((part, idx) => {
+          if (part.startsWith('[OWNER ACTION REQUIRED')) {
+            return (
+              <span key={idx} className="inline-block px-1.5 py-0.5 my-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300 font-medium text-[11px]">
+                {part}
+              </span>
+            );
+          }
+          return part;
+        })}
+      </>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#080b11] text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -151,9 +172,9 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-3">
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="font-semibold text-white">Notice for Platform Owner & Legal Counsel</p>
+            <p className="font-semibold text-white">Notice: Operational Status & Governance Baseline</p>
             <p className="text-slate-300 text-[11px] leading-relaxed">
-              These documents are structured in full compliance with the Digital Personal Data Protection Act, 2023 and the Digital Personal Data Protection Rules, 2025. Placeholders enclosed in brackets (e.g. <code className="bg-amber-950/60 px-1 py-0.5 rounded text-amber-300">[Entity Name]</code>, <code className="bg-amber-950/60 px-1 py-0.5 rounded text-amber-300">[Grievance Officer Name]</code>) should be populated with your registered business information prior to commercial rollout.
+              InterviewBro AI is an educational technology simulation platform operated by an individual developer. It is not currently incorporated as a corporate entity (Private Limited Company, LLP, or partnership). These documents establish our statutory baseline under the Digital Personal Data Protection Act, 2023. Operational items flagged with <code className="bg-amber-950/60 px-1 py-0.5 rounded text-amber-300 font-mono">[OWNER ACTION REQUIRED]</code> designate verified details (such as communication address and monitored email channels) to be finalized before commercial deployment.
             </p>
           </div>
         </div>
@@ -287,7 +308,7 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
 
                     {section.content.map((p, pIdx) => (
                       <p key={pIdx} className="text-slate-300 leading-relaxed">
-                        {p}
+                        {renderLegalText(p)}
                       </p>
                     ))}
 
@@ -302,7 +323,7 @@ export const LegalCenterPage: React.FC<LegalCenterPageProps> = ({
                               {sub.bullets.map((bullet, bIdx) => (
                                 <li key={bIdx} className="flex items-start gap-2">
                                   <div className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0 mt-1.5" />
-                                  <span>{bullet}</span>
+                                  <span>{renderLegalText(bullet)}</span>
                                 </li>
                               ))}
                             </ul>

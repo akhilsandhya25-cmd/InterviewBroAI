@@ -226,15 +226,55 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
           </div>
         </div>
 
-        {/* Purpose-Specific Privacy Choices & Consents */}
+        {/* Essential Core Service Processing Disclosure */}
+        <div className="p-6 rounded-3xl bg-[#0c111c] border border-slate-800 space-y-4">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                <Lock className="w-4 h-4 text-violet-400" />
+                <span>Core Service Processing (Essential / Contractual Basis)</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                These processing activities are necessary to deliver your AI mock interview practice sessions and evaluate candidate performance.
+              </p>
+            </div>
+            <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 shrink-0">
+              Contractual / Active
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-1">
+              <div className="font-semibold text-slate-200 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Answer Evaluation & STAR Rubric Scoring</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Processes your spoken or typed answer to compute accuracy, structure, and communication feedback for each practice question.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-1">
+              <div className="font-semibold text-slate-200 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Candidate Profile & Role Adaptation</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Calibrates interview difficulty and question selection based on your target role, experience level, and listed skills.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Purpose-Specific Optional Candidate Controls */}
         <div className="p-6 rounded-3xl bg-[#0c111c] border border-slate-800 space-y-6">
           <div className="border-b border-slate-800/80 pb-4">
             <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Purpose-Specific Processing Consents</span>
+              <span>Optional Candidate Privacy Preferences</span>
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Manage your optional preferences under Section 6 of the DPDP Act 2023. You can toggle these choices at any time.
+              Configure optional choices under Section 6 of the DPDP Act 2023. You can toggle these preferences at any time.
             </p>
           </div>
 
@@ -247,69 +287,75 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
 
           <div className="space-y-4">
             
-            {/* Toggle 1: Save Transcripts */}
+            {/* Toggle 1: Ephemeral Practice Mode (Zero Transcript Retention) */}
             <div className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
               <div className="space-y-1">
                 <div className="text-xs font-bold text-white flex items-center gap-2">
-                  <span>Persist Interview Transcripts for Progress Analytics</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/10 text-violet-300 border border-violet-500/20">
-                    Recommended
+                  <span>Ephemeral Practice Mode (Zero Transcript Retention)</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                    Opt-In (Unselected by Default)
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 max-w-xl leading-relaxed">
-                  Allows the platform to store your spoken answer transcripts so you can review previous attempts, inspect model answers, and track your interview readiness over time.
+                  When enabled, your spoken and typed answer transcripts are automatically scrubbed and omitted before saving to your session history. Your feedback scores are preserved, but transcript text is never retained.
                 </p>
               </div>
 
               <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
                 <input
                   type="checkbox"
-                  checked={preferences.saveTranscriptsLocally}
-                  onChange={(e) => handleTogglePref('saveTranscriptsLocally', e.target.checked)}
+                  checked={preferences.ephemeralPracticeMode}
+                  onChange={(e) => handleTogglePref('ephemeralPracticeMode', e.target.checked)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
               </label>
             </div>
 
-            {/* Toggle 2: Speech Recognition & Voice */}
+            {/* Toggle 2: AI Interviewer Voice Synthesis (TTS) */}
             <div className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
               <div className="space-y-1">
                 <div className="text-xs font-bold text-white flex items-center gap-2">
-                  <span>Enable Browser Voice & Microphone Simulation</span>
+                  <span>AI Interviewer Voice Synthesis (TTS)</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/10 text-violet-300 border border-violet-500/20">
+                    Voice Practice
+                  </span>
                 </div>
                 <p className="text-[11px] text-slate-400 max-w-xl leading-relaxed">
-                  Enables the interviewer to read questions out loud using browser speech synthesis and accepts spoken candidate answers via browser speech-to-text.
+                  Allows the AI interviewer to speak questions aloud using browser speech synthesis or ElevenLabs. When disabled, the AI interviewer is silenced for quiet reading practice.
                 </p>
               </div>
 
               <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
                 <input
                   type="checkbox"
-                  checked={preferences.allowVoiceSimulation}
-                  onChange={(e) => handleTogglePref('allowVoiceSimulation', e.target.checked)}
+                  checked={preferences.voiceSynthesisEnabled}
+                  onChange={(e) => handleTogglePref('voiceSynthesisEnabled', e.target.checked)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
               </label>
             </div>
 
-            {/* Toggle 3: Diagnostics */}
+            {/* Toggle 3: Anonymous Platform Analytics */}
             <div className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
               <div className="space-y-1">
-                <div className="text-xs font-bold text-white">
-                  <span>Opt-In to Anonymous Diagnostic Error Logs</span>
+                <div className="text-xs font-bold text-white flex items-center gap-2">
+                  <span>Anonymous Platform Analytics</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+                    Zero Trackers Active
+                  </span>
                 </div>
                 <p className="text-[11px] text-slate-400 max-w-xl leading-relaxed">
-                  Permits anonymous error logs (browser crashes, network failures) without identifying account details to help improve platform stability.
+                  Permits anonymous error logs without identifying account credentials to help improve platform stability. Note: InterviewBro AI uses zero advertising cookies and zero third-party marketing pixels.
                 </p>
               </div>
 
               <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
                 <input
                   type="checkbox"
-                  checked={preferences.optInAnonymousDiagnostics}
-                  onChange={(e) => handleTogglePref('optInAnonymousDiagnostics', e.target.checked)}
+                  checked={preferences.analyticsOptIn}
+                  onChange={(e) => handleTogglePref('analyticsOptIn', e.target.checked)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
@@ -331,24 +377,16 @@ export const PrivacyCenterPage: React.FC<PrivacyCenterPageProps> = ({ onNavigate
             <span>DPDP Grievance Redressal & Right to Correction</span>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Need to correct inaccurate personal data, withdraw statutory consent, or report an unresolved privacy concern? As mandated by the DPDP Act 2023, our designated Grievance Officer responds within statutory timelines.
+            InterviewBro AI is operated by an individual developer as an educational platform. Under the Digital Personal Data Protection Act, 2023, you have the right to grievance redressal, correction, and erasure. All data export and account erasure requests can be completed instantly using the self-service controls above and below.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-1">
-            <a
-              href={`mailto:grievance@interviewbro.ai?subject=%5BDPDP%20Request%5D%20Data%20Access%20or%20Correction%20-${encodeURIComponent(user?.email || 'Candidate')}`}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 flex items-center justify-center gap-2 transition-colors"
-            >
-              <Mail className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Email Grievance Officer (grievance@interviewbro.ai)</span>
-            </a>
-
             <button
               onClick={() => onNavigate('legal:contact')}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 flex items-center justify-center gap-2 transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 flex items-center justify-center gap-2 transition-colors"
             >
-              <FileText className="w-3.5 h-3.5 text-slate-400" />
-              <span>View Statutory Contact Notice</span>
+              <FileText className="w-3.5 h-3.5 text-cyan-400" />
+              <span>View Statutory Contact Notice & Operator Details</span>
             </button>
           </div>
         </div>
