@@ -60,7 +60,7 @@ interface InterviewSetupProps {
 }
 
 export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavigate }) => {
-  const { quota } = useAuth();
+  const { user, quota } = useAuth();
   const { startNewSession, isGeneratingQuestions } = useInterview();
 
   // Lazily warm up browser speech synthesis tables while user configures options
@@ -71,8 +71,17 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
   // Selected state
   const [selectedPresetId, setSelectedPresetId] = useState<string>('flipkart');
   const [customCompany, setCustomCompany] = useState<string>('');
-  const [role, setRole] = useState<string>('Full Stack Developer (React + Node)');
-  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>('fresher');
+  const [role, setRole] = useState<string>(() => user?.role_target || 'Full Stack Developer (React + Node)');
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>(() => user?.experience_level || 'fresher');
+
+  useEffect(() => {
+    if (user?.role_target) {
+      setRole(user.role_target);
+    }
+    if (user?.experience_level) {
+      setExperienceLevel(user.experience_level);
+    }
+  }, [user?.role_target, user?.experience_level]);
   const [interviewType, setInterviewType] = useState<InterviewType>('mixed');
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
   const [questionCount, setQuestionCount] = useState<number>(3);

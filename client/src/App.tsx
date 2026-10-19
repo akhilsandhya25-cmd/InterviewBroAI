@@ -18,6 +18,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import { IntroSplashAnimation } from './components/IntroSplashAnimation';
 import { Shield, Lock, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { BrandIcon } from './components/brand/BrandIcon';
+import { storage } from './services/storage';
+import { UserProfile } from './types';
 
 const PROTECTED_ROUTES = new Set([
   'dashboard',
@@ -81,12 +83,24 @@ const AppContent: React.FC = () => {
     };
   }, []);
 
+  // Determine if candidate has completed their onboarding profile
+  const isProfileComplete = (u: UserProfile | null): boolean => {
+    if (!u) return false;
+    if (u.profile_completed === true) return true;
+    if (u.profile_completed === false) return false;
+    return Boolean(u.role_target && u.role_target.trim().length > 0 && u.skills && u.skills.length > 0);
+  };
+
   // Once auth is resolved, set initial route
   useEffect(() => {
     if (!isLoading) {
       if (isAuthenticated) {
-        // If logged in and on landing page, move to dashboard
-        if (currentRoute === 'landing') {
+        // If logged in but candidate profile is not complete, direct them to profile setup
+        if (!isProfileComplete(user)) {
+          if (currentRoute !== 'profile') {
+            setCurrentRoute('profile');
+          }
+        } else if (currentRoute === 'landing') {
           setCurrentRoute('dashboard');
         }
       } else {
@@ -96,7 +110,7 @@ const AppContent: React.FC = () => {
         }
       }
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, user]);
 
   const navigateTo = (route: string) => {
     // If route is protected and user is not authenticated, open auth modal and preserve intended destination
@@ -107,11 +121,22 @@ const AppContent: React.FC = () => {
       return;
     }
 
+    // Gate interview practice: candidate must complete profile before starting mock interview practice
+    if (isAuthenticated && !isProfileComplete(user) && (route === 'setup' || route === 'interview')) {
+      setCurrentRoute('profile');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setCurrentRoute(route);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleStartPreset = (_presetId: string) => {
+    if (isAuthenticated && !isProfileComplete(user)) {
+      navigateTo('profile');
+      return;
+    }
     navigateTo('setup');
   };
 
@@ -120,6 +145,8 @@ const AppContent: React.FC = () => {
       setPendingRoute('setup');
       setAuthModalMode('signup');
       setIsAuthModalOpen(true);
+    } else if (!isProfileComplete(user)) {
+      navigateTo('profile');
     } else {
       navigateTo('setup');
     }
@@ -132,6 +159,12 @@ const AppContent: React.FC = () => {
 
   const handleAuthSuccess = () => {
     setIsAuthModalOpen(false);
+    const currentUser = storage.getUser();
+    if (!isProfileComplete(currentUser)) {
+      setCurrentRoute('profile');
+      setPendingRoute(null);
+      return;
+    }
     if (pendingRoute) {
       setCurrentRoute(pendingRoute);
       setPendingRoute(null);
@@ -259,7 +292,7 @@ const AppContent: React.FC = () => {
       case 'history':
         return <HistoryPage onNavigate={navigateTo} />;
       case 'profile':
-        return <ProfilePage />;
+        return <ProfilePage onNavigate={navigateTo} />;
       case 'pricing':
         return <PricingPage onNavigate={navigateTo} />;
       case 'settings':

@@ -21,6 +21,7 @@ export interface UserProfile {
   career_goals?: string;
   interviews_remaining: number;
   total_interviews_taken: number;
+  profile_completed?: boolean;
   created_at: string;
   updated_at: string;
 }

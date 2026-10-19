@@ -140,11 +140,15 @@ export default async function handler(req, res) {
       id: data.id || data.user?.id || `usr-${Date.now()}`,
       email: data.email || cleanEmail,
       full_name: data.user_metadata?.full_name || cleanFullName,
-      role_target: 'Full Stack Developer',
+      role_target: '',
       experience_level: 'fresher',
-      skills: ['JavaScript', 'React', 'Problem Solving'],
+      college: '',
+      graduation_year: '',
+      skills: [],
+      career_goals: '',
       interviews_remaining: 9999,
       total_interviews_taken: 0,
+      profile_completed: false,
       created_at: data.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

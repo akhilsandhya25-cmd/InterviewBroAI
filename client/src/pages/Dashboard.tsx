@@ -110,7 +110,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
                 Welcome back, {user?.full_name || 'Candidate'}!
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
-                Targeting: <strong className="text-slate-200">{user?.role_target || 'Full Stack Developer'}</strong> • Track your performance metrics, identify skill gaps, and practice under realistic conditions.
+                Targeting: {user?.role_target ? (
+                  <strong className="text-slate-200">{user.role_target}</strong>
+                ) : (
+                  <button onClick={() => onNavigate('profile')} className="text-amber-400 hover:text-amber-300 font-semibold underline">
+                    Set Target Role →
+                  </button>
+                )} • Track your performance metrics, identify skill gaps, and practice under realistic conditions.
               </p>
             </div>
           </div>
@@ -133,6 +139,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
           </div>
         </div>
       </div>
+
+      {/* Onboarding Profile Alert */}
+      {(!user?.profile_completed || !user?.role_target) && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-xs sm:text-sm font-bold text-white">Action Required: Complete Your Candidate Profile</h3>
+              <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5">
+                Set your target job role and skills so your AI interviewer can customize realistic interview questions.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigate('profile')}
+            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors whitespace-nowrap flex items-center justify-center gap-1.5 shadow"
+          >
+            <span>Complete Profile Now</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Active Session Alert (if interview in progress) */}
       {activeSession && activeSession.status === 'in_progress' && (
