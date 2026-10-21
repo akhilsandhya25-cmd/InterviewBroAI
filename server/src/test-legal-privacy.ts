@@ -118,7 +118,105 @@ async function runLegalPrivacyTests() {
 
   assert(statusCode === 401, `Invalid or forged auth token strictly rejected with HTTP 401 (got HTTP ${statusCode})`);
 
-  console.log('\n🎉 ALL LEGAL, PRIVACY, AI TRANSPARENCY, & IDOR AUDIT TESTS PASSED!\n');
+  // 6. Testing Mandatory Service Role Key Guard on Account Erasure
+  console.log('\n6. Testing Mandatory SUPABASE_SERVICE_ROLE_KEY Guard on Account Erasure:');
+  const origKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const originalFetch = global.fetch;
+  try {
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // Mock token verification to simulate an authenticated caller
+    global.fetch = async (url: any, opts: any) => {
+      if (typeof url === 'string' && url.includes('/auth/v1/user')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ id: 'verified-test-user-id', email: 'test@example.com' })
+        } as any;
+      }
+      return originalFetch(url, opts);
+    };
+
+    let testStatus = 0;
+    let testData: any = null;
+    const testRes = {
+      setHeader: () => {},
+      status: (code: number) => {
+        testStatus = code;
+        return {
+          json: (data: any) => {
+            testData = data;
+            return data;
+          }
+        };
+      }
+    };
+
+    await deleteHandler(
+      {
+        method: 'POST',
+        headers: { authorization: 'Bearer mock-valid-jwt' },
+        body: { userId: 'verified-test-user-id' }
+      } as any,
+      testRes as any
+    );
+
+    assert(testStatus === 500, `Expected HTTP 500 when SUPABASE_SERVICE_ROLE_KEY is missing, got ${testStatus}`);
+    assert(testData?.error === 'SERVICE_ROLE_KEY_MISSING', `Expected error code SERVICE_ROLE_KEY_MISSING, got ${testData?.error}`);
+    console.log('✅ Passed: Rejects deletion with HTTP 500 SERVICE_ROLE_KEY_MISSING when service role key is absent');
+  } finally {
+    global.fetch = originalFetch;
+    if (origKey !== undefined) {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = origKey;
+    }
+  }
+
+  // 7. Testing Environment & Health Validation
+  console.log('\n7. Testing Environment & Health Validation (/api/health):');
+  const indexModule = await import('../../api/index.js');
+  const validateEnv = indexModule.validateRequiredEnvironment;
+  assert(typeof validateEnv === 'function', 'validateRequiredEnvironment is exported as a function');
+
+  const envResult = validateEnv();
+  assert(Array.isArray(envResult.missingRequiredEnvVars), 'missingRequiredEnvVars is an array');
+  assert(typeof envResult.services === 'object', 'services is an object');
+  assert(typeof envResult.services.gemini === 'boolean', 'services.gemini is boolean');
+  assert(typeof envResult.services.supabase === 'boolean', 'services.supabase is boolean');
+  assert(typeof envResult.services.supabaseServiceRole === 'boolean', 'services.supabaseServiceRole is boolean');
+  assert(typeof envResult.services.elevenlabs === 'boolean', 'services.elevenlabs is boolean');
+  assert(typeof envResult.services.sentry === 'boolean', 'services.sentry is boolean');
+
+  // Verify health endpoint output
+  let healthStatus = 0;
+  let healthData: any = null;
+  const mockHealthRes = {
+    setHeader: () => {},
+    status: (code: number) => {
+      healthStatus = code;
+      return {
+        json: (data: any) => {
+          healthData = data;
+          return data;
+        }
+      };
+    }
+  };
+
+  await indexModule.default(
+    {
+      method: 'GET',
+      headers: {},
+      url: '/api/health'
+    } as any,
+    mockHealthRes as any
+  );
+
+  assert(healthStatus === 200, `Health check returned 200 (got ${healthStatus})`);
+  assert(Array.isArray(healthData.missingRequiredEnvVars), 'Health response contains missingRequiredEnvVars array');
+  assert(typeof healthData.services.supabaseServiceRole === 'boolean', 'Health response includes supabaseServiceRole boolean');
+  console.log('✅ Passed: Health check endpoint lists missing required env vars and service booleans without leaking secrets');
+
+  console.log('\n🎉 ALL LEGAL, PRIVACY, STATUTORY ERASURE, & HEALTH AUDIT TESTS PASSED!\n');
 
 }
 

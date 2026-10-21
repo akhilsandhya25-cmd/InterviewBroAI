@@ -2,12 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { authRouter } from './routes/auth.js';
-import { aiRouter } from './routes/ai.js';
-import { resumeRouter } from './routes/resume.js';
-import { voiceRouter } from './routes/voice.js';
 import { isGeminiConfigured } from './services/geminiService.js';
 import { elevenlabsService } from './services/elevenlabsService.js';
+// @ts-ignore - Unified Vercel serverless router (Single Source of Truth)
+import vercelHandler, { validateRequiredEnvironment } from '../../api/index.js';
 
 // Load environment configurations from root and server directories
 dotenv.config();
@@ -30,27 +28,23 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health Check
+// Health Check redirect
 app.get('/health', (_req, res) => {
   res.redirect('/api/health');
 });
 
-app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'InterviewBro AI Backend',
-    provider: 'Google Gemini',
-    isGeminiConfigured,
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString()
-  });
+// Unified Vercel Serverless Handler mounted on Express for local dev
+// Both local dev and production run through the exact same code
+app.all('/api/*', async (req: express.Request, res: express.Response) => {
+  try {
+    await vercelHandler(req, res);
+  } catch (err: any) {
+    console.error('Unified API Error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'SERVER_ERROR', message: err.message || 'Server error' });
+    }
+  }
 });
-
-// Mount Routes
-app.use('/api/auth', authRouter);
-app.use('/api/ai', aiRouter);
-app.use('/api/resume', resumeRouter);
-app.use('/api/voice', voiceRouter);
 
 // Global Error Handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -64,6 +58,21 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 InterviewBro AI Server listening on http://localhost:${PORT}`);
-  console.log(`🔑 Google Gemini Integration: ${isGeminiConfigured ? 'Active (GEMINI_API_KEY loaded)' : 'Offline / Local fallback mode (GEMINI_API_KEY not configured)'}`);
-  console.log(`🎙️ ElevenLabs Voice Integration: ${elevenlabsService.isConfigured() ? 'Active (ELEVENLABS_API_KEY loaded)' : 'Web Speech API automatic fallback mode'}`);
+
+  // Startup Environment & Configuration Validation
+  const envValidation = validateRequiredEnvironment();
+  console.log('\n--- Environment & Service Configuration Audit ---');
+  console.log(`🔑 Google Gemini (GEMINI_API_KEY): ${envValidation.services.gemini ? '✅ Configured' : '❌ MISSING (AI endpoints will return 503 AI_NOT_CONFIGURED)'}`);
+  console.log(`🗄️ Supabase Public API (SUPABASE_URL, ANON_KEY): ${envValidation.services.supabase ? '✅ Configured' : '❌ MISSING'}`);
+  console.log(`🛡️ Supabase Service Role (SUPABASE_SERVICE_ROLE_KEY): ${envValidation.services.supabaseServiceRole ? '✅ Configured (Full DPDP Right-to-Erasure Active)' : '⚠️ MISSING (Required for full auth user deletion under DPDP)'}`);
+  console.log(`🎙️ ElevenLabs Voice (ELEVENLABS_API_KEY): ${envValidation.services.elevenlabs ? '✅ Configured' : 'ℹ️ Not set (Using Web Speech API fallback)'}`);
+  console.log(`🚨 Sentry Error Monitoring (SENTRY_DSN): ${envValidation.services.sentry ? '✅ Configured' : 'ℹ️ Not set (Local safe logging mode)'}`);
+
+  if (!envValidation.valid) {
+    console.warn('\n⚠️ [STARTUP WARNING] Missing required environment variables:');
+    envValidation.missingRequiredEnvVars.forEach((v: string) => console.warn(`   - ${v}`));
+    console.warn('   Add these to .env.local or your Vercel project environment variables.\n');
+  } else {
+    console.log('✅ All required environment variables are configured.\n');
+  }
 });

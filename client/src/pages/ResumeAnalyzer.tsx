@@ -14,6 +14,7 @@ import { api } from '../services/api';
 import { storage } from '../services/storage';
 import { ResumeAnalysis } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { analyticsService } from '../services/analytics';
 
 interface ResumeAnalyzerProps {
   onStartWithResume: (resumeQuestions: string[]) => void;
@@ -74,9 +75,30 @@ export const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({ onStartWithResum
       storage.saveResume(analysis, user?.id);
       setResumes(storage.getResumes(user?.id));
       setActiveAnalysis(analysis);
+
+      // Track privacy-respecting resume upload (file extension & size only, ZERO file text)
+      analyticsService.trackResumeUploaded({
+        fileType: selectedFile.name.split('.').pop() || 'unknown',
+        sizeKb: selectedFile.size / 1024,
+        source: analysis.source || 'ai'
+      });
+
+      if (analysis.source === 'fallback') {
+        analyticsService.trackFallbackModeShown({ context: 'resume_analyzer' });
+      }
+
       setSelectedFile(null);
     } catch (e: any) {
-      setErrorMsg(e.message || 'Failed to analyze resume. Please try again.');
+      if (e.code === 'QUOTA_EXCEEDED' || e.status === 402) {
+        analyticsService.trackQuotaHit({ context: 'resume_analyzer' });
+        setErrorMsg('Free tier quota reached (5 of 5 sessions completed). Please upgrade your plan to unlock more resume reviews.');
+      } else if (e.code === 'RATE_LIMIT_EXCEEDED' || e.status === 429) {
+        setErrorMsg(e.message || 'Too many resume parse requests. Please wait a moment before trying again.');
+      } else if (e.code === 'UNAUTHORIZED' || e.status === 401) {
+        setErrorMsg('Authentication required. Please sign in or create an account to analyze your resume.');
+      } else {
+        setErrorMsg(e.message || 'Failed to analyze resume. Please try again.');
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -175,9 +197,28 @@ export const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({ onStartWithResum
         </div>
 
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{errorMsg}</span>
+          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{errorMsg}</span>
+            </div>
+            {errorMsg.includes('Free tier quota') || errorMsg.includes('quota') ? (
+              <button
+                type="button"
+                onClick={() => onNavigate('pricing')}
+                className="px-3 py-1 rounded-lg bg-[#C5F36B] text-[#080B11] font-bold text-[11px] shrink-0 hover:bg-[#b2e257] transition-colors"
+              >
+                Upgrade Plan
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setErrorMsg(null)}
+                className="text-[11px] underline text-rose-400 hover:text-rose-200"
+              >
+                Dismiss
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -185,6 +226,20 @@ export const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({ onStartWithResum
       {/* Active Resume Report Display */}
       {activeAnalysis ? (
         <div className="space-y-6">
+          {/* Demo Mode Banner */}
+          {(activeAnalysis.source === 'fallback' || activeAnalysis.atsScoreEstimate == null) && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-start sm:items-center gap-3 shadow-lg">
+              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+              <div className="text-xs space-y-0.5">
+                <div className="font-bold text-amber-200 text-sm">
+                  Demo mode: AI scoring unavailable. This is not a real evaluation.
+                </div>
+                <p className="text-[11px] text-amber-300/80">
+                  Live AI ATS calibration is currently offline or unreachable. Heuristic skill suggestions and interview questions are displayed for practice, but numeric match scoring is disabled to prevent arbitrary scores.
+                </p>
+              </div>
+            </div>
+          )}
           {/* Top Overview Cards */}
           <div className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>

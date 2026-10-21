@@ -1,7 +1,55 @@
 // =========================================================================
 // Web Speech API Service (STT & TTS) for Voice-First Interview Engine
+// Optimized for Mobile Chrome on Budget Android (4G/Wi-Fi)
 // =========================================================================
 import { storage } from './storage';
+
+/**
+ * Merge two transcript chunks, removing any duplicate overlapping words/phrases.
+ * Solves the infamous Android Chrome Web Speech API duplicate-result / repeat bug.
+ */
+export function mergeTranscriptChunks(persisted: string, incoming: string): string {
+  const p = (persisted || '').trim();
+  const n = (incoming || '').trim();
+  if (!p) return n;
+  if (!n) return p;
+
+  // Exact substring check: if persisted already ends with incoming, no-op
+  if (p.toLowerCase().endsWith(n.toLowerCase())) {
+    return p;
+  }
+
+  // If incoming contains persisted at the start, use incoming
+  if (n.toLowerCase().startsWith(p.toLowerCase())) {
+    return n;
+  }
+
+  const pWords = p.split(/\s+/);
+  const nWords = n.split(/\s+/);
+
+  // Look for overlapping suffix of p and prefix of n (up to 10 words)
+  const maxOverlap = Math.min(10, pWords.length, nWords.length);
+  let overlapCount = 0;
+
+  for (let len = maxOverlap; len >= 1; len--) {
+    const pSlice = pWords.slice(pWords.length - len).map(w => w.toLowerCase().replace(/[^\w]/g, ''));
+    const nSlice = nWords.slice(0, len).map(w => w.toLowerCase().replace(/[^\w]/g, ''));
+    if (pSlice.join(' ') === nSlice.join(' ')) {
+      overlapCount = len;
+      break;
+    }
+  }
+
+  if (overlapCount > 0) {
+    const nonOverlapping = nWords.slice(overlapCount);
+    if (nonOverlapping.length === 0) {
+      return p;
+    }
+    return `${p} ${nonOverlapping.join(' ')}`.trim();
+  }
+
+  return `${p} ${n}`.trim();
+}
 
 export interface SpeechRecognitionService {
   isSupported: boolean;
@@ -30,8 +78,28 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
   if (!SpeechRecognitionClass) {
     return {
       isSupported: false,
-      start: () => {},
-      startListening: () => {},
+      start: (_onTranscript, onError, onStatusChange) => {
+        if (onError) {
+          onError(
+            'not-supported',
+            'Speech recognition is not supported in this browser. Please use Chrome or type your answer using Text Mode.'
+          );
+        }
+        if (onStatusChange) {
+          onStatusChange('stopped');
+        }
+      },
+      startListening: (_onTranscript, onError, onStatusChange) => {
+        if (onError) {
+          onError(
+            'not-supported',
+            'Speech recognition is not supported in this browser. Please use Chrome or type your answer using Text Mode.'
+          );
+        }
+        if (onStatusChange) {
+          onStatusChange('stopped');
+        }
+      },
       stop: () => {},
       abort: () => {},
       isListening: () => false,
@@ -43,6 +111,7 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
   let activeRecognitionInstance: any = null;
   let shouldBeListening = false;
   let restartTimeoutId: any = null;
+  let consecutiveRestarts = 0;
 
   // Transcript aggregation buffers
   let persistedFinalTranscript = '';
@@ -81,6 +150,7 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
 
     rec.onstart = () => {
       console.log('[SpeechRecognition] onstart: microphone listener active and capturing audio');
+      consecutiveRestarts = 0;
       if (activeOnStatusChange) {
         activeOnStatusChange('listening');
       }
@@ -93,22 +163,27 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
       for (let i = 0; i < event.results.length; ++i) {
         const result = event.results[i];
         if (!result || !result[0]) continue;
-        const text = result[0].transcript || '';
+        const text = (result[0].transcript || '').trim();
+        if (!text) continue;
+
         if (result.isFinal) {
-          sessionFinal = (sessionFinal ? sessionFinal + ' ' : '') + text.trim();
+          sessionFinal = sessionFinal ? `${sessionFinal} ${text}` : text;
         } else {
-          interim = (interim ? interim + ' ' : '') + text.trim();
+          interim = interim ? `${interim} ${text}` : text;
         }
       }
 
       currentSessionFinalTranscript = sessionFinal;
       currentInterimTranscript = interim;
 
-      // Full transcript combines all previous cycles' finalized text + current cycle final
-      const fullTranscript = [persistedFinalTranscript, currentSessionFinalTranscript]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
+      // Merge persisted text and current session final using overlap deduplication
+      const combinedFinal = mergeTranscriptChunks(persistedFinalTranscript, currentSessionFinalTranscript);
+
+      // Full transcript displays finalized text + trailing live interim chunk
+      let fullTranscript = combinedFinal;
+      if (currentInterimTranscript) {
+        fullTranscript = mergeTranscriptChunks(combinedFinal, currentInterimTranscript);
+      }
 
       const isFinalResult = Boolean(currentSessionFinalTranscript && !currentInterimTranscript);
 
@@ -127,9 +202,10 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
       const err = event.error || 'unknown';
       console.log('[SpeechRecognition] onerror event:', err, event.message || '');
 
-      // Explicitly filter out non-fatal events like 'no-speech' and 'aborted'
+      // 'no-speech' and 'aborted' are normal lifecycle occurrences in mobile Chrome
+      // Mobile Chrome fires no-speech after ~8s of silence; onend will automatically handle restarting
       if (err === 'no-speech' || err === 'aborted') {
-        console.log(`[SpeechRecognition] Non-fatal notice: "${err}". Continuous listening preserved.`);
+        console.log(`[SpeechRecognition] Non-fatal pause event: "${err}". Continuous listening preserved.`);
         return;
       }
 
@@ -141,15 +217,18 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
         restartTimeoutId = null;
       }
 
+      const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
       let userMsg = 'Microphone speech capture encountered an error.';
       if (err === 'not-allowed') {
-        userMsg = 'Microphone permission was denied. Please allow microphone permissions in Microsoft Edge (lock/tune icon) or Windows Privacy Settings.';
+        userMsg = isMobile
+          ? 'Microphone permission was denied. Tap the lock/tune icon in Chrome\'s address bar > Permissions > Microphone > Allow. Or switch to Text Mode to type your answer.'
+          : 'Microphone permission was denied. Please allow microphone permissions in your browser address bar (lock icon) or system privacy settings, or switch to Text Mode to type your answer.';
       } else if (err === 'audio-capture') {
-        userMsg = 'No microphone was detected or your microphone is in exclusive use by another app (e.g. Teams, Zoom).';
+        userMsg = 'No microphone was detected or your microphone is in exclusive use by another app. Please switch to Text Mode or check your audio device.';
       } else if (err === 'network') {
-        userMsg = 'Network error occurred while connecting to browser speech recognition. Check your connection or switch to Text-Based Interview mode.';
+        userMsg = 'Network error occurred while connecting to browser speech recognition. Check your 4G/Wi-Fi connection or switch to Text Mode to continue.';
       } else if (err === 'service-not-allowed') {
-        userMsg = 'Speech recognition service is disabled or blocked in your browser or system settings.';
+        userMsg = 'Speech recognition service is disabled or blocked in your browser. Switch to Text Mode to type your response.';
       }
 
       if (activeOnError) {
@@ -163,13 +242,12 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
     rec.onend = () => {
       console.log('[SpeechRecognition] onend event fired. shouldBeListening =', shouldBeListening);
 
-      // Consolidate current session finals and trailing interim into persistedFinalTranscript
-      persistedFinalTranscript = [
-        persistedFinalTranscript,
-        currentSessionFinalTranscript,
-        currentInterimTranscript
-      ].filter(Boolean).join(' ').trim();
-      currentSessionFinalTranscript = '';
+      // Consolidate current session finals into persistedFinalTranscript with deduplication.
+      // Crucial fix for mobile Chrome: DO NOT commit incomplete interim into persistedFinalTranscript on internal restarts!
+      if (currentSessionFinalTranscript) {
+        persistedFinalTranscript = mergeTranscriptChunks(persistedFinalTranscript, currentSessionFinalTranscript);
+        currentSessionFinalTranscript = '';
+      }
       currentInterimTranscript = '';
 
       // If candidate is still in speaking mode, restart listener automatically
@@ -179,6 +257,11 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
         }
 
         if (restartTimeoutId) clearTimeout(restartTimeoutId);
+
+        // Budget Android phones on 4G need a slightly longer gap (350ms) to ensure previous audio session is released by OS HAL
+        const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const restartDelay = isMobile ? 350 : 200;
+
         restartTimeoutId = setTimeout(() => {
           if (!shouldBeListening) return;
           try {
@@ -188,7 +271,9 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
             activeRecognitionInstance.start();
           } catch (e: any) {
             console.warn('[SpeechRecognition] Auto-restart notice:', e?.message || e);
-            if (shouldBeListening) {
+            consecutiveRestarts++;
+            if (shouldBeListening && consecutiveRestarts < 5) {
+              const backoffDelay = restartDelay * Math.min(consecutiveRestarts, 3);
               restartTimeoutId = setTimeout(() => {
                 if (!shouldBeListening) return;
                 try {
@@ -200,10 +285,10 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
                   shouldBeListening = false;
                   if (activeOnStatusChange) activeOnStatusChange('stopped');
                 }
-              }, 300);
+              }, backoffDelay);
             }
           }
-        }, 150);
+        }, restartDelay);
       } else {
         if (activeOnStatusChange) {
           activeOnStatusChange('stopped');
@@ -224,6 +309,7 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
     activeOnError = onError;
     activeOnStatusChange = onStatusChange || null;
     shouldBeListening = true;
+    consecutiveRestarts = 0;
 
     // Safely stop or cancel any existing active recognition instance before creating a new one
     safelyDetachInstance();
@@ -247,7 +333,7 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
           onError('init_failed', retryErr.message || 'Speech recognition failed to initialize.');
           if (onStatusChange) onStatusChange('stopped');
         }
-      }, 200);
+      }, 250);
     }
   };
 
@@ -259,11 +345,12 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
       restartTimeoutId = null;
     }
 
-    persistedFinalTranscript = [
-      persistedFinalTranscript,
-      currentSessionFinalTranscript,
-      currentInterimTranscript
-    ].filter(Boolean).join(' ').trim();
+    // When explicitly stopped by candidate, consolidate session finals and any trailing interim text
+    let consolidated = mergeTranscriptChunks(persistedFinalTranscript, currentSessionFinalTranscript);
+    if (currentInterimTranscript) {
+      consolidated = mergeTranscriptChunks(consolidated, currentInterimTranscript);
+    }
+    persistedFinalTranscript = consolidated.trim();
     currentSessionFinalTranscript = '';
     currentInterimTranscript = '';
 
@@ -297,11 +384,11 @@ export const createSpeechRecognition = (): SpeechRecognitionService => {
   };
 
   const getLatestTranscript = (): string => {
-    return [
-      persistedFinalTranscript,
-      currentSessionFinalTranscript,
-      currentInterimTranscript
-    ].filter(Boolean).join(' ').trim();
+    let consolidated = mergeTranscriptChunks(persistedFinalTranscript, currentSessionFinalTranscript);
+    if (currentInterimTranscript) {
+      consolidated = mergeTranscriptChunks(consolidated, currentInterimTranscript);
+    }
+    return consolidated.trim();
   };
 
   const reset = () => {

@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import { useAuth } from './AuthContext';
 import confetti from 'canvas-confetti';
 import { releaseMediaStream, parseMicrophoneError, MicrophoneErrorInfo } from '../services/microphoneService';
+import { analyticsService } from '../services/analytics';
 
 interface InterviewContextType {
   activeSession: InterviewSession | null;
@@ -163,12 +164,9 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const startNewSession = async (config: InterviewConfig): Promise<boolean> => {
-    setIsGeneratingQuestions(false);
+    setIsGeneratingQuestions(true);
     setMediaError(null);
     try {
-      // Record session without blocking
-      decrementInterviewQuota();
-
       // Collect previously asked questions to enforce non-repetition across sessions
       const pastSessions = storage.getSessions(user?.id);
       const previousQuestions: string[] = [];
@@ -182,8 +180,8 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       });
 
-      // Synchronously generate instant, tailored initial questions in 0ms (under 0.5s transition target)
-      const instantQuestions = api.getInstantInitialQuestions(config, previousQuestions);
+      // Call serverless endpoint to consume quota atomically & generate questions
+      const aiQuestions = await api.generateQuestions(config, previousQuestions);
 
       const session: InterviewSession = {
         id: `sess-${Date.now()}`,
@@ -191,42 +189,28 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         title: `${config.companyName} ${config.role} Mock Interview`,
         config,
         status: 'in_progress',
-        questions: instantQuestions,
+        questions: aiQuestions && aiQuestions.length > 0 ? aiQuestions : api.getInstantInitialQuestions(config, previousQuestions),
         currentQuestionIndex: 0,
         startedAt: new Date().toISOString(),
         elapsedSeconds: 0
       };
 
-      // Activate session immediately so UI transitions without waiting for network or hardware
       storage.saveSession(session);
       setActiveSession(session);
       setCurrentQuestionIndex(0);
       setElapsedSeconds(0);
       setIsPaused(false);
 
-      // In the background, asynchronously enrich subsequent questions via Gemini without blocking
-      api.generateQuestions(config, previousQuestions)
-        .then((aiQuestions) => {
-          if (aiQuestions && aiQuestions.length > 0) {
-            setActiveSession((current) => {
-              if (!current || current.id !== session.id) return current;
-              // Retain current question (index 0) to avoid UI shifting, and enrich future questions
-              const currentIdx = current.currentQuestionIndex;
-              const mergedQuestions = [...current.questions];
-              for (let i = currentIdx + 1; i < current.questions.length && (i - currentIdx) < aiQuestions.length; i++) {
-                if (!mergedQuestions[i]?.candidateAnswer) {
-                  mergedQuestions[i] = aiQuestions[i];
-                }
-              }
-              const updated = { ...current, questions: mergedQuestions };
-              storage.saveSession(updated, user?.id);
-              return updated;
-            });
-          }
-        })
-        .catch((err) => {
-          console.warn('Background AI question generation non-fatal notice:', err);
-        });
+      // Track interview started
+      analyticsService.trackInterviewStarted({
+        category: config.interviewType,
+        difficulty: config.difficulty,
+        questionCount: session.questions.length
+      });
+
+      if (session.questions.some(q => q.source === 'fallback')) {
+        analyticsService.trackFallbackModeShown({ context: 'interview_session' });
+      }
 
       // Initialize media hardware concurrently in the background without blocking the room entry
       if (config.mode === 'text_only') {
@@ -289,8 +273,11 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error starting session:', err);
+      if (err?.code === 'QUOTA_EXCEEDED' || err?.status === 402 || String(err?.message || '').includes('QUOTA')) {
+        analyticsService.trackQuotaHit({ context: 'start_session_api' });
+      }
       return false;
     }
   };
@@ -359,7 +346,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           questionText: q.questionText,
           candidateAnswer: q.candidateAnswer!,
           category: q.category,
-          score: q.evaluation?.score
+          score: q.evaluation?.score ?? undefined
         }));
 
       const followUp = await api.generateFollowUp(
@@ -367,7 +354,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         currentQ.candidateAnswer, 
         activeSession.config,
         sessionQuestions,
-        currentQ.evaluation?.score,
+        (currentQ.evaluation?.score != null ? currentQ.evaluation.score : undefined),
         conversationHistory
       );
       if (followUp) {
@@ -441,6 +428,20 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       storage.saveReport(report, user?.id);
       setActiveSession(completedSession);
       setActiveReport(report);
+
+      // Track interview completion
+      analyticsService.trackInterviewCompleted({
+        category: activeSession.config.interviewType,
+        questionCount: activeSession.questions.length,
+        durationSeconds: elapsedSeconds,
+        source: report.source || 'ai'
+      });
+
+      // Quota is atomically incremented on session start by serverless /api/ai/questions
+      // Sync cloud state on completion to maintain PostgreSQL profile consistency
+      if (user?.id) {
+        storage.syncWithCloud(user.id);
+      }
 
       // Trigger celebratory confetti
       try {

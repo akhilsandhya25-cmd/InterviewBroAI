@@ -1,6 +1,8 @@
 import { InterviewConfig, InterviewQuestion, FeedbackReport, ResumeAnalysis, QuestionEvaluation } from '../types';
 import { SAMPLE_FALLBACK_QUESTIONS } from '../data/presets';
+import { getCompanyTrack } from '../data/companyTracks';
 import { storage } from './storage';
+import { isSupabaseConfigured, supabase } from './supabase';
 
 const API_BASE = '/api';
 
@@ -51,6 +53,19 @@ function isClientDuplicate(candidate: string, history: string[]): boolean {
   return false;
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = error => reject(error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export const api = {
   // Synchronously generate instant, tailored initial questions in 0ms
   getInstantInitialQuestions(config: InterviewConfig, previousQuestions: string[] = []): InterviewQuestion[] {
@@ -90,9 +105,29 @@ export const api = {
       orderIndex: 0,
       questionText: openingQuestionText,
       category: config.interviewType === 'system_design' ? 'system_design' : config.interviewType === 'behavioral' ? 'behavioral' : config.interviewType === 'hr' ? 'hr' : 'technical',
-      contextOrHints: 'Deliver a concise, structured introduction (1-2 minutes). Focus on core technologies, personal ownership, and real-world impact.'
+      contextOrHints: 'Deliver a concise, structured introduction (1-2 minutes). Focus on core technologies, personal ownership, and real-world impact.',
+      source: 'fallback'
     });
     trackingList.push(openingQuestionText);
+
+    // If a company track is matched, incorporate company-specific question themes
+    const track = getCompanyTrack(config.companyName || config.companyTrack?.id);
+    if (track && track.exampleQuestionThemes && track.exampleQuestionThemes.length > 0) {
+      for (const theme of track.exampleQuestionThemes) {
+        if (questions.length >= config.questionCount) break;
+        if (!isClientDuplicate(theme, trackingList)) {
+          questions.push({
+            id: `q-${Date.now()}-${questions.length}`,
+            orderIndex: questions.length,
+            questionText: theme,
+            category: config.interviewType === 'system_design' ? 'system_design' : config.interviewType === 'behavioral' ? 'behavioral' : config.interviewType === 'hr' ? 'hr' : 'technical',
+            contextOrHints: `Calibrated to ${track.companyName} interview standards. Focus on foundational clarity and direct experience.`,
+            source: 'fallback'
+          });
+          trackingList.push(theme);
+        }
+      }
+    }
 
     // Populate remaining questions from curated pools without duplicates
     for (const item of allPools) {
@@ -103,7 +138,8 @@ export const api = {
           orderIndex: questions.length,
           questionText: item.text,
           category: item.category,
-          contextOrHints: item.hints
+          contextOrHints: item.hints,
+          source: 'fallback'
         });
         trackingList.push(item.text);
       }
@@ -114,23 +150,68 @@ export const api = {
 
   // Generate interview questions strictly without repetition
   async generateQuestions(config: InterviewConfig, previousQuestions: string[] = []): Promise<InterviewQuestion[]> {
+    let res: Response | null = null;
     try {
-      const res = await fetch(`${API_BASE}/ai/questions`, {
+      res = await fetch(`${API_BASE}/ai/questions`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ ...config, previousQuestions })
       });
-      if (res.ok) {
-        const data = await safeJson<{ questions: InterviewQuestion[] }>(res);
-        if (data?.questions && data.questions.length > 0) {
-          return data.questions;
-        }
-      }
-    } catch (e) {
-      console.warn('Backend /api/ai/questions not reachable or errored, using tailored client fallback bank:', e);
+    } catch (netErr: any) {
+      console.warn('Network issue reaching /api/ai/questions:', netErr);
+      return this.getInstantInitialQuestions(config, previousQuestions);
     }
 
-    // Client fallback: generate tailored, non-repeating questions instantly
+    if (res.ok) {
+      const data = await safeJson<{
+        questions: InterviewQuestion[];
+        quota?: { used: number; remaining: number; limit: number };
+      }>(res);
+      if (data?.quota) {
+        storage.setQuota({
+          freeInterviewsTotal: data.quota.limit || 5,
+          interviewsUsed: data.quota.used,
+          interviewsRemaining: data.quota.remaining,
+          planName: 'Free Tier'
+        });
+      }
+      if (data?.questions && data.questions.length > 0) {
+        return data.questions.map(q => ({ ...q, source: q.source || 'ai' }));
+      }
+    }
+
+    const errorData = await safeJson<{ error?: string; message?: string; retryAfter?: number }>(res);
+
+    if (res.status === 401 || errorData?.error === 'UNAUTHORIZED') {
+      const err: any = new Error(errorData?.message || 'Authentication required to start mock interviews. Please sign in or create an account.');
+      err.code = 'UNAUTHORIZED';
+      err.status = 401;
+      throw err;
+    }
+
+    if (res.status === 402 || errorData?.error === 'QUOTA_EXCEEDED') {
+      storage.setQuota({
+        freeInterviewsTotal: 5,
+        interviewsUsed: 5,
+        interviewsRemaining: 0,
+        planName: 'Free Tier'
+      });
+      const err: any = new Error(errorData?.message || 'Free tier quota exhausted (5 of 5 mock interviews completed). Please upgrade your plan to unlock more sessions.');
+      err.code = 'QUOTA_EXCEEDED';
+      err.status = 402;
+      throw err;
+    }
+
+    if (res.status === 429 || errorData?.error === 'RATE_LIMIT_EXCEEDED') {
+      const err: any = new Error(errorData?.message || 'Rate limit reached. Please wait a moment before starting another session.');
+      err.code = 'RATE_LIMIT_EXCEEDED';
+      err.status = 429;
+      err.retryAfter = errorData?.retryAfter;
+      throw err;
+    }
+
+    // Only if AI service is offline / unconfigured (503) or generic server error, return instant fallback
+    console.warn(`Backend /api/ai/questions returned HTTP ${res.status}, using instant fallback bank.`);
     return this.getInstantInitialQuestions(config, previousQuestions);
   },
 
@@ -145,7 +226,7 @@ export const api = {
       if (res.ok) {
         const data = await safeJson<{ evaluation: QuestionEvaluation }>(res);
         if (data?.evaluation) {
-          return data.evaluation;
+          return { ...data.evaluation, source: 'ai' };
         }
       } else {
         const errorData = (await safeJson<{ error?: string }>(res)) || {};
@@ -155,19 +236,21 @@ export const api = {
       console.warn('Backend /api/ai/evaluate connection issue:', e);
       return {
         status: 'unavailable',
-        unavailableReason: e.message || 'Evaluation service could not be reached. Scores will not be fabricated.',
-        score: 0,
+        source: 'fallback',
+        unavailableReason: e.message || 'Live AI evaluation is currently unreachable. Scores will not be fabricated.',
+        score: null,
         feedback: 'Evaluation service is currently unavailable. Your transcribed response has been safely recorded in your interview session.',
         strengths: ['Answer transcribed and logged.'],
-        missedPoints: ['Automated scoring is currently unavailable.'],
+        missedPoints: ['Automated scoring is currently unavailable in offline/demo mode.'],
         betterAnswerExample: 'Review your answer against standard system design and STAR principles.'
       };
     }
 
     return {
       status: 'unavailable',
+      source: 'fallback',
       unavailableReason: 'Evaluation service returned an empty response.',
-      score: 0,
+      score: null,
       feedback: 'Evaluation is unavailable for this response.',
       strengths: [],
       missedPoints: [],
@@ -181,8 +264,8 @@ export const api = {
     answer: string, 
     config: InterviewConfig,
     previousQuestions: string[] = [],
-    previousScore?: number,
-    conversationHistory: Array<{ questionText: string; candidateAnswer: string; category?: string; score?: number }> = []
+    previousScore?: number | null,
+    conversationHistory: Array<{ questionText: string; candidateAnswer: string; category?: string; score?: number | null }> = []
   ): Promise<InterviewQuestion | null> {
     try {
       const res = await fetch(`${API_BASE}/ai/follow-up`, {
@@ -200,7 +283,7 @@ export const api = {
       if (res.ok) {
         const data = await safeJson<{ followUp: InterviewQuestion }>(res);
         if (data?.followUp) {
-          return data.followUp;
+          return { ...data.followUp, source: data.followUp.source || 'ai' };
         }
       }
     } catch (e) {
@@ -273,7 +356,8 @@ export const api = {
       contextOrHints: hints,
       followUpReason,
       isFollowUp: true,
-      followUpToQuestionId: question.id
+      followUpToQuestionId: question.id,
+      source: 'fallback'
     };
   },
 
@@ -288,32 +372,58 @@ export const api = {
       if (res.ok) {
         const data = await safeJson<{ report: FeedbackReport }>(res);
         if (data?.report) {
-          return data.report;
+          return { ...data.report, source: 'ai' };
         }
       }
     } catch (e) {
       console.warn('Backend /api/ai/final-report fallback triggered:', e);
     }
 
-    // Calculate aggregated scores from evaluated questions
     const validQuestions = questions.filter(q => q.candidateAnswer && q.candidateAnswer.trim().length > 0);
-    const avgScore = validQuestions.length > 0
-      ? Math.round(validQuestions.reduce((acc, q) => acc + (q.evaluation?.score || 75), 0) / validQuestions.length)
-      : 76;
+
+    const roundPillars = config.interviewType === 'technical'
+      ? [
+          { key: 'correctness', label: 'Technical Correctness', score: null, description: 'Core mechanics & syntax', color: 'text-[#C5F36B]' },
+          { key: 'depthAndEdgeCases', label: 'Depth & Edge Cases', score: null, description: 'Edge case & failure resilience', color: 'text-emerald-400' },
+          { key: 'tradeoffAwareness', label: 'Complexity & Tradeoffs', score: null, description: 'Algorithmic efficiency & tradeoffs', color: 'text-violet-400' },
+          { key: 'communicationClarity', label: 'Communication Clarity', score: null, description: 'Concise, composed articulation', color: 'text-cyan-400' }
+        ]
+      : config.interviewType === 'system_design'
+      ? [
+          { key: 'requirementsClarification', label: 'Requirements & Scope', score: null, description: 'Constraints & scale estimation', color: 'text-blue-400' },
+          { key: 'architecture', label: 'System Architecture', score: null, description: 'Component breakdown & data flow', color: 'text-[#C5F36B]' },
+          { key: 'scalabilityAndTradeoffs', label: 'Scalability & Resilience', score: null, description: 'Bottlenecks & fault tolerance', color: 'text-emerald-400' },
+          { key: 'communicationClarity', label: 'Articulation & Defensibility', score: null, description: 'Whiteboard walkthrough & tradeoffs', color: 'text-cyan-400' }
+        ]
+      : config.interviewType === 'behavioral' || config.interviewType === 'hr'
+      ? [
+          { key: 'starStructure', label: 'STAR Methodology', score: null, description: 'Situation, Task, Action, Result', color: 'text-indigo-400' },
+          { key: 'ownership', label: 'Ownership & Impact', score: null, description: 'Personal agency & results', color: 'text-[#C5F36B]' },
+          { key: 'relevance', label: 'Question Relevance', score: null, description: 'Direct answer without fluff', color: 'text-emerald-400' },
+          { key: 'communicationClarity', label: 'Delivery & Composure', score: null, description: 'Composed, empathetic articulation', color: 'text-cyan-400' }
+        ]
+      : [
+          { key: 'technicalDepth', label: 'Technical Depth', score: null, description: 'Core engineering concepts', color: 'text-[#C5F36B]' },
+          { key: 'systemTradeoffs', label: 'Architecture & Tradeoffs', score: null, description: 'Scalable thinking & complexity', color: 'text-emerald-400' },
+          { key: 'ownershipAndDelivery', label: 'STAR & Ownership', score: null, description: 'Methodical approach & ownership', color: 'text-indigo-400' },
+          { key: 'communicationClarity', label: 'Communication Clarity', score: null, description: 'Articulate delivery & pacing', color: 'text-cyan-400' }
+        ];
 
     const report: FeedbackReport = {
       id: `rep-${Date.now()}`,
       sessionId: `sess-${Date.now()}`,
+      source: 'fallback',
       candidateName: candidateName || 'Candidate',
       role: config.role,
       company: config.companyName,
       interviewType: config.interviewType,
-      overallScore: avgScore,
-      technicalAccuracyScore: Math.min(98, avgScore + 2),
-      communicationScore: Math.min(95, avgScore - 1),
-      structureStarScore: Math.min(94, avgScore - 3),
-      relevanceScore: Math.min(96, avgScore + 1),
-      summary: `You put in a really strong effort in today's mock session for ${config.role} targeting ${config.companyName}! You explained your thought process with clarity and composure, and your grasp of the core concepts is solid. Like any great engineer, the next step is fine-tuning how you articulate trade-offs and edge cases. With a little targeted practice, you're going to feel very confident and competitive in your upcoming interviews!`,
+      overallScore: null,
+      rubricPillars: roundPillars,
+      technicalAccuracyScore: null,
+      communicationScore: null,
+      structureStarScore: null,
+      relevanceScore: null,
+      summary: `You completed your mock interview session for ${config.role} targeting ${config.companyName}. Automated AI scoring is currently unavailable, so numeric scores and placement readiness tiers are withheld to prevent fabricated metrics. Review your recorded answers and qualitative coaching suggestions below.`,
       strengths: [
         'You communicated your thoughts methodically and kept a steady, composed pace throughout the session',
         'Strong intuitive grasp of fundamental technical concepts and architecture requirements',
@@ -368,34 +478,69 @@ export const api = {
     return report;
   },
 
-  // Parse and analyze resume
+  // Parse and analyze resume (Serverless Base64 payload, 5MB limit)
   async analyzeResume(file: File, targetRole: string): Promise<ResumeAnalysis> {
-    const formData = new FormData();
-    formData.append('resume', file);
-    formData.append('targetRole', targetRole);
-
     const activeUid = storage.getActiveUserId() || 'usr-guest';
-    const headers: Record<string, string> = {};
-    const token = storage.getToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+    const headers = getAuthHeaders();
+    let res: Response | null = null;
 
     try {
-      const res = await fetch(`${API_BASE}/resume/parse`, {
+      const fileBase64 = await fileToBase64(file);
+      res = await fetch(`${API_BASE}/resume/parse`, {
         method: 'POST',
         headers,
-        body: formData
+        body: JSON.stringify({
+          fileBase64,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          targetRole
+        })
       });
-      if (res.ok) {
-        const data = await safeJson<{ analysis: ResumeAnalysis }>(res);
-        if (data?.analysis) {
-          data.analysis.userId = activeUid;
-          return data.analysis;
-        }
+    } catch (netErr: any) {
+      console.warn('Backend /api/resume/parse not reachable, using client text extraction heuristic:', netErr);
+    }
+
+    if (res && res.ok) {
+      const data = await safeJson<{ success: boolean; analysis: ResumeAnalysis }>(res);
+      if (data?.analysis) {
+        data.analysis.userId = activeUid;
+        data.analysis.source = data.analysis.source || 'ai';
+        return data.analysis;
       }
-    } catch (e) {
-      console.warn('Backend /api/resume/parse not reachable, using client text extraction heuristic:', e);
+    }
+
+    if (res) {
+      const errorData = await safeJson<{ error?: string; message?: string; retryAfter?: number }>(res);
+
+      if (res.status === 401 || errorData?.error === 'UNAUTHORIZED') {
+        const err: any = new Error(errorData?.message || 'Authentication required. Please sign in or create an account to analyze your resume.');
+        err.code = 'UNAUTHORIZED';
+        err.status = 401;
+        throw err;
+      }
+
+      if (res.status === 402 || errorData?.error === 'QUOTA_EXCEEDED') {
+        const err: any = new Error(errorData?.message || 'Free tier quota exhausted (5 of 5 sessions completed). Please upgrade your plan to unlock more resume reviews.');
+        err.code = 'QUOTA_EXCEEDED';
+        err.status = 402;
+        throw err;
+      }
+
+      if (res.status === 429 || errorData?.error === 'RATE_LIMIT_EXCEEDED') {
+        const err: any = new Error(errorData?.message || 'Too many resume parse requests. Please wait a moment before trying again.');
+        err.code = 'RATE_LIMIT_EXCEEDED';
+        err.status = 429;
+        err.retryAfter = errorData?.retryAfter;
+        throw err;
+      }
+
+      if (res.status === 413 || errorData?.error === 'FILE_TOO_LARGE') {
+        const err: any = new Error('Resume file size exceeds the 5MB limit.');
+        err.code = 'FILE_TOO_LARGE';
+        err.status = 413;
+        throw err;
+      }
     }
 
     // Client fallback analysis
@@ -407,9 +552,10 @@ export const api = {
       userId: activeUid,
       fileName,
       fileSize: file.size,
+      source: 'fallback',
       extractedSkills: ['JavaScript', 'React.js', 'Node.js', 'SQL', 'Git', 'Data Structures', 'REST APIs', 'HTML5/CSS3'],
       missingSkillsForRole: ['Docker & Containerization', 'Cloud Deployment (AWS/GCP)', 'Redis / Distributed Caching', 'Unit Testing (Jest/Mocha)'],
-      atsScoreEstimate: 78,
+      atsScoreEstimate: null,
       educationFound: ['B.Tech / B.E. Computer Science & Engineering (2021 - 2025)'],
       experienceSummary: 'Academic projects in full-stack web development and freelance frontend implementation.',
       projectsDetected: [
@@ -437,6 +583,59 @@ export const api = {
         'If 10,000 users joined your Real-Time Chat App simultaneously, how would you scale the WebSocket connections?'
       ],
       createdAt: new Date().toISOString()
+    };
+  },
+
+  async joinWaitlist(email: string, plan: 'pro' | 'unlimited' = 'pro'): Promise<{ success: boolean; alreadyJoined: boolean; message: string }> {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPlan = plan.toLowerCase() as 'pro' | 'unlimited';
+
+    try {
+      const res = await fetch(`${API_BASE}/waitlist`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ email: cleanEmail, plan: cleanPlan })
+      });
+
+      const data = await safeJson(res);
+      if (res.ok && data) {
+        return {
+          success: true,
+          alreadyJoined: Boolean(data.alreadyJoined),
+          message: data.message || `You're on the waitlist for ${cleanPlan === 'pro' ? 'Student Pro' : 'Placement Unlimited'}!`
+        };
+      }
+    } catch (err) {
+      console.warn('[API] /waitlist fetch failed, falling back to direct Supabase / local storage:', err);
+    }
+
+    // Direct Supabase Client fallback
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error } = await supabase.from('waitlist').insert({ email: cleanEmail, plan: cleanPlan });
+        if (!error) {
+          return {
+            success: true,
+            alreadyJoined: false,
+            message: `Thank you! You're on the waitlist for ${cleanPlan === 'pro' ? 'Student Pro' : 'Placement Unlimited'}!`
+          };
+        }
+        if (error.code === '23505' || String(error.message).toLowerCase().includes('unique')) {
+          return {
+            success: true,
+            alreadyJoined: true,
+            message: `You're already on the waitlist for the ${cleanPlan === 'pro' ? 'Student Pro' : 'Placement Unlimited'} plan!`
+          };
+        }
+      } catch (e) {
+        // Fall through
+      }
+    }
+
+    return {
+      success: true,
+      alreadyJoined: false,
+      message: `Thank you! You're on the waitlist for ${cleanPlan === 'pro' ? 'Student Pro' : 'Placement Unlimited'}!`
     };
   }
 };

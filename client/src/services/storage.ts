@@ -1,15 +1,15 @@
 import { UserProfile, InterviewSession, FeedbackReport, ResumeAnalysis, UsageQuota, PrivacyPreferences } from '../types';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured, checkSupabaseTablesStatus, CloudSyncStatus, CloudHealthCheckResult } from './supabase';
 
 const CURRENT_USER_KEY = 'interviewbro_current_user';
 const SESSION_TOKEN_KEY = 'interviewbro_session_token';
 const LOGGED_OUT_KEY = 'interviewbro_logged_out';
 
 const DEFAULT_QUOTA: UsageQuota = {
-  freeInterviewsTotal: 9999,
+  freeInterviewsTotal: 5,
   interviewsUsed: 0,
-  interviewsRemaining: 9999,
-  planName: 'Placement Unlimited'
+  interviewsRemaining: 5,
+  planName: 'Free Tier'
 };
 
 function handleCloudStorageError(action: string, error: any) {
@@ -90,9 +90,39 @@ export const storage = {
       if (data) {
         return JSON.parse(data);
       }
+      const user = this.getUser();
+      if (user && user.id === uid) {
+        const remaining = typeof user.interviews_remaining === 'number' ? user.interviews_remaining : 5;
+        const used = typeof user.total_interviews_taken === 'number' ? user.total_interviews_taken : 0;
+        const q: UsageQuota = {
+          freeInterviewsTotal: 5,
+          interviewsUsed: used,
+          interviewsRemaining: Math.min(5, Math.max(0, remaining)),
+          planName: 'Free Tier'
+        };
+        localStorage.setItem(`interviewbro_quota_${uid}`, JSON.stringify(q));
+        return q;
+      }
       return DEFAULT_QUOTA;
     } catch {
       return DEFAULT_QUOTA;
+    }
+  },
+
+  setQuota(quota: UsageQuota, userId?: string | null): void {
+    const uid = userId || this.getActiveUserId();
+    if (!uid) return;
+    try {
+      localStorage.setItem(`interviewbro_quota_${uid}`, JSON.stringify(quota));
+      const user = this.getUser();
+      if (user && user.id === uid) {
+        user.interviews_remaining = quota.interviewsRemaining;
+        user.total_interviews_taken = quota.interviewsUsed;
+        this.setUser(user);
+      }
+      window.dispatchEvent(new CustomEvent('interviewbro_storage_synced'));
+    } catch (e) {
+      console.error('Failed to set quota', e);
     }
   },
 
@@ -100,14 +130,14 @@ export const storage = {
     const uid = userId || this.getActiveUserId();
     const quota = this.getQuota(uid);
     quota.interviewsUsed += 1;
-    quota.interviewsRemaining = 9999;
+    quota.interviewsRemaining = Math.max(0, quota.freeInterviewsTotal - quota.interviewsUsed);
 
     if (uid) {
       try {
         localStorage.setItem(`interviewbro_quota_${uid}`, JSON.stringify(quota));
         const user = this.getUser();
         if (user && user.id === uid) {
-          user.interviews_remaining = 9999;
+          user.interviews_remaining = quota.interviewsRemaining;
           user.total_interviews_taken = quota.interviewsUsed;
           this.setUser(user);
 
@@ -116,7 +146,7 @@ export const storage = {
             supabase
               .from('profiles')
               .update({
-                interviews_remaining: 9999,
+                interviews_remaining: quota.interviewsRemaining,
                 total_interviews_taken: quota.interviewsUsed,
                 updated_at: new Date().toISOString()
               })
@@ -200,7 +230,8 @@ export const storage = {
             elapsed_seconds: sessionToSave.elapsedSeconds || 0,
             current_question_index: sessionToSave.currentQuestionIndex || 0,
             questions: sessionToSave.questions || [],
-            feedback_report: sessionToSave.feedbackReport || null
+            feedback_report: sessionToSave.feedbackReport || null,
+            source: (sessionToSave as any).source || 'ai'
           })
           .then(({ error }: any) => {
             handleCloudStorageError('saveSession', error);
@@ -252,13 +283,27 @@ export const storage = {
     const uid = userId || this.getActiveUserId();
     if (!uid) return;
 
+    // Check candidate privacy preferences for Ephemeral Practice Mode (Zero Transcript Retention)
+    const prefs = this.getPrivacyPreferences(uid);
+    let reportToSave = report;
+    if (prefs.ephemeralPracticeMode) {
+      reportToSave = {
+        ...report,
+        questionsEvaluated: (report.questionsEvaluated || []).map((q: any) => ({
+          ...q,
+          userAnswer: '[Scrubbed under Ephemeral Practice Mode]',
+          transcript: '[Scrubbed under Ephemeral Practice Mode]'
+        }))
+      };
+    }
+
     try {
       const reports = this.getReports(uid);
-      const index = reports.findIndex(r => r.id === report.id || r.sessionId === report.sessionId);
+      const index = reports.findIndex(r => r.id === reportToSave.id || r.sessionId === reportToSave.sessionId);
       if (index >= 0) {
-        reports[index] = report;
+        reports[index] = reportToSave;
       } else {
-        reports.unshift(report);
+        reports.unshift(reportToSave);
       }
       localStorage.setItem(`interviewbro_reports_${uid}`, JSON.stringify(reports));
 
@@ -267,28 +312,29 @@ export const storage = {
         supabase
           .from('feedback_reports')
           .upsert({
-            id: report.id,
+            id: reportToSave.id,
             user_id: uid,
-            session_id: report.sessionId,
-            candidate_name: report.candidateName || '',
-            role: report.role || '',
-            company: report.company || '',
-            interview_type: report.interviewType || 'technical',
-            overall_score: report.overallScore || 0,
-            technical_accuracy_score: report.technicalAccuracyScore || 0,
-            communication_score: report.communicationScore || 0,
-            structure_star_score: report.structureStarScore || 0,
-            relevance_score: report.relevanceScore || 0,
-            summary: report.summary || '',
-            strengths: report.strengths || [],
-            weaknesses: report.weaknesses || [],
-            missed_concepts: report.missedConcepts || [],
-            actionable_improvements: report.actionableImprovements || [],
-            recommended_topics: report.recommendedTopics || [],
-            example_improved_answers: report.exampleImprovedAnswers || [],
-            prep_plan: report.prepPlan || [],
-            questions_evaluated: report.questionsEvaluated || [],
-            created_at: report.createdAt || new Date().toISOString()
+            session_id: reportToSave.sessionId,
+            candidate_name: reportToSave.candidateName || '',
+            role: reportToSave.role || '',
+            company: reportToSave.company || '',
+            interview_type: reportToSave.interviewType || 'technical',
+            source: reportToSave.source || 'ai',
+            overall_score: reportToSave.overallScore || 0,
+            technical_accuracy_score: reportToSave.technicalAccuracyScore || 0,
+            communication_score: reportToSave.communicationScore || 0,
+            structure_star_score: reportToSave.structureStarScore || 0,
+            relevance_score: reportToSave.relevanceScore || 0,
+            summary: reportToSave.summary || '',
+            strengths: reportToSave.strengths || [],
+            weaknesses: reportToSave.weaknesses || [],
+            missed_concepts: reportToSave.missedConcepts || [],
+            actionable_improvements: reportToSave.actionableImprovements || [],
+            recommended_topics: reportToSave.recommendedTopics || [],
+            example_improved_answers: reportToSave.exampleImprovedAnswers || [],
+            prep_plan: reportToSave.prepPlan || [],
+            questions_evaluated: reportToSave.questionsEvaluated || [],
+            created_at: reportToSave.createdAt || new Date().toISOString()
           })
           .then(({ error }: any) => {
             handleCloudStorageError('saveReport', error);
@@ -337,6 +383,7 @@ export const storage = {
             user_id: uid,
             file_name: resume.fileName,
             file_size: resume.fileSize || 0,
+            source: resume.source || 'ai',
             extracted_skills: resume.extractedSkills || [],
             missing_skills_for_role: resume.missingSkillsForRole || [],
             ats_score_estimate: resume.atsScoreEstimate || 0,
@@ -432,7 +479,8 @@ export const storage = {
           role: row.role,
           company: row.company,
           interviewType: row.interview_type,
-          overallScore: row.overall_score,
+          source: row.source || (row.overall_score && row.overall_score > 0 ? 'ai' : 'fallback'),
+          overallScore: (row.source === 'fallback' || row.overall_score === 0) ? null : row.overall_score,
           technicalAccuracyScore: row.technical_accuracy_score,
           communicationScore: row.communication_score,
           structureStarScore: row.structure_star_score,
@@ -468,7 +516,8 @@ export const storage = {
           fileSize: row.file_size,
           extractedSkills: row.extracted_skills || [],
           missingSkillsForRole: row.missing_skills_for_role || [],
-          atsScoreEstimate: row.ats_score_estimate,
+          source: row.source || (row.ats_score_estimate && row.ats_score_estimate > 0 ? 'ai' : 'fallback'),
+          atsScoreEstimate: (row.source === 'fallback' || row.ats_score_estimate === 0) ? null : row.ats_score_estimate,
           educationFound: row.education_found || [],
           experienceSummary: row.experience_summary || '',
           projectsDetected: row.projects_detected || [],
@@ -479,6 +528,102 @@ export const storage = {
           createdAt: row.created_at
         }));
         localStorage.setItem(`interviewbro_resumes_${uid}`, JSON.stringify(parsedResumes));
+      }
+
+      // 4. One-Time Migration of existing localStorage sessions to Supabase
+      const migrationFlagKey = `interviewbro_cloud_migrated_${uid}`;
+      const isAlreadyMigrated = localStorage.getItem(migrationFlagKey) === 'true';
+
+      if (!sErr && !isAlreadyMigrated) {
+        try {
+          // Read local sessions for this user plus any unnamespaced guest sessions
+          const localSessionsUid: InterviewSession[] = JSON.parse(localStorage.getItem(`interviewbro_sessions_${uid}`) || '[]');
+          const localSessionsGuest: InterviewSession[] = JSON.parse(localStorage.getItem('interviewbro_sessions') || '[]');
+          
+          // Deduplicate local sessions by id
+          const combinedLocalSessionsMap = new Map<string, InterviewSession>();
+          [...localSessionsUid, ...localSessionsGuest].forEach(s => {
+            if (s && s.id) combinedLocalSessionsMap.set(s.id, s);
+          });
+
+          const cloudSessionIds = new Set((sessionRows || []).map((r: any) => r.id));
+          const sessionsToMigrate = Array.from(combinedLocalSessionsMap.values())
+            .filter(s => !cloudSessionIds.has(s.id));
+
+          if (sessionsToMigrate.length > 0) {
+            console.log(`[Storage Migration] Migrating ${sessionsToMigrate.length} local session(s) to Supabase cloud...`);
+            for (const s of sessionsToMigrate) {
+              await supabase
+                .from('interview_sessions')
+                .upsert({
+                  id: s.id,
+                  user_id: uid,
+                  title: s.title || 'Practice Interview Session',
+                  config: s.config || {},
+                  status: s.status || 'completed',
+                  started_at: s.startedAt || new Date().toISOString(),
+                  completed_at: s.completedAt || null,
+                  elapsed_seconds: s.elapsedSeconds || 0,
+                  current_question_index: s.currentQuestionIndex || 0,
+                  questions: s.questions || [],
+                  feedback_report: s.feedbackReport || null,
+                  source: (s as any).source || 'ai'
+                });
+            }
+          }
+
+          // Migrate any local reports not yet in Supabase
+          const localReportsUid: FeedbackReport[] = JSON.parse(localStorage.getItem(`interviewbro_reports_${uid}`) || '[]');
+          const localReportsGuest: FeedbackReport[] = JSON.parse(localStorage.getItem('interviewbro_reports') || '[]');
+          const combinedReportsMap = new Map<string, FeedbackReport>();
+          [...localReportsUid, ...localReportsGuest].forEach(r => {
+            if (r && r.id) combinedReportsMap.set(r.id, r);
+          });
+
+          const cloudReportIds = new Set((reportRows || []).map((r: any) => r.id));
+          const reportsToMigrate = Array.from(combinedReportsMap.values())
+            .filter(r => !cloudReportIds.has(r.id));
+
+          if (reportsToMigrate.length > 0) {
+            for (const r of reportsToMigrate) {
+              await supabase
+                .from('feedback_reports')
+                .upsert({
+                  id: r.id,
+                  user_id: uid,
+                  session_id: r.sessionId,
+                  candidate_name: r.candidateName || '',
+                  role: r.role || '',
+                  company: r.company || '',
+                  interview_type: r.interviewType || 'technical',
+                  source: r.source || 'ai',
+                  overall_score: r.overallScore || 0,
+                  technical_accuracy_score: r.technicalAccuracyScore || 0,
+                  communication_score: r.communicationScore || 0,
+                  structure_star_score: r.structureStarScore || 0,
+                  relevance_score: r.relevanceScore || 0,
+                  summary: r.summary || '',
+                  strengths: r.strengths || [],
+                  weaknesses: r.weaknesses || [],
+                  missed_concepts: r.missedConcepts || [],
+                  actionable_improvements: r.actionableImprovements || [],
+                  recommended_topics: r.recommendedTopics || [],
+                  example_improved_answers: r.exampleImprovedAnswers || [],
+                  prep_plan: r.prepPlan || [],
+                  questions_evaluated: r.questionsEvaluated || [],
+                  created_at: r.createdAt || new Date().toISOString()
+                });
+            }
+          }
+
+          // Mark migration completed
+          localStorage.setItem(migrationFlagKey, 'true');
+          // Clean up legacy guest keys
+          localStorage.removeItem('interviewbro_sessions');
+          localStorage.removeItem('interviewbro_reports');
+        } catch (migrationErr) {
+          console.warn('[Storage Migration] Non-fatal migration notice:', migrationErr);
+        }
       }
 
       // Notify listening UI components to refresh their state
@@ -623,11 +768,11 @@ export const storage = {
   },
 
   /**
-   * Complete account deletion and data wiping:
-   * 1. Purges Supabase database records for this user (reports, sessions, resumes, profile).
-   * 2. Calls /api/auth/delete-account with bearer token to purge auth identity if supported.
-   * 3. Wipes all corresponding localStorage keys.
-   * 4. Signs out of Supabase Auth.
+   * Complete account erasure (DPDP Act 2023 Statutory Compliance):
+   * 1. Calls single serverless /api/auth/delete-account with bearer token.
+   * 2. Server verifies caller JWT, purges database rows and GoTrue auth.users via SUPABASE_SERVICE_ROLE_KEY.
+   * 3. If server fails or service key is missing, fails loudly and aborts. Never reports success on partial deletion.
+   * 4. Only after confirmed success, clears localStorage and signs out of Supabase.
    */
   async deleteAccountAndData(userId: string): Promise<{ success: boolean; message: string }> {
     const uid = userId || this.getActiveUserId();
@@ -635,36 +780,58 @@ export const storage = {
       return { success: false, message: 'No active user found to delete.' };
     }
 
-    // 1. Delete rows from Supabase if configured
-    if (isSupabaseConfigured && supabase) {
+    // Retrieve active auth token from Supabase or storage
+    let token = this.getToken();
+    if (!token && isSupabaseConfigured && supabase) {
       try {
-        await Promise.allSettled([
-          supabase.from('feedback_reports').delete().eq('user_id', uid),
-          supabase.from('interview_sessions').delete().eq('user_id', uid),
-          supabase.from('resume_analyses').delete().eq('user_id', uid),
-          supabase.from('profiles').delete().eq('id', uid)
-        ]);
+        const sessionRes = await supabase.auth.getSession();
+        token = sessionRes.data.session?.access_token || null;
       } catch (err) {
-        console.warn('Error purging Supabase tables:', err);
+        console.warn('[Storage] Failed to retrieve Supabase session token:', err);
       }
     }
 
-    // 2. Call serverless deletion endpoint
-    try {
-      const token = this.getToken();
-      await fetch('/api/auth/delete-account', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ userId: uid })
-      }).catch(() => null);
-    } catch (e) {
-      console.warn('Backend delete-account call notice:', e);
+    // If Supabase is configured, enforce serverless deletion
+    if (isSupabaseConfigured) {
+      if (!token) {
+        return {
+          success: false,
+          message: 'Active authentication session is required to delete your account. Please log in again.'
+        };
+      }
+
+      let res: Response;
+      let data: any = null;
+      try {
+        res = await fetch('/api/auth/delete-account', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ userId: uid })
+        });
+        data = await res.json().catch(() => ({}));
+      } catch (networkErr: any) {
+        console.error('[Storage] Network error calling /api/auth/delete-account:', networkErr);
+        return {
+          success: false,
+          message: `Network error connecting to deletion service: ${networkErr?.message || 'Server unreachable'}. Account data was not deleted.`
+        };
+      }
+
+      if (!res.ok || !data?.success) {
+        const errorMsg = data?.message || data?.error || `Account deletion failed (HTTP ${res.status}).`;
+        console.error('[Storage] Account deletion failed on server:', errorMsg);
+        return {
+          success: false,
+          message: errorMsg
+        };
+      }
     }
 
-    // 3. Clear local storage for this user and global session keys
+    // CONFIRMED SUCCESS (or pure offline local mode):
+    // Only now clear localStorage and sign out
     try {
       localStorage.removeItem(`interviewbro_sessions_${uid}`);
       localStorage.removeItem(`interviewbro_reports_${uid}`);
@@ -683,7 +850,7 @@ export const storage = {
       console.error('Error clearing local storage on delete:', e);
     }
 
-    // 4. Supabase Auth signout
+    // Supabase Auth signout
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.auth.signOut();
@@ -692,7 +859,7 @@ export const storage = {
       }
     }
 
-    // 5. Notify app
+    // Notify app
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('interviewbro_account_deleted'));
       window.dispatchEvent(new CustomEvent('interviewbro_storage_synced'));
@@ -700,8 +867,15 @@ export const storage = {
 
     return {
       success: true,
-      message: 'Your account and all associated interview sessions, resumes, and reports have been permanently deleted.'
+      message: 'Your account credentials and all associated interview sessions, resumes, and reports have been permanently deleted.'
     };
+  },
+
+  /**
+   * Evaluates cloud database readiness: 'synced', 'tables_missing', or 'offline'.
+   */
+  async checkCloudSyncStatus(): Promise<CloudHealthCheckResult> {
+    return checkSupabaseTablesStatus();
   }
 };
 

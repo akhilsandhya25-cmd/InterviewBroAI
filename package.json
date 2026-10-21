@@ -17,12 +17,15 @@
     "build:all": "npm run --prefix client build && npm run --prefix server build",
     "preview": "vite preview",
     "test": "npm run --prefix server test",
+    "test:consistency": "node server/node_modules/tsx/dist/cli.mjs scripts/score-consistency.ts",
     "install:all": "npm install && npm install --prefix client && npm install --prefix server"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^1.16.0",
+    "mammoth": "^1.13.0",
+    "pdf-parse": "^1.1.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

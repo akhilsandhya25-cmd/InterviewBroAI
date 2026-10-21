@@ -128,10 +128,19 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onNavigate }) => {
               <div className="flex items-center gap-4 self-end md:self-auto">
                 {session.feedbackReport && (
                   <div className="text-right">
-                    <div className="text-base font-black text-[#C5F36B]">
-                      {session.feedbackReport.overallScore}/100
-                    </div>
-                    <div className="text-[10px] text-[#9AA4B2]">STAR Score</div>
+                    {session.feedbackReport.source === 'fallback' || session.feedbackReport.overallScore == null ? (
+                      <>
+                        <div className="text-xs font-bold text-amber-400">Not scored</div>
+                        <div className="text-[10px] text-[#9AA4B2]">Demo mode</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-base font-black text-[#C5F36B]">
+                          {session.feedbackReport.overallScore}/100
+                        </div>
+                        <div className="text-[10px] text-[#9AA4B2]">STAR Score</div>
+                      </>
+                    )}
                   </div>
                 )}
 

@@ -23,13 +23,17 @@ import {
   AlertCircle,
   Headphones,
   Radio,
-  FileText
+  FileText,
+  WifiOff,
+  Wifi,
+  RefreshCw
 } from 'lucide-react';
 import { useInterview } from '../context/InterviewContext';
 import { createSpeechRecognition, tts } from '../services/speech';
 import { AudioVisualizer } from '../components/AudioVisualizer';
 import { VoiceInterviewerOrb, OrbState } from '../components/VoiceInterviewerOrb';
 import { BrandIcon } from '../components/brand/BrandIcon';
+import { getBrowserVoiceCapabilities } from '../services/microphoneService';
 
 interface InterviewRoomProps {
   onComplete: () => void;
@@ -80,6 +84,17 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState<boolean>(true);
   const [detectedVoiceName, setDetectedVoiceName] = useState<string>('');
   const [isTestingSpeaker, setIsTestingSpeaker] = useState<boolean>(false);
+
+  // Connectivity & Network Status (Lightweight 4G & Mobile Reliability)
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [networkError, setNetworkError] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState<boolean>(false);
+
+  // Browser capabilities detection (Safari / Firefox speech recognition check)
+  const browserCaps = getBrowserVoiceCapabilities();
+  const isUnsupportedBrowserForVoice = 
+    !isTextOnly && 
+    (browserCaps.browserName === 'Safari' || browserCaps.browserName === 'Firefox' || !browserCaps.hasSpeechRecognition);
   
   // Pre-interview check gate - Instant entry into interview room (streamlined transition)
   const [preflightPassed, setPreflightPassed] = useState<boolean>(true);
@@ -99,17 +114,67 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const evaluationSectionRef = useRef<HTMLDivElement | null>(null);
   const hasTypedManually = useRef<boolean>(false);
 
-  // Sync candidateAnswer to state when moving between questions
+  const getDraftKey = (sessionId?: string, qId?: string) =>
+    `interviewbro_draft_${sessionId || activeSession?.id}_${qId || currentQuestion?.id}`;
+
+  const saveDraftLocally = (text: string) => {
+    if (!activeSession?.id || !currentQuestion?.id || !text || !text.trim()) return;
+    try {
+      localStorage.setItem(
+        getDraftKey(),
+        JSON.stringify({
+          sessionId: activeSession.id,
+          questionId: currentQuestion.id,
+          text: text.trim(),
+          savedAt: Date.now()
+        })
+      );
+    } catch {
+      // LocalStorage quota or access exception
+    }
+  };
+
+  const clearDraftLocally = () => {
+    if (!activeSession?.id || !currentQuestion?.id) return;
+    try {
+      localStorage.removeItem(getDraftKey());
+    } catch {}
+  };
+
+  // Sync candidateAnswer to state when moving between questions, restoring local draft if present
   useEffect(() => {
     hasTypedManually.current = false;
+    setNetworkError(null);
+    setDraftRestored(false);
     const q = activeSession?.questions[currentQuestionIndex];
     if (q?.candidateAnswer) {
       setSpokenTranscript(q.candidateAnswer);
       setCandidateTypedText(q.candidateAnswer);
       setInterimText('');
     } else {
-      setSpokenTranscript('');
-      setCandidateTypedText('');
+      // Check for locally saved draft from previous connection drops or accidental refresh
+      const savedDraftJson = activeSession?.id && q?.id
+        ? localStorage.getItem(`interviewbro_draft_${activeSession.id}_${q.id}`)
+        : null;
+      if (savedDraftJson) {
+        try {
+          const parsed = JSON.parse(savedDraftJson);
+          if (parsed?.text) {
+            setSpokenTranscript(parsed.text);
+            setCandidateTypedText(parsed.text);
+            setDraftRestored(true);
+          } else {
+            setSpokenTranscript('');
+            setCandidateTypedText('');
+          }
+        } catch {
+          setSpokenTranscript('');
+          setCandidateTypedText('');
+        }
+      } else {
+        setSpokenTranscript('');
+        setCandidateTypedText('');
+      }
       setInterimText('');
     }
     setSpeechError(null);
@@ -118,6 +183,32 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       recognitionRef.current.reset();
     }
   }, [currentQuestionIndex, activeSession?.id]);
+
+  // Auto-save local draft whenever candidate transcript or typed text updates
+  useEffect(() => {
+    const textToSave = candidateTypedText.trim() || spokenTranscript.trim();
+    if (textToSave && !currentQuestion?.candidateAnswer) {
+      saveDraftLocally(textToSave);
+    }
+  }, [spokenTranscript, candidateTypedText, currentQuestion?.id]);
+
+  // Network online/offline event listeners
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setNetworkError(null);
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setNetworkError('Network connection lost (4G / Wi-Fi disconnected). Your answer draft is saved locally on this device.');
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Hook up video stream to local HTML video elements (only in video mode)
   useEffect(() => {
@@ -342,18 +433,42 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       return;
     }
 
+    // Immediately save local draft to protect candidate against network loss
+    saveDraftLocally(effectiveCandidateAnswer);
     setSubmissionError(null);
+
+    // If device reports offline before submitting, notify immediately without losing draft
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setNetworkError('No internet connection. Your answer is safely saved locally. Tap "Retry Submission" when your 4G / Wi-Fi connection returns.');
+      return;
+    }
+
     setIsSubmitting(true);
+    setNetworkError(null);
 
     try {
       const res = await submitAnswer(effectiveCandidateAnswer);
       if (!res.success) {
-        setSubmissionError(res.error || 'Evaluation failed. Please try submitting again.');
+        const errLower = String(res.error || '').toLowerCase();
+        if (
+          errLower.includes('network') ||
+          errLower.includes('fetch') ||
+          errLower.includes('connection') ||
+          errLower.includes('offline') ||
+          errLower.includes('timeout')
+        ) {
+          setNetworkError(res.error || 'Network connection dropped during evaluation. Your answer is safely saved on this device.');
+        } else {
+          setSubmissionError(res.error || 'Evaluation failed. Please try submitting again.');
+        }
       } else {
         setSubmissionError(null);
+        setNetworkError(null);
+        clearDraftLocally();
+        setDraftRestored(false);
       }
     } catch (e: any) {
-      setSubmissionError(e.message || 'An unexpected error occurred during submission.');
+      setNetworkError('Network connection dropped mid-interview. Your draft is safely saved on this device. Tap Retry below.');
     } finally {
       setIsSubmitting(false);
     }
@@ -418,7 +533,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   if (!preflightPassed) {
     if (isTextOnly) {
       return (
-        <div className="max-w-2xl mx-auto px-4 py-12 space-y-6 text-center">
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 py-6 sm:py-12 space-y-4 sm:space-y-6 text-center w-full max-w-full overflow-x-hidden">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold">
             <FileText className="w-3.5 h-3.5 text-emerald-400" />
             <span>Text-Based Mode Ready</span>
@@ -449,18 +564,18 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               type="button"
               onClick={handleExit}
-              className="px-5 py-3 rounded-xl font-semibold text-xs bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 transition-colors"
+              className="w-full sm:w-auto px-5 py-3 rounded-xl font-semibold text-xs bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 transition-colors"
             >
               Back to Setup
             </button>
             <button
               type="button"
               onClick={() => setPreflightPassed(true)}
-              className="px-8 py-3.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] inline-flex items-center gap-2 shadow-lg shadow-[#C5F36B]/15 transition-all"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] inline-flex items-center justify-center gap-2 shadow-lg shadow-[#C5F36B]/15 transition-all"
             >
               <span>Enter Text Interview Room</span>
               <Check className="w-4 h-4" />
@@ -471,7 +586,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     }
 
     return (
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-semibold">
             {isVoiceOnly ? <Mic className="w-3.5 h-3.5 text-violet-400" /> : <Headphones className="w-3.5 h-3.5 text-violet-400" />}
@@ -621,12 +736,27 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
         </div>
 
         {!speechRecognitionSupported && (
-          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div>
-              <strong className="block font-bold">Browser Speech Recognition Not Supported</strong>
-              Your current browser does not support the Web Speech API required for speech recognition. You can switch to Text-Based Mode to complete your interview.
+          <div className="p-3.5 sm:p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block text-amber-300 font-bold">Browser Speech Recognition Not Supported</strong>
+                <p className="text-[11px] text-amber-200/80 mt-0.5">
+                  Your current browser does not support continuous speech recognition. Please <strong>use Chrome or type your answer</strong> by switching to Text-Based Mode.
+                </p>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                switchToTextMode();
+                setPreflightPassed(true);
+              }}
+              className="w-full sm:w-auto px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0 flex items-center justify-center gap-1.5 shadow transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Switch to Text Mode</span>
+            </button>
           </div>
         )}
 
@@ -669,7 +799,94 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
+    <div className="max-w-7xl mx-auto px-2.5 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4 w-full max-w-full overflow-x-hidden">
+      {/* Unsupported Browser Notice (Safari / Firefox) with Smooth Text Mode Fallback */}
+      {isUnsupportedBrowserForVoice && (
+        <div className="p-3 sm:p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-sm">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-amber-300">
+                Voice recognition is not fully supported in {browserCaps.browserName || 'this browser'}.
+              </span>
+              <p className="text-[11px] text-amber-200/80 mt-0.5">
+                For the best voice experience, please <strong>use Google Chrome</strong> (on Android or desktop), or type your answers directly using Text Mode.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={switchToTextMode}
+            className="w-full sm:w-auto px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0 flex items-center justify-center gap-1.5 shadow transition-colors"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Switch to Text Mode</span>
+          </button>
+        </div>
+      )}
+
+      {/* Network Drop & Local Draft Friendly Retry Banner */}
+      {(networkError || !isOnline) && (
+        <div className="p-3 sm:p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/35 text-rose-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-md">
+          <div className="flex items-start gap-2.5">
+            <WifiOff className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-rose-300">
+                  {!isOnline ? 'Network Connection Lost (Offline)' : 'Network Connection Dropped'}
+                </span>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  Draft Saved Locally
+                </span>
+              </div>
+              <p className="text-[11px] text-rose-200/80 mt-0.5">
+                Your transcript draft has been saved safely on your phone. When your 4G / Wi-Fi signal reconnects, tap Retry to evaluate without losing your response.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              disabled={isSubmitting || isEvaluating}
+              onClick={handleSubmit}
+              className="w-full sm:w-auto px-3.5 py-1.5 rounded-lg bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSubmitting ? 'animate-spin' : ''}`} />
+              <span>Retry Submission</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Restored Draft Alert Banner */}
+      {draftRestored && (
+        <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+            <span>Restored your saved answer draft from this device.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDraftRestored(false)}
+            className="text-[10px] text-emerald-400/80 hover:text-emerald-200"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Demo Mode / AI Unavailable Banner */}
+      {(currentQuestion?.source === 'fallback' || activeSession.questions.some(q => q.source === 'fallback') || currentQuestion?.evaluation?.source === 'fallback') && (
+        <div className="p-3 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 shadow-lg flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+          <div className="text-xs text-amber-300">
+            <span className="font-bold text-amber-200">Demo mode: AI scoring unavailable. This is not a real evaluation.</span>
+            <span className="block text-[11px] text-amber-300/80 mt-0.5">
+              Live AI evaluation is offline. Question prompts and heuristic feedback are active for practice, but numeric scores are disabled to prevent fabricated metrics.
+            </span>
+          </div>
+        </div>
+      )}
       {/* Privacy & Recording Consent Notice */}
       {!consentAcknowledged && (
         <div className="p-4 rounded-2xl bg-slate-900 border border-violet-500/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -740,22 +957,22 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       )}
 
       {/* Top Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-md">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 p-2.5 sm:p-3.5 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-md w-full">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <BrandIcon size="sm" glow={false} />
-          <div>
-            <h2 className="text-xs font-bold text-[#F5F7FA]">
+          <div className="min-w-0">
+            <h2 className="text-xs font-bold text-[#F5F7FA] truncate">
               {activeSession.config.companyName} • {activeSession.config.role}
             </h2>
-            <div className="text-[11px] text-[#9AA4B2] flex items-center gap-2">
+            <div className="text-[10px] sm:text-[11px] text-[#9AA4B2] flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span className="capitalize">{activeSession.config.interviewType} Round</span>
               <span>•</span>
-              <span className="capitalize">{isTextOnly ? 'Text-Based' : isVoiceOnly ? 'Voice-Only' : 'Video'} Mode</span>
+              <span className="capitalize">{isTextOnly ? 'Text' : isVoiceOnly ? 'Voice' : 'Video'}</span>
               <span>•</span>
               <span className="capitalize">{activeSession.config.difficulty}</span>
               {currentQuestion.isFollowUp && (
-                <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold text-[10px]">
-                  Follow-Up Challenge
+                <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold text-[9px] sm:text-[10px]">
+                  Follow-Up
                 </span>
               )}
             </div>
@@ -763,28 +980,28 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
         </div>
 
         {/* Center: Question Progress & Timer */}
-        <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 rounded-xl bg-[#080B11] border border-white/[0.08] flex items-center gap-2 text-xs font-mono">
+        <div className="flex items-center justify-between sm:justify-center gap-2.5 pt-1 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
+          <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-[#080B11] border border-white/[0.08] flex items-center gap-1.5 sm:gap-2 text-xs font-mono">
             <Clock className={`w-3.5 h-3.5 ${isPaused ? 'text-amber-400' : 'text-[#C5F36B] animate-pulse'}`} />
             <span className="text-[#F5F7FA] font-bold">{formatTimer(elapsedSeconds)}</span>
           </div>
 
-          <div className="text-xs text-[#9AA4B2]">
-            Question <strong className="text-[#F5F7FA]">{currentQuestionIndex + 1}</strong> of <strong>{totalQuestions}</strong>
+          <div className="text-[11px] sm:text-xs text-[#9AA4B2]">
+            Q <strong className="text-[#F5F7FA]">{currentQuestionIndex + 1}</strong> of <strong>{totalQuestions}</strong>
           </div>
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2 pt-1 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
           {!isTextOnly && (
             <button
               type="button"
               onClick={() => setPreflightPassed(false)}
-              className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-medium flex items-center gap-1.5 transition-colors"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-medium flex items-center gap-1.5 transition-colors"
               title="Test microphone input level and sound"
             >
               <Headphones className="w-3.5 h-3.5 text-slate-400" />
-              <span className="hidden sm:inline">Audio Check</span>
+              <span className="hidden md:inline">Audio Check</span>
             </button>
           )}
 
@@ -792,17 +1009,17 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             <button
               type="button"
               onClick={switchToTextMode}
-              className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-medium flex items-center gap-1.5 transition-colors"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/[0.08] text-xs font-medium flex items-center gap-1.5 transition-colors"
               title="Switch to typing mode without losing interview progress"
             >
               <FileText className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">Switch to Text</span>
+              <span className="hidden md:inline">Text Mode</span>
             </button>
           )}
 
           <button
             onClick={togglePause}
-            className={`p-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
+            className={`p-1.5 sm:p-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
               isPaused 
                 ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' 
                 : 'bg-white/[0.06] hover:bg-white/[0.1] border-white/[0.08] text-slate-300 hover:text-white'
@@ -810,15 +1027,16 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             title={isPaused ? 'Resume Interview' : 'Pause Interview'}
           >
             {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{isPaused ? 'Resume' : 'Pause'}</span>
+            <span className="hidden md:inline">{isPaused ? 'Resume' : 'Pause'}</span>
           </button>
 
           <button
             onClick={handleFinishEarly}
             disabled={isEvaluating}
-            className="px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 hover:text-rose-200 text-xs font-semibold transition-colors disabled:opacity-50"
+            className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 hover:text-rose-200 text-xs font-semibold transition-colors disabled:opacity-50 whitespace-nowrap"
           >
-            End & Generate Report
+            <span className="inline sm:hidden">End</span>
+            <span className="hidden sm:inline">End & Report</span>
           </button>
         </div>
       </div>
@@ -1118,8 +1336,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           </div>
 
           {/* Response Panel */}
-          <div className="p-5 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="p-3.5 sm:p-5 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-3 sm:space-y-4 w-full">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div>
                 <label className="text-xs font-bold text-[#F5F7FA] flex items-center gap-2">
                   <span>Candidate Response</span>
@@ -1147,7 +1365,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                 <button
                   type="button"
                   onClick={isListening ? stopSpeechCapture : startSpeechCapture}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md ${
+                  className={`w-full sm:w-auto flex items-center justify-center gap-2 px-3.5 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition-all shadow-md shrink-0 ${
                     isListening
                       ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 animate-pulse'
                       : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
@@ -1284,8 +1502,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             )}
 
             {/* Actions & Submit Row */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80 text-xs">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 pt-2 border-t border-slate-800/80 text-xs">
+              <div className="flex items-center justify-between sm:justify-start gap-3">
                 <span className={`text-[11px] font-medium ${
                   wordCount > 0 ? 'text-emerald-400' : 'text-slate-500'
                 }`}>
@@ -1305,12 +1523,12 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               </div>
 
               {/* Submit & Follow-Up Buttons */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <button
                   type="button"
                   disabled={isEvaluating || isSubmitting}
                   onClick={handleSubmit}
-                  className="px-5 py-2.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#C5F36B]/15 transition-transform active:scale-[0.98]"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b5e858] text-[#080B11] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#C5F36B]/15 transition-transform active:scale-[0.98]"
                   title="Submit your answer for evaluation (Ctrl+Enter)"
                 >
                   {isEvaluating || isSubmitting ? (
@@ -1335,7 +1553,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                     type="button"
                     disabled={isEvaluating || isSubmitting}
                     onClick={requestFollowUp}
-                    className="px-3.5 py-2.5 rounded-xl font-medium text-xs bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-[#F5F7FA] transition-colors flex items-center gap-1.5"
+                    className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl font-medium text-xs bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-[#F5F7FA] transition-colors flex items-center justify-center gap-1.5"
                     title="Explore deeper with a realistic follow-up question"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -1385,11 +1603,11 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               ref={evaluationSectionRef}
               className="p-5 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-xl space-y-4 transition-all"
             >
-              {currentQuestion.evaluation.status === 'unavailable' ? (
+              {(currentQuestion.evaluation.status === 'unavailable' || currentQuestion.evaluation.source === 'fallback' || currentQuestion.evaluation.score == null) ? (
                 <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
                   <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
                     <AlertCircle className="w-4 h-4" />
-                    <span>Automated Evaluation Offline (Local / Unconfigured Mode)</span>
+                    <span>Demo mode: AI scoring unavailable. This is not a real evaluation.</span>
                   </div>
                   <p className="text-xs text-[#9AA4B2] leading-relaxed">
                     {currentQuestion.evaluation.unavailableReason || currentQuestion.evaluation.feedback}
@@ -1419,102 +1637,35 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                     </div>
                   </div>
 
-                  {/* 5-Pillar Rubric Breakdown Grid */}
+                  {/* Dynamic Competency Rubric Breakdown Grid */}
                   {currentQuestion.evaluation.rubricBreakdown && (
                     <div className="space-y-2 pt-1">
                       <div className="text-[11px] font-bold text-[#9AA4B2] uppercase tracking-wider">
-                        5-Pillar Competency Rubric:
+                        Competency Rubric Breakdown ({currentQuestion.category ? currentQuestion.category.replace('_', ' ') : 'round'}):
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                        {/* Pillar 1: Technical Depth & Accuracy */}
-                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-blue-300">Technical Depth & Accuracy</span>
-                            <span className="font-bold text-blue-400">
-                              {currentQuestion.evaluation.rubricBreakdown.technicalCorrectness.score}%
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-400 leading-snug">
-                            {currentQuestion.evaluation.rubricBreakdown.technicalCorrectness.reasoning}
-                          </p>
-                          {currentQuestion.evaluation.rubricBreakdown.technicalCorrectness.evidenceQuote && (
-                            <div className="text-[10px] text-slate-500 italic">
-                              Quote: &ldquo;{currentQuestion.evaluation.rubricBreakdown.technicalCorrectness.evidenceQuote}&rdquo;
+                        {Object.entries(currentQuestion.evaluation.rubricBreakdown).map(([key, val]) => {
+                          if (!val || typeof val.score !== 'number') return null;
+                          const displayName = val.name || key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+                          return (
+                            <div key={key} className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-blue-300">{displayName}</span>
+                                <span className="font-bold text-blue-400">
+                                  {val.score}%
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-400 leading-snug">
+                                {val.reasoning}
+                              </p>
+                              {val.evidenceQuote && (
+                                <div className="text-[10px] text-slate-500 italic">
+                                  Quote: &ldquo;{val.evidenceQuote}&rdquo;
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-
-                        {/* Pillar 2: Question Relevance */}
-                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-emerald-300">Question Relevance</span>
-                            <span className="font-bold text-emerald-400">
-                              {currentQuestion.evaluation.rubricBreakdown.relevance.score}%
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-400 leading-snug">
-                            {currentQuestion.evaluation.rubricBreakdown.relevance.reasoning}
-                          </p>
-                          {currentQuestion.evaluation.rubricBreakdown.relevance.evidenceQuote && (
-                            <div className="text-[10px] text-slate-500 italic">
-                              Quote: &ldquo;{currentQuestion.evaluation.rubricBreakdown.relevance.evidenceQuote}&rdquo;
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Pillar 3: Problem Solving & Reasoning */}
-                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-violet-300">Problem-Solving & Reasoning</span>
-                            <span className="font-bold text-violet-400">
-                              {currentQuestion.evaluation.rubricBreakdown.problemSolvingReasoning.score}%
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-400 leading-snug">
-                            {currentQuestion.evaluation.rubricBreakdown.problemSolvingReasoning.reasoning}
-                          </p>
-                          {currentQuestion.evaluation.rubricBreakdown.problemSolvingReasoning.evidenceQuote && (
-                            <div className="text-[10px] text-slate-500 italic">
-                              Quote: &ldquo;{currentQuestion.evaluation.rubricBreakdown.problemSolvingReasoning.evidenceQuote}&rdquo;
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Pillar 4: Completeness & Examples */}
-                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-amber-300">Completeness & Examples</span>
-                            <span className="font-bold text-amber-400">
-                              {currentQuestion.evaluation.rubricBreakdown.completenessAndExamples.score}%
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-400 leading-snug">
-                            {currentQuestion.evaluation.rubricBreakdown.completenessAndExamples.reasoning}
-                          </p>
-                          {currentQuestion.evaluation.rubricBreakdown.completenessAndExamples.evidenceQuote && (
-                            <div className="text-[10px] text-slate-500 italic">
-                              Quote: &ldquo;{currentQuestion.evaluation.rubricBreakdown.completenessAndExamples.evidenceQuote}&rdquo;
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Pillar 5: Communication Clarity */}
-                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1 md:col-span-2">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-cyan-300">Communication Clarity</span>
-                            <span className="font-bold text-cyan-400">
-                              {currentQuestion.evaluation.rubricBreakdown.communicationClarity.score}%
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-400 leading-snug">
-                            {currentQuestion.evaluation.rubricBreakdown.communicationClarity.reasoning}
-                          </p>
-                          {currentQuestion.evaluation.rubricBreakdown.communicationClarity.evidenceQuote && (
-                            <div className="text-[10px] text-slate-500 italic">
-                              Quote: &ldquo;{currentQuestion.evaluation.rubricBreakdown.communicationClarity.evidenceQuote}&rdquo;
-                            </div>
-                          )}
-                        </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

@@ -268,7 +268,7 @@ export const authService = {
               graduation_year: '',
               skills: [],
               career_goals: '',
-              interviews_remaining: 9999,
+              interviews_remaining: 5,
               total_interviews_taken: 0,
               profile_completed: false,
               created_at: new Date().toISOString(),
@@ -434,7 +434,7 @@ export const authService = {
             graduation_year: '',
             skills: [],
             career_goals: '',
-            interviews_remaining: 9999,
+            interviews_remaining: 5,
             total_interviews_taken: 0,
             profile_completed: false,
             created_at: data.user.created_at,
@@ -567,7 +567,11 @@ export const authService = {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+          redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account'
+          }
         }
       });
       if (error) {
@@ -619,19 +623,52 @@ export const authService = {
           const userToSet: UserProfile = profile || {
             id: data.session.user.id,
             email: data.session.user.email || (cachedUser?.email || ''),
-            full_name: data.session.user.user_metadata?.full_name || cachedUser?.full_name || (data.session.user.email ? data.session.user.email.split('@')[0] : 'Candidate'),
+            full_name: data.session.user.user_metadata?.full_name 
+              || data.session.user.user_metadata?.name 
+              || cachedUser?.full_name 
+              || (data.session.user.email ? data.session.user.email.split('@')[0] : 'Candidate'),
+            avatar_url: data.session.user.user_metadata?.avatar_url 
+              || data.session.user.user_metadata?.picture 
+              || cachedUser?.avatar_url,
             role_target: cachedUser?.role_target || '',
             experience_level: cachedUser?.experience_level || 'fresher',
             college: cachedUser?.college || '',
             graduation_year: cachedUser?.graduation_year || '',
             skills: cachedUser?.skills || [],
             career_goals: cachedUser?.career_goals || '',
-            interviews_remaining: cachedUser?.interviews_remaining ?? 9999,
+            interviews_remaining: cachedUser?.interviews_remaining ?? 5,
             total_interviews_taken: cachedUser?.total_interviews_taken ?? 0,
             profile_completed: cachedUser?.profile_completed ?? Boolean(cachedUser?.role_target && cachedUser?.skills && cachedUser.skills.length > 0),
             created_at: data.session.user.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
+
+          // If profile row doesn't exist in Supabase yet (e.g. first OAuth sign-in before trigger), upsert it
+          if (!profile && isSupabaseConfigured && supabase) {
+            try {
+              const { data: newProfile } = await supabase
+                .from('profiles')
+                .upsert({
+                  id: userToSet.id,
+                  email: userToSet.email,
+                  full_name: userToSet.full_name,
+                  avatar_url: userToSet.avatar_url,
+                  role_target: userToSet.role_target || 'Full Stack Developer',
+                  experience_level: userToSet.experience_level || 'fresher',
+                  skills: userToSet.skills && userToSet.skills.length > 0 ? userToSet.skills : ['JavaScript', 'React', 'Problem Solving'],
+                  interviews_remaining: userToSet.interviews_remaining,
+                  total_interviews_taken: userToSet.total_interviews_taken,
+                  profile_completed: userToSet.profile_completed
+                })
+                .select('*')
+                .maybeSingle();
+              if (newProfile) {
+                profile = newProfile;
+              }
+            } catch (err) {
+              console.warn('[AuthService] Supabase profile upsert deferred:', err);
+            }
+          }
 
           storage.setUser(userToSet);
           return userToSet;

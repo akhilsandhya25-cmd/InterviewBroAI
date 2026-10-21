@@ -263,6 +263,23 @@ export function parseMicrophoneError(error: any): MicrophoneErrorInfo {
     };
   }
 
+  // 5b. Unsupported Browser (Safari/Firefox speech recognition limitations)
+  if (
+    errType === 'not-supported' ||
+    errType === 'unsupported_browser' ||
+    combined.includes('not supported') ||
+    combined.includes('speechrecognition')
+  ) {
+    return {
+      code: 'unsupported_browser',
+      title: 'Browser Speech Recognition Not Supported',
+      message: 'Continuous speech recognition is not supported in this browser.',
+      technicalDetails: `${errName}: ${errMsg}`,
+      canFallbackToText: true,
+      actionHint: 'Please use Chrome or type your answer using Text Mode.'
+    };
+  }
+
   // 6. Overconstrained
   if (errName === 'OverconstrainedError' || combined.includes('overconstrained')) {
     return {
@@ -318,7 +335,7 @@ export async function testMicrophoneAccess(): Promise<{
         title: 'Browser Not Supported',
         message: 'Your browser does not support media device capture.',
         canFallbackToText: true,
-        actionHint: 'Please use a modern browser such as Microsoft Edge or Google Chrome.'
+        actionHint: 'Please use Chrome or type your answer in Text-Based mode.'
       }
     };
   }

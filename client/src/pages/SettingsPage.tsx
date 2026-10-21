@@ -17,10 +17,11 @@ import {
   Sparkles,
   Download,
   Lock,
-  FileText
+  FileText,
+  CloudOff
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { isSupabaseConfigured } from '../services/supabase';
+import { isSupabaseConfigured, checkSupabaseTablesStatus, CloudHealthCheckResult } from '../services/supabase';
 import { tts } from '../services/speech';
 import { storage } from '../services/storage';
 import { BrandIcon } from '../components/brand/BrandIcon';
@@ -33,6 +34,19 @@ interface VoiceOption {
   description?: string;
 }
 
+interface HealthData {
+  status: 'ok' | 'degraded';
+  healthy: boolean;
+  missingRequiredEnvVars: string[];
+  warnings: string[];
+  services: {
+    gemini: boolean;
+    supabase: boolean;
+    supabaseServiceRole: boolean;
+    elevenlabs: boolean;
+  };
+}
+
 interface SettingsPageProps {
   onNavigate?: (route: string) => void;
 }
@@ -42,6 +56,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
   const [deviceTestSuccess, setDeviceTestSuccess] = useState<string | null>(null);
 
 
+  // Health & Environment Validation State
+  const [healthStatus, setHealthStatus] = useState<HealthData | null>(null);
+
+  // Honest Cloud Sync & Table Readiness State
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudHealthCheckResult>({
+    status: isSupabaseConfigured ? 'tables_missing' : 'offline',
+    message: 'Testing Supabase database readiness...',
+    missingTables: []
+  });
+  const [isCheckingSync, setIsCheckingSync] = useState<boolean>(true);
+
   // Voice Engine States
   const [voiceList, setVoiceList] = useState<VoiceOption[]>([]);
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(() => tts.getElevenLabsVoice());
@@ -50,16 +75,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
   const [preferElevenLabs, setPreferElevenLabs] = useState<boolean>(() => tts.getUseElevenLabs());
 
   useEffect(() => {
-    // Fetch voice backend status and voices
+    // Check honest Supabase table readiness
+    checkSupabaseTablesStatus().then(res => {
+      setCloudSyncStatus(res);
+      setIsCheckingSync(false);
+    });
+
+    // Fetch voice backend status, voices, and system health
     const loadVoiceData = async () => {
       try {
-        const [statusRes, voicesRes] = await Promise.all([
+        const [statusRes, voicesRes, healthRes] = await Promise.all([
           fetch('/api/voice/status').then(async r => {
             if (!r.ok) return null;
             const text = await r.text();
             return text ? JSON.parse(text) : null;
           }).catch(() => null),
           fetch('/api/voice/voices').then(async r => {
+            if (!r.ok) return null;
+            const text = await r.text();
+            return text ? JSON.parse(text) : null;
+          }).catch(() => null),
+          fetch('/api/health').then(async r => {
             if (!r.ok) return null;
             const text = await r.text();
             return text ? JSON.parse(text) : null;
@@ -72,8 +108,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
         if (voicesRes && voicesRes.voices) {
           setVoiceList(voicesRes.voices);
         }
+        if (healthRes) {
+          setHealthStatus(healthRes);
+        }
       } catch (e) {
-        console.warn('Could not load voice metadata:', e);
+        console.warn('Could not load system metadata:', e);
       }
     };
     loadVoiceData();
@@ -157,10 +196,33 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
             <div className="font-semibold text-[#F5F7FA]">Google Gemini API Key (Server-Side)</div>
             <div className="text-[11px] text-[#9AA4B2] mt-0.5">Configured via server/.env.local (never exposed to client)</div>
           </div>
-          <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase bg-white/[0.06] text-emerald-400 border border-white/[0.08]">
-            Secure Backend Proxy
+          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border ${
+            healthStatus?.services?.gemini
+              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+          }`}>
+            {healthStatus?.services?.gemini ? 'Active (Gemini 2.5 Flash)' : 'Offline / Missing Key'}
           </span>
         </div>
+
+        {healthStatus && healthStatus.missingRequiredEnvVars.length > 0 && (
+          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 space-y-1">
+            <div className="font-bold flex items-center gap-1.5 text-amber-300">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>Missing Required Environment Variables on Server</span>
+            </div>
+            <p className="text-[11px] text-amber-300/80">
+              The following required environment variable(s) are missing from your server configuration:
+            </p>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {healthStatus.missingRequiredEnvVars.map(v => (
+                <span key={v} className="px-2 py-0.5 rounded font-mono text-[10px] font-semibold bg-amber-950/60 text-amber-300 border border-amber-500/40">
+                  {v}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ElevenLabs Voice Engine & Natural Interviewer Persona */}
@@ -255,42 +317,80 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Authentication & Database Provider</span>
           </h2>
-          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border self-start sm:self-auto ${
-            isSupabaseConnected
-              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-              : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
-          }`}>
-            {isSupabaseConnected ? 'Cloud Synced (Supabase Auth)' : 'Local Cryptographic Mode'}
-          </span>
+          
+          {/* Honest Cloud Sync Status Badge */}
+          {cloudSyncStatus.status === 'synced' && (
+            <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border self-start sm:self-auto bg-emerald-500/10 text-emerald-400 border-emerald-500/20 flex items-center gap-1.5">
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+              <span>Synced</span>
+            </span>
+          )}
+          {cloudSyncStatus.status === 'tables_missing' && (
+            <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border self-start sm:self-auto bg-amber-500/10 text-amber-300 border-amber-500/30 flex items-center gap-1.5">
+              <AlertCircle className="w-3 h-3 text-amber-400" />
+              <span>Tables missing</span>
+            </span>
+          )}
+          {cloudSyncStatus.status === 'offline' && (
+            <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border self-start sm:self-auto bg-slate-500/10 text-slate-400 border-slate-500/20 flex items-center gap-1.5">
+              <CloudOff className="w-3 h-3 text-slate-400" />
+              <span>Offline</span>
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           <div className="p-3 rounded-xl bg-[#080B11] border border-white/[0.08]">
             <span className="text-[#9AA4B2] block mb-0.5 font-medium">Active Provider:</span>
             <span className="text-[#F5F7FA] font-semibold">
-              {isSupabaseConnected
-                ? 'Supabase Auth (Cloud PostgreSQL with RLS)'
-                : 'Local Secure Engine (PBKDF2-HMAC-SHA512 + Salt)'}
+              {cloudSyncStatus.status === 'offline'
+                ? 'Local Secure Engine (PBKDF2-HMAC-SHA512 + Salt)'
+                : 'Supabase Auth (Cloud PostgreSQL with RLS)'}
             </span>
           </div>
 
           <div className="p-3 rounded-xl bg-[#080B11] border border-white/[0.08]">
-            <span className="text-[#9AA4B2] block mb-0.5 font-medium">Data Isolation:</span>
-            <span className="text-emerald-400 font-semibold">
-              Strictly isolated per verified User ID
+            <span className="text-[#9AA4B2] block mb-0.5 font-medium">Cloud Database Readiness:</span>
+            <span className={`font-semibold capitalize ${
+              cloudSyncStatus.status === 'synced'
+                ? 'text-emerald-400'
+                : cloudSyncStatus.status === 'tables_missing'
+                ? 'text-amber-400'
+                : 'text-slate-400'
+            }`}>
+              {cloudSyncStatus.status === 'synced'
+                ? 'Fully Synchronized'
+                : cloudSyncStatus.status === 'tables_missing'
+                ? 'Tables Missing (schema.sql pending)'
+                : 'Offline (Local Cache Only)'}
             </span>
           </div>
         </div>
 
-        <p className="text-xs text-[#9AA4B2] leading-relaxed">
-          {isSupabaseConnected ? (
-            'Your sessions, profiles, and reports are safely persisting in your Supabase PostgreSQL database with Row Level Security (RLS).'
-          ) : (
-            'Currently running with the local cryptographic auth engine on your Express backend. User sessions and credentials safely persist across server restarts in .data/.'
-          )}
-        </p>
+        {/* Honest Cloud Sync Status Details */}
+        {cloudSyncStatus.status === 'tables_missing' && (
+          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 space-y-2">
+            <div className="font-bold flex items-center gap-2 text-amber-300">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>PostgreSQL Tables Missing in Supabase</span>
+            </div>
+            <p className="text-[11px] text-amber-200/90 leading-relaxed">
+              Your Supabase credentials are valid and connected, but the required database tables have not been created yet in PostgreSQL. The following table(s) are missing from the schema: <span className="font-mono text-amber-300 font-semibold">{cloudSyncStatus.missingTables.join(', ')}</span>.
+            </p>
+            <div className="p-2.5 rounded-lg bg-black/40 border border-amber-500/20 text-[11px] font-mono text-slate-300">
+              To resolve: Copy and run <code className="text-amber-300 font-bold">supabase/schema.sql</code> in your Supabase SQL Editor.
+            </div>
+          </div>
+        )}
 
-        {!isSupabaseConnected && (
+        {cloudSyncStatus.status === 'synced' && (
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>Cloud Synchronization Active: Profiles, interview sessions, feedback reports, and resume analyses are fully provisioned and synchronized with PostgreSQL Row Level Security.</span>
+          </div>
+        )}
+
+        {cloudSyncStatus.status === 'offline' && (
           <div className="p-4 rounded-xl bg-[#080B11] border border-white/[0.08] space-y-2 text-xs">
             <div className="font-semibold text-[#F5F7FA]">How to Connect Free Supabase Cloud Auth (3 Steps):</div>
             <ol className="list-decimal list-inside space-y-1.5 text-[#9AA4B2]">
@@ -395,6 +495,34 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
         <p className="text-xs text-[#9AA4B2] leading-relaxed">
           Download a complete portable JSON archive of your interview questions, evaluation reports, and resume analyses, or exercise your statutory right to account erasure.
         </p>
+
+        {healthStatus && (
+          <div className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
+            healthStatus.services.supabaseServiceRole
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+              : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+          }`}>
+            <div>
+              <span className="font-bold block">
+                {healthStatus.services.supabaseServiceRole
+                  ? 'Complete Right-to-Erasure Active'
+                  : 'Partial Erasure Guard Active'}
+              </span>
+              <span className="text-[11px] opacity-80">
+                {healthStatus.services.supabaseServiceRole
+                  ? 'Server has SUPABASE_SERVICE_ROLE_KEY configured. Both database records and login credentials are permanently deleted.'
+                  : 'Server is missing SUPABASE_SERVICE_ROLE_KEY. Deletion will be rejected with HTTP 500 to prevent leaving accounts in a partial state.'}
+              </span>
+            </div>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ml-2 border ${
+              healthStatus.services.supabaseServiceRole
+                ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
+                : 'bg-amber-500/20 border-amber-500/30 text-amber-300'
+            }`}>
+              {healthStatus.services.supabaseServiceRole ? 'Admin Enabled' : 'Key Missing'}
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <button

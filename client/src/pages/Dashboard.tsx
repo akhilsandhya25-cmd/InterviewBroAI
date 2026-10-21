@@ -261,11 +261,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
           <div>
             <div className="text-xs font-medium text-[#9AA4B2]">Resume Status</div>
             <div className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA] mt-1">
-              {resumes.length > 0 ? `${resumes[0].atsScoreEstimate}%` : 'Pending'}
+              {resumes.length > 0 ? ((resumes[0].source === 'fallback' || resumes[0].atsScoreEstimate == null) ? 'Not scored' : `${resumes[0].atsScoreEstimate}%`) : 'Pending'}
             </div>
             <div className="text-[11px] text-cyan-400 mt-1 flex items-center gap-1">
               <FileText className="w-3 h-3" />
-              <span>{resumes.length > 0 ? 'Analyzed' : 'Upload Resume'}</span>
+              <span>{resumes.length > 0 ? ((resumes[0].source === 'fallback' || resumes[0].atsScoreEstimate == null) ? 'Demo Analyzed' : 'Analyzed') : 'Upload Resume'}</span>
             </div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-[#F5F7FA]">

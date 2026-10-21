@@ -37,6 +37,11 @@ export interface CompanyPreset {
   popularRoles: string[];
   focusAreas: string[];
   interviewStructure: string[];
+  difficultyEmphasis?: string;
+  interviewStyle?: string;
+  exampleQuestionThemes?: string[];
+  status?: string;
+  todoReviewNote?: string;
 }
 
 export type InterviewDeliveryMode = 'video' | 'voice_only' | 'text_only';
@@ -55,9 +60,21 @@ export interface InterviewConfig {
   jobDescription?: string;
   resumeFileName?: string;
   resumeText?: string;
+  companyTrack?: any;
+}
+
+export type InterviewSource = 'ai' | 'fallback';
+
+export interface RubricPillar {
+  key: string;
+  label: string;
+  score: number | null;
+  description: string;
+  color?: string;
 }
 
 export interface RubricCategoryScore {
+  name?: string;
   score: number; // 0 - 100
   reasoning: string;
   evidenceQuote?: string;
@@ -65,8 +82,9 @@ export interface RubricCategoryScore {
 
 export interface QuestionEvaluation {
   status?: 'evaluated' | 'unavailable';
+  source?: InterviewSource;
   unavailableReason?: string;
-  score: number; // 0 - 100
+  score?: number | null; // 0 - 100 or null when fallback/demo
   technicalDepthScore?: number;
   relevanceScore?: number;
   reasoningScore?: number;
@@ -74,13 +92,7 @@ export interface QuestionEvaluation {
   communicationScore?: number;
   accuracyScore?: number;
   structureScore?: number;
-  rubricBreakdown?: {
-    technicalCorrectness: RubricCategoryScore;
-    relevance: RubricCategoryScore;
-    problemSolvingReasoning: RubricCategoryScore;
-    completenessAndExamples: RubricCategoryScore;
-    communicationClarity: RubricCategoryScore;
-  };
+  rubricBreakdown?: Record<string, RubricCategoryScore>;
   verifiedClaims?: string[];
   unverifiedOrQuestionableClaims?: string[];
   feedback: string;
@@ -102,6 +114,7 @@ export interface InterviewQuestion {
   followUpToQuestionId?: string;
   isFollowUp?: boolean;
   followUpReason?: string;
+  source?: InterviewSource;
 }
 
 export interface FeedbackReport {
@@ -111,11 +124,13 @@ export interface FeedbackReport {
   role: string;
   company: string;
   interviewType: InterviewType;
-  overallScore: number; // 0 - 100
-  technicalAccuracyScore: number;
-  communicationScore: number;
-  structureStarScore: number;
-  relevanceScore: number;
+  source?: InterviewSource;
+  overallScore?: number | null; // 0 - 100 or null when fallback/demo
+  rubricPillars?: RubricPillar[];
+  technicalAccuracyScore?: number | null;
+  communicationScore?: number | null;
+  structureStarScore?: number | null;
+  relevanceScore?: number | null;
   summary: string;
   strengths: string[];
   weaknesses: string[];
@@ -158,7 +173,8 @@ export interface ResumeAnalysis {
   fileSize: number;
   extractedSkills: string[];
   missingSkillsForRole: string[];
-  atsScoreEstimate: number; // 0 - 100
+  source?: InterviewSource;
+  atsScoreEstimate?: number | null; // 0 - 100 or null when fallback/demo
   educationFound: string[];
   experienceSummary: string;
   projectsDetected: string[];
@@ -189,4 +205,3 @@ export interface PrivacyPreferences {
   consentAcknowledgedAt?: string;
   consentVersion?: string;
 }
-

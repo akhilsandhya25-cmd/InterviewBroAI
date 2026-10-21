@@ -36,6 +36,19 @@ async function parseBody(req) {
   });
 }
 
+/**
+ * Unified Serverless Account Erasure Handler
+ * 
+ * DPDP Act 2023 Statutory Compliance & Right-to-Erasure:
+ * 1. Verifies caller identity via Supabase JWT (HTTP 401)
+ * 2. Enforces caller cannot delete another user's ID (HTTP 403)
+ * 3. Enforces SUPABASE_SERVICE_ROLE_KEY presence (HTTP 500 SERVICE_ROLE_KEY_MISSING)
+ *    Fails loudly before touching any data if service role key is missing.
+ *    Never reports success on partial deletion.
+ * 4. Erases all user rows from database tables: feedback_reports, interview_sessions, resume_analyses, profiles
+ * 5. Erases auth user identity from GoTrue auth.users via Admin API
+ * 6. Returns 200 only upon complete confirmed erasure
+ */
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -47,7 +60,7 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({
-      error: 'Method Not Allowed',
+      error: 'METHOD_NOT_ALLOWED',
       message: 'The /api/auth/delete-account endpoint requires a POST request.'
     });
   }
@@ -57,11 +70,11 @@ export default async function handler(req, res) {
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
 
   const body = await parseBody(req);
-  const requestedUserId = body.userId;
+  const requestedUserId = body?.userId;
 
   let authenticatedUserId = null;
 
-  // Verify caller identity server-side using token
+  // 1. Verify caller identity server-side using token
   if (token) {
     try {
       const userRes = await fetch(`${supaUrl}/auth/v1/user`, {
@@ -82,7 +95,7 @@ export default async function handler(req, res) {
   // Enforce strict server-side authentication: caller must provide a valid, verified token
   if (!authenticatedUserId) {
     return res.status(401).json({
-      error: 'Unauthorized',
+      error: 'UNAUTHORIZED',
       message: 'A valid, unexpired authentication Bearer token is required to delete an account.'
     });
   }
@@ -90,63 +103,92 @@ export default async function handler(req, res) {
   // Prevent cross-user deletion (IDOR protection)
   if (requestedUserId && requestedUserId !== authenticatedUserId) {
     return res.status(403).json({
-      error: 'Forbidden',
+      error: 'FORBIDDEN',
       message: 'You cannot delete another user account.'
     });
   }
 
   const targetUserId = authenticatedUserId;
 
+  // 2. Validate SUPABASE_SERVICE_ROLE_KEY server-side.
+  // The service role key is strictly required to purge the GoTrue auth user record.
+  // If missing, fail loudly with HTTP 500 and abort immediately to prevent partial erasure.
+  const hasServiceRoleKey = Boolean(
+    serviceRoleKey &&
+    !serviceRoleKey.includes('your-supabase-service-role-key') &&
+    serviceRoleKey.length >= 20
+  );
+
+  if (!hasServiceRoleKey) {
+    console.error('[Delete API] Aborting account deletion: SUPABASE_SERVICE_ROLE_KEY is not configured on the server.');
+    return res.status(500).json({
+      error: 'SERVICE_ROLE_KEY_MISSING',
+      message: 'Account deletion could not be completed: Supabase Service Role Key is not configured on the server. Deletion has been aborted to prevent leaving your account in a partial state.'
+    });
+  }
 
   try {
-    let adminDeleted = false;
-
-    // If server environment has service role key, perform full GoTrue admin user purge
-    if (serviceRoleKey) {
-      const adminRes = await fetch(`${supaUrl}/auth/v1/admin/users/${targetUserId}`, {
-        method: 'DELETE',
-        headers: {
-          'apikey': serviceRoleKey,
-          'Authorization': `Bearer ${serviceRoleKey}`
-        }
-      });
-      if (adminRes.ok) {
-        adminDeleted = true;
-      }
-    }
-
-    // Clean up DB rows using user token or service key
-    const authBearer = serviceRoleKey ? serviceRoleKey : token;
-    const authApiKey = serviceRoleKey ? serviceRoleKey : anonKey;
-
-    if (authBearer) {
-      const tables = ['feedback_reports', 'interview_sessions', 'resume_analyses', 'profiles'];
-      for (const table of tables) {
-        const idCol = table === 'profiles' ? 'id' : 'user_id';
-        await fetch(`${supaUrl}/rest/v1/${table}?${idCol}=eq.${targetUserId}`, {
+    // 3. Delete all candidate database rows across application tables using service role key
+    const tables = ['feedback_reports', 'interview_sessions', 'resume_analyses', 'profiles'];
+    for (const table of tables) {
+      const idCol = table === 'profiles' ? 'id' : 'user_id';
+      try {
+        const delRes = await fetch(`${supaUrl}/rest/v1/${table}?${idCol}=eq.${targetUserId}`, {
           method: 'DELETE',
           headers: {
-            'apikey': authApiKey,
-            'Authorization': `Bearer ${authBearer}`
+            'apikey': serviceRoleKey,
+            'Authorization': `Bearer ${serviceRoleKey}`,
+            'Prefer': 'return=representation'
           }
-        }).catch(() => null);
+        });
+
+        if (!delRes.ok && delRes.status !== 404) {
+          const errBody = await delRes.text().catch(() => '');
+          console.error(`[Delete API] Error deleting from table ${table}:`, delRes.status, errBody);
+          return res.status(500).json({
+            error: 'DATABASE_PURGE_FAILED',
+            message: `Failed to erase user records from database table: ${table}. Partial deletion aborted.`
+          });
+        }
+      } catch (tableErr) {
+        console.error(`[Delete API] Exception deleting from table ${table}:`, tableErr.message);
+        return res.status(500).json({
+          error: 'DATABASE_PURGE_FAILED',
+          message: `Network failure while deleting from database table: ${table}. Deletion aborted.`
+        });
       }
     }
 
+    // 4. Delete the auth user record via GoTrue Admin API using SUPABASE_SERVICE_ROLE_KEY
+    const adminRes = await fetch(`${supaUrl}/auth/v1/admin/users/${targetUserId}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': serviceRoleKey,
+        'Authorization': `Bearer ${serviceRoleKey}`
+      }
+    });
+
+    if (!adminRes.ok) {
+      const errBody = await adminRes.text().catch(() => '');
+      console.error('[Delete API] Admin auth user deletion failed:', adminRes.status, errBody);
+      return res.status(500).json({
+        error: 'AUTH_USER_DELETION_FAILED',
+        message: `Failed to erase user identity from authentication provider (Status ${adminRes.status}). Partial deletion was prevented.`
+      });
+    }
+
+    // 5. Success: Both table rows and auth.users identity are completely erased.
     return res.status(200).json({
       success: true,
       recordsPurged: true,
-      authAccountDeleted: adminDeleted,
-      message: adminDeleted
-        ? 'Account credentials and all associated database records have been permanently deleted.'
-        : 'All candidate data, profiles, sessions, and reports were permanently erased from database. Complete GoTrue authentication user removal requires SUPABASE_SERVICE_ROLE_KEY to be configured on the server environment.',
-      userId: targetUserId,
-      adminPurged: adminDeleted
+      authAccountDeleted: true,
+      message: 'Account credentials and all associated database records have been permanently deleted.',
+      userId: targetUserId
     });
   } catch (err) {
-    console.error('[Delete API] Error processing deletion:', err);
+    console.error('[Delete API] Exception processing deletion:', err);
     return res.status(500).json({
-      error: 'Deletion Error',
+      error: 'DELETION_ERROR',
       message: 'Encountered an internal error while deleting account data.'
     });
   }

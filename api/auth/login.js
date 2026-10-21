@@ -127,7 +127,7 @@ export default async function handler(req, res) {
       graduation_year: '',
       skills: [],
       career_goals: '',
-      interviews_remaining: 9999,
+      interviews_remaining: 5,
       total_interviews_taken: 0,
       profile_completed: false,
       created_at: data.user?.created_at || new Date().toISOString(),

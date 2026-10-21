@@ -19,9 +19,12 @@ import {
   Cpu,
   Compass,
   Sparkles,
-  FileText
+  FileText,
+  Info,
+  ListOrdered
 } from 'lucide-react';
 import { CompanyBadge } from '../components/CompanyBadge';
+import { getCompanyTrack } from '../data/companyTracks';
 import {
   COMPANY_PRESETS,
   POPULAR_ROLES,
@@ -47,6 +50,7 @@ import {
   BrowserVoiceCapabilities
 } from '../services/microphoneService';
 import { tts } from '../services/speech';
+import { analyticsService } from '../services/analytics';
 
 interface InterviewSetupProps {
   onStart: () => void;
@@ -81,9 +85,16 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
   const [jobDescription, setJobDescription] = useState<string>('');
   const [resumeText, setResumeText] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
+  const [startError, setStartError] = useState<string | null>(null);
+  const [showQuotaModal, setShowQuotaModal] = useState<boolean>(false);
 
   // Pre-interview Mic Readiness
   const [voiceCapabilities] = useState<BrowserVoiceCapabilities>(() => getBrowserVoiceCapabilities());
+  const isUnsupportedBrowserForVoice =
+    voiceCapabilities.browserName === 'Safari' ||
+    voiceCapabilities.browserName === 'Firefox' ||
+    !voiceCapabilities.hasSpeechRecognition;
   const [isTestingMic, setIsTestingMic] = useState<boolean>(false);
   const [testAudioLevel, setTestAudioLevel] = useState<number>(0);
   const [testDeviceLabel, setTestDeviceLabel] = useState<string>('');
@@ -135,11 +146,20 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
   };
 
   const selectedPreset = COMPANY_PRESETS.find(p => p.id === selectedPresetId);
-  const companyName = customCompany.trim() || selectedPreset?.name || 'Top Tech Employer';
-  const companyCategory: CompanyCategory = selectedPreset?.category || 'Product Unicorn';
+  const matchedTrack = getCompanyTrack(customCompany.trim() || selectedPresetId || selectedPreset?.name);
+  const companyName = customCompany.trim() || matchedTrack?.companyName || selectedPreset?.name || 'Top Tech Employer';
+  const companyCategory: CompanyCategory = (matchedTrack?.category as CompanyCategory) || selectedPreset?.category || 'Product Unicorn';
 
   const handleStartInterview = async () => {
     stopMicTest();
+    setStartError(null);
+
+    if (quota.interviewsRemaining <= 0) {
+      analyticsService.trackQuotaHit({ context: 'setup_screen_launch' });
+      setShowQuotaModal(true);
+      return;
+    }
+
     const config: InterviewConfig = {
       role,
       experienceLevel,
@@ -152,15 +172,32 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       language,
       mode,
       jobDescription: jobDescription.trim() || undefined,
-      resumeText: resumeText.trim() || undefined
+      resumeText: resumeText.trim() || undefined,
+      companyTrack: matchedTrack || undefined
     };
 
-    startNewSession(config);
-    onStart();
+    setIsStartingSession(true);
+    try {
+      await startNewSession(config);
+      onStart();
+    } catch (err: any) {
+      if (err.code === 'QUOTA_EXCEEDED' || err.status === 402) {
+        analyticsService.trackQuotaHit({ context: 'setup_api_rejected' });
+        setShowQuotaModal(true);
+      } else if (err.code === 'RATE_LIMIT_EXCEEDED' || err.status === 429) {
+        setStartError(err.message || 'Rate limit reached. Please wait a moment before trying again.');
+      } else if (err.code === 'UNAUTHORIZED' || err.status === 401) {
+        setStartError('Please sign in to start your AI mock interview session.');
+      } else {
+        setStartError(err.message || 'Failed to start interview session. Please check your network connection.');
+      }
+    } finally {
+      setIsStartingSession(false);
+    }
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/[0.08]">
         <div>
@@ -234,6 +271,101 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B] transition-colors"
           />
         </div>
+
+        {/* Selected Company Interview Track & Round Structure */}
+        {(matchedTrack || (selectedPreset && selectedPreset.interviewStructure)) && (
+          <div className="mt-3 p-4 rounded-xl bg-[#121826] border border-white/[0.08] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                <CompanyBadge
+                  name={matchedTrack?.companyName || selectedPreset?.name}
+                  code={matchedTrack?.id ? (matchedTrack.id === 'google' ? 'GOOG' : matchedTrack.id === 'microsoft' ? 'MSFT' : matchedTrack.id === 'accenture' ? 'ACN' : matchedTrack.id.toUpperCase().slice(0, 3)) : selectedPreset?.code}
+                  companyId={matchedTrack?.id || selectedPreset?.id}
+                  size="sm"
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs font-semibold text-[#F5F7FA]">
+                      {matchedTrack?.companyName || selectedPreset?.name} Interview Track
+                    </h4>
+                    <span className="px-1.5 py-0.5 text-[9px] font-medium rounded bg-[#C5F36B]/15 text-[#C5F36B] border border-[#C5F36B]/30">
+                      {matchedTrack?.category || selectedPreset?.category}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#9AA4B2] mt-0.5">
+                    {matchedTrack?.tagline || selectedPreset?.tagline}
+                  </p>
+                </div>
+              </div>
+
+              {/* General patterns disclaimer */}
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] self-start sm:self-auto">
+                <Info className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                <span>General patterns, to be verified against real candidate experiences</span>
+              </div>
+            </div>
+
+            {/* Typical Round Structure */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-[#F5F7FA] uppercase tracking-wider flex items-center gap-1.5">
+                  <ListOrdered className="w-3.5 h-3.5 text-[#C5F36B]" />
+                  Typical Round Structure
+                </span>
+                <span className="text-[10px] text-[#9AA4B2]">
+                  {(matchedTrack?.typicalRoundStructure || selectedPreset?.interviewStructure || []).length} sequential stages
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-2 pt-1">
+                {(matchedTrack?.typicalRoundStructure || selectedPreset?.interviewStructure || []).map((round, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-start gap-2.5 p-2.5 rounded-lg bg-[#0B0F17] border border-white/[0.04]"
+                  >
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#C5F36B]/15 text-[#C5F36B] font-mono text-[10px] font-bold shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <span className="text-xs text-[#E2E8F0] leading-snug">
+                      {round}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Assessment Focus Topics & Style Note */}
+            <div className="pt-2 border-t border-white/[0.06] grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Focus Topics */}
+              <div>
+                <span className="text-[10px] font-semibold text-[#9AA4B2] uppercase tracking-wider block mb-1.5">
+                  Common Topic Areas
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(matchedTrack?.commonTopicAreas || selectedPreset?.focusAreas || []).slice(0, 5).map((topic, i) => (
+                    <span
+                      key={i}
+                      className="px-2 py-0.5 rounded-md bg-white/[0.04] text-[10px] text-[#CBD5E1] border border-white/[0.06]"
+                    >
+                      {topic.length > 45 ? topic.slice(0, 45) + '...' : topic}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Difficulty & Style */}
+              {(matchedTrack?.difficultyEmphasis || matchedTrack?.interviewStyle) && (
+                <div>
+                  <span className="text-[10px] font-semibold text-[#9AA4B2] uppercase tracking-wider block mb-1.5">
+                    Hiring Bar & Interview Style
+                  </span>
+                  <p className="text-[11px] text-[#94A3B8] leading-relaxed line-clamp-3">
+                    {matchedTrack.difficultyEmphasis}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* 2. Target Job Role */}
@@ -361,6 +493,37 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
           </label>
           <span className="text-xs text-[#9AA4B2]">Choose your practice mode</span>
         </div>
+
+        {/* Unsupported Browser Notice (Safari / Firefox) with Smooth Text Mode Fallback */}
+        {isUnsupportedBrowserForVoice && (
+          <div className="p-3 sm:p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-sm">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-amber-300">
+                  Voice recognition is not fully supported in {voiceCapabilities.browserName || 'this browser'}.
+                </span>
+                <p className="text-[11px] text-amber-200/80 mt-0.5">
+                  For the best voice experience, please <strong>use Chrome or type your answer</strong> using Text-Based Mode.
+                </p>
+              </div>
+            </div>
+            {mode !== 'text_only' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('text_only');
+                  stopMicTest();
+                  setTestMicError(null);
+                }}
+                className="w-full sm:w-auto px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0 flex items-center justify-center gap-1.5 shadow transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Switch to Text Mode</span>
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Voice-Only Mode */}
@@ -495,6 +658,27 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                 )}
               </div>
             </div>
+
+            {/* Unsupported Browser Warning inside readiness */}
+            {isUnsupportedBrowserForVoice && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Speech-to-text is limited in {voiceCapabilities.browserName}. Please use Chrome or type your answer.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('text_only');
+                    stopMicTest();
+                    setTestMicError(null);
+                  }}
+                  className="text-xs text-emerald-400 hover:underline font-semibold shrink-0 text-left sm:text-right"
+                >
+                  Switch to Text Mode
+                </button>
+              </div>
+            )}
 
             {/* Active Test Display */}
             {isTestingMic && (
@@ -698,6 +882,39 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
         )}
       </section>
 
+      {/* Error & Quota Banners */}
+      {startError && (
+        <div role="alert" className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <span>{startError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStartError(null)}
+            className="text-[11px] underline text-rose-400 hover:text-rose-200"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {quota.interviewsRemaining <= 0 && (
+        <div role="alert" className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>You have completed all 5 of your free mock interview sessions. Upgrade to continue practicing.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate('pricing')}
+            className="px-3.5 py-1.5 rounded-lg bg-[#C5F36B] text-[#080B11] font-bold text-xs shrink-0 hover:bg-[#b2e257] transition-colors"
+          >
+            Upgrade Plan
+          </button>
+        </div>
+      )}
+
       {/* 6. Launch Action Bar */}
       <div className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
         <div>
@@ -718,19 +935,101 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
 
         <button
           type="button"
+          disabled={isStartingSession}
           onClick={handleStartInterview}
-          className="w-full sm:w-auto btn-primary text-sm py-3.5 px-8 shadow-lg shadow-[#C5F36B]/20"
+          className="w-full sm:w-auto btn-primary text-sm py-3.5 px-8 shadow-lg shadow-[#C5F36B]/20 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          <span>
-            {mode === 'text_only'
-              ? 'Enter Text Interview Room'
-              : mode === 'voice_only'
-              ? 'Enter Voice Interview Room'
-              : 'Enter Video Interview Room'}
-          </span>
-          <ArrowRight className="w-4 h-4" />
+          {isStartingSession ? (
+            <>
+              <div className="w-4 h-4 border-2 border-[#080B11] border-t-transparent rounded-full animate-spin" />
+              <span>Preparing AI Session...</span>
+            </>
+          ) : quota.interviewsRemaining <= 0 ? (
+            <>
+              <span>Upgrade Plan to Practice</span>
+              <ArrowRight className="w-4 h-4" />
+            </>
+          ) : (
+            <>
+              <span>
+                {mode === 'text_only'
+                  ? 'Enter Text Interview Room'
+                  : mode === 'voice_only'
+                  ? 'Enter Voice Interview Room'
+                  : 'Enter Video Interview Room'}
+              </span>
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
         </button>
       </div>
+
+      {/* Free Quota Exceeded Modal */}
+      {showQuotaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md p-6 rounded-2xl bg-[#121826] border border-white/[0.12] shadow-2xl space-y-5 text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <Sparkles className="w-5 h-5 text-[#C5F36B]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#F5F7FA]">Free Plan Limit Reached</h3>
+                <p className="text-xs text-[#9AA4B2]">5 of 5 free mock sessions used</p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-[#9AA4B2] leading-relaxed">
+              You have completed all 5 of your free mock interview sessions. Upgrade to <strong className="text-[#F5F7FA]">Placement Unlimited</strong> to unlock unrestricted voice sessions, deep ATS resume scans, and priority AI evaluation.
+            </p>
+
+            <div className="p-3.5 rounded-xl bg-[#080B11] border border-white/[0.06] text-xs space-y-2 text-[#9AA4B2]">
+              <div className="flex items-center gap-2 text-[#F5F7FA] font-medium">
+                <Check className="w-3.5 h-3.5 text-[#C5F36B]" />
+                <span>Unlimited simulated mock interviews</span>
+              </div>
+              <div className="flex items-center gap-2 text-[#F5F7FA] font-medium">
+                <Check className="w-3.5 h-3.5 text-[#C5F36B]" />
+                <span>Adaptive follow-ups & granular rubrics</span>
+              </div>
+              <div className="flex items-center gap-2 text-[#F5F7FA] font-medium">
+                <Check className="w-3.5 h-3.5 text-[#C5F36B]" />
+                <span>Personalized 7-day preparation plans</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuotaModal(false);
+                  onNavigate('pricing');
+                }}
+                className="flex-1 btn-primary text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-2"
+              >
+                <span>Explore Unlimited Plan</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuotaModal(false);
+                  onNavigate('history');
+                }}
+                className="px-4 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.08] text-xs text-[#9AA4B2] hover:text-[#F5F7FA] transition-colors"
+              >
+                Past Sessions
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowQuotaModal(false)}
+                className="px-3 py-2.5 rounded-xl text-xs text-[#9AA4B2] hover:text-[#F5F7FA]"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

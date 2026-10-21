@@ -49,34 +49,61 @@ const AppContent: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot_password' | 'update_password'>('login');
+  const [authModalError, setAuthModalError] = useState<string | null>(null);
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
 
+  // Close auth modal immediately once user becomes authenticated
+  useEffect(() => {
+    if (isAuthenticated && isAuthModalOpen) {
+      setIsAuthModalOpen(false);
+      setAuthModalError(null);
+    }
+  }, [isAuthenticated, isAuthModalOpen]);
 
-  // Handle URL hash fragments (Supabase Auth redirects for email verification & password recovery)
+  // Handle URL hash fragments & search parameters (OAuth callbacks, email verification, password recovery, errors)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     // Check for password recovery event dispatched by AuthContext onAuthStateChange
     const handlePasswordRecovery = () => {
       setAuthModalMode('update_password');
+      setAuthModalError(null);
       setIsAuthModalOpen(true);
     };
     window.addEventListener('interviewbro_password_recovery', handlePasswordRecovery);
 
-    // Check for raw hash tokens in address bar (e.g. #access_token=...&type=recovery|signup)
-    const hash = window.location.hash;
-    if (hash && (hash.includes('access_token=') || hash.includes('type=') || hash.includes('error='))) {
+    // 1. Check for OAuth errors in URL query or hash parameters
+    const searchParams = new URLSearchParams(window.location.search);
+    const hash = window.location.hash || '';
+    const cleanHash = hash.startsWith('#') ? hash.slice(1) : hash;
+    const hashParams = new URLSearchParams(cleanHash);
+
+    const errorDesc = searchParams.get('error_description') 
+      || searchParams.get('error') 
+      || hashParams.get('error_description') 
+      || hashParams.get('error');
+
+    if (errorDesc) {
+      // Purge query and hash from browser address bar history
+      window.history.replaceState(null, '', window.location.pathname);
+      const friendlyError = decodeURIComponent(errorDesc.replace(/\+/g, ' '));
+      setAuthModalError(friendlyError);
+      setAuthModalMode('login');
+      setIsAuthModalOpen(true);
+    } else if (hash && (hash.includes('access_token=') || hash.includes('type='))) {
       try {
-        const cleanHash = hash.startsWith('#') ? hash.slice(1) : hash;
-        const params = new URLSearchParams(cleanHash);
-        const type = params.get('type');
-        const errorDesc = params.get('error_description') || params.get('error');
+        const type = hashParams.get('type');
 
-        // Immediately purge sensitive access tokens from browser address bar history
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        // Allow Supabase SDK a microtick to process the tokens, then purge from address bar
+        setTimeout(() => {
+          if (window.location.hash.includes('access_token=')) {
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+          }
+        }, 150);
 
-        if (!errorDesc && type === 'recovery') {
+        if (type === 'recovery') {
           setAuthModalMode('update_password');
+          setAuthModalError(null);
           setIsAuthModalOpen(true);
         }
       } catch (e) {
@@ -171,6 +198,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleOpenAuth = (mode: 'login' | 'signup' = 'login') => {
+    setAuthModalError(null);
     setAuthModalMode(mode);
     setIsAuthModalOpen(true);
   };
@@ -385,9 +413,11 @@ const AppContent: React.FC = () => {
       <AuthModal 
         isOpen={isAuthModalOpen} 
         initialMode={authModalMode}
+        initialError={authModalError}
         onNavigate={navigateTo}
         onClose={() => {
           setIsAuthModalOpen(false);
+          setAuthModalError(null);
           setPendingRoute(null);
         }} 
         onSuccess={handleAuthSuccess}

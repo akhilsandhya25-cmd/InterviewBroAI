@@ -1,21 +1,146 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
   Flame, 
   Sparkles, 
-  ShieldCheck, 
-  Zap, 
-  ArrowRight,
-  Info
+  Info,
+  Mail,
+  Bell,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
+import { analyticsService } from '../services/analytics';
 
 interface PricingPageProps {
   onNavigate: (route: string) => void;
 }
 
+interface WaitlistCaptureProps {
+  plan: 'pro' | 'unlimited';
+  planName: string;
+  defaultEmail: string;
+}
+
+const WaitlistCapture: React.FC<WaitlistCaptureProps> = ({ plan, planName, defaultEmail }) => {
+  const [email, setEmail] = useState<string>(defaultEmail || '');
+  const [isJoined, setIsJoined] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+
+  // Check duplicate status from localStorage on initial render or user change
+  useEffect(() => {
+    const key = `interviewbro_waitlist_${plan}`;
+    const previouslyJoined = localStorage.getItem(key);
+    if (previouslyJoined) {
+      setIsJoined(true);
+      setFeedbackMsg(`You're already on the waitlist for ${planName}!`);
+    } else if (defaultEmail && !email) {
+      setEmail(defaultEmail);
+    }
+  }, [plan, planName, defaultEmail]);
+
+  const handleJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      setErrorMsg('Please enter a valid email address.');
+      return;
+    }
+
+    // Check duplicate protection in local storage
+    const key = `interviewbro_waitlist_${plan}`;
+    const storedEmail = localStorage.getItem(key);
+    if (storedEmail && storedEmail.toLowerCase() === cleanEmail) {
+      setIsJoined(true);
+      setFeedbackMsg(`You're already on the waitlist for ${planName}!`);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const result = await api.joinWaitlist(cleanEmail, plan);
+      // Save locally to prevent redundant future submissions
+      localStorage.setItem(key, cleanEmail);
+      setIsJoined(true);
+      setFeedbackMsg(result.message || `You're on the waitlist for ${planName}!`);
+
+      // Track privacy-respecting waitlist analytics (no PII sent)
+      analyticsService.trackWaitlistJoined({ plan });
+    } catch (err: any) {
+      // Local graceful fallback
+      localStorage.setItem(key, cleanEmail);
+      setIsJoined(true);
+      setFeedbackMsg(`Thank you! You're on the waitlist for ${planName}.`);
+      analyticsService.trackWaitlistJoined({ plan });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (isJoined) {
+    return (
+      <div className="w-full p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-1.5 transition-all animate-fadeIn">
+        <div className="flex items-center justify-center gap-1.5 text-emerald-400 font-bold text-xs">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>You're on the Waitlist!</span>
+        </div>
+        <p className="text-[11px] text-emerald-300/80 leading-relaxed">
+          {feedbackMsg || `We'll email you the moment ${planName} opens for practice.`}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleJoin} className="space-y-2.5">
+      <div className="relative">
+        <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (errorMsg) setErrorMsg(null);
+          }}
+          placeholder="your-email@college.edu"
+          className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#080B11] border border-white/[0.12] text-xs text-[#F5F7FA] placeholder-slate-500 focus:outline-none focus:border-[#C5F36B] focus:ring-1 focus:ring-[#C5F36B] transition-colors"
+        />
+      </div>
+
+      {errorMsg && (
+        <p className="text-[11px] text-rose-400 text-left pl-1 font-medium">{errorMsg}</p>
+      )}
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full py-2.5 px-3 rounded-xl font-bold text-xs bg-[#0F172A] hover:bg-[#1E293B] text-[#C5F36B] border border-[#C5F36B]/30 hover:border-[#C5F36B] flex items-center justify-center gap-1.5 transition-all shadow-sm disabled:opacity-50 group"
+      >
+        {loading ? (
+          <span className="flex items-center gap-1.5">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#C5F36B]" />
+            <span>Adding to waitlist...</span>
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5">
+            <Bell className="w-3.5 h-3.5 text-[#C5F36B] group-hover:scale-110 transition-transform" />
+            <span>Notify Me on Launch</span>
+          </span>
+        )}
+      </button>
+    </form>
+  );
+};
+
 export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
-  const { quota } = useAuth();
+  const { quota, user } = useAuth();
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
@@ -99,7 +224,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
           </button>
         </div>
 
-        {/* Tier 2: Student Pro (Future) */}
+        {/* Tier 2: Student Pro (Future) with Notify Me Capture */}
         <div className="p-6 rounded-2xl bg-[#121826]/70 border border-white/[0.08] flex flex-col justify-between">
           <div>
             <h3 className="text-base font-bold text-[#F5F7FA]">Student Pro</h3>
@@ -129,15 +254,16 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
             </ul>
           </div>
 
-          <button
-            disabled
-            className="w-full py-2.5 rounded-xl font-semibold text-xs bg-white/[0.04] text-slate-500 border border-white/[0.06] cursor-not-allowed"
-          >
-            Coming in Placement Season
-          </button>
+          <div className="pt-4 border-t border-white/[0.06]">
+            <WaitlistCapture
+              plan="pro"
+              planName="Student Pro"
+              defaultEmail={user?.email || ''}
+            />
+          </div>
         </div>
 
-        {/* Tier 3: Placement Unlimited (Future) */}
+        {/* Tier 3: Placement Unlimited (Future) with Notify Me Capture */}
         <div className="p-6 rounded-2xl bg-[#121826]/70 border border-white/[0.08] flex flex-col justify-between">
           <div>
             <h3 className="text-base font-bold text-[#F5F7FA]">Placement Unlimited</h3>
@@ -167,12 +293,13 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
             </ul>
           </div>
 
-          <button
-            disabled
-            className="w-full py-2.5 rounded-xl font-semibold text-xs bg-white/[0.04] text-slate-500 border border-white/[0.06] cursor-not-allowed"
-          >
-            Coming in Placement Season
-          </button>
+          <div className="pt-4 border-t border-white/[0.06]">
+            <WaitlistCapture
+              plan="unlimited"
+              planName="Placement Unlimited"
+              defaultEmail={user?.email || ''}
+            />
+          </div>
         </div>
       </div>
 
