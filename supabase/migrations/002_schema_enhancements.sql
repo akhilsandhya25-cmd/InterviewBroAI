@@ -1,73 +1,92 @@
 -- =========================================================================
--- Migration 002: Schema Enhancements & Idempotency Updates
--- 1. Adds `source` column to sessions, reports, and resumes with 'ai' | 'fallback' check
--- 2. Adds waitlist table with insert-only RLS
--- 3. Creates missing user_id and composite query performance indexes
--- 4. Upgrades handle_new_user() trigger with search_path protection and safe fallback
--- 5. Adds atomic increment_interview_usage() quota function
--- Idempotent: Can be safely run and re-run on any environment
+-- Migration 002: Schema Hardening, Complete Tables & Quota Atomic RPC
+-- Idempotent: Safe to re-run on fresh or existing databases
 -- =========================================================================
 
--- Enable UUID extension if not already present
+-- Enable UUID extension for PostgreSQL
 create extension if not exists "uuid-ossp";
 create extension if not exists "pgcrypto";
 
--- -------------------------------------------------------------------------
--- 1. Add `source` column to existing tables (with fallback default)
--- -------------------------------------------------------------------------
-alter table if exists public.interview_sessions 
-  add column if not exists source text not null default 'ai';
+-- 1. INTERVIEW SESSIONS TABLE
+create table if not exists public.interview_sessions (
+  id text primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  title text not null default 'Mock Interview',
+  config jsonb not null default '{}'::jsonb,
+  status text not null default 'setup',
+  started_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  completed_at timestamp with time zone,
+  elapsed_seconds integer default 0,
+  current_question_index integer default 0,
+  questions jsonb not null default '[]'::jsonb,
+  feedback_report jsonb,
+  source text not null default 'ai',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
 
-alter table if exists public.feedback_reports 
-  add column if not exists source text not null default 'ai';
-
-alter table if exists public.resume_analyses 
-  add column if not exists source text not null default 'ai';
-
--- Add check constraints idempotently via DO block
-do $$
-begin
-  if not exists (
-    select 1 from pg_constraint where conname = 'chk_sessions_source'
-  ) then
-    alter table public.interview_sessions 
-      add constraint chk_sessions_source check (source in ('ai', 'fallback'));
-  end if;
-
-  if not exists (
-    select 1 from pg_constraint where conname = 'chk_reports_source'
-  ) then
-    alter table public.feedback_reports 
-      add constraint chk_reports_source check (source in ('ai', 'fallback'));
-  end if;
-
-  if not exists (
-    select 1 from pg_constraint where conname = 'chk_resumes_source'
-  ) then
-    alter table public.resume_analyses 
-      add constraint chk_resumes_source check (source in ('ai', 'fallback'));
-  end if;
-end $$;
-
--- -------------------------------------------------------------------------
--- 2. Performance Indexes on user_id and query filters
--- -------------------------------------------------------------------------
 create index if not exists idx_sessions_user_id on public.interview_sessions(user_id);
 create index if not exists idx_sessions_started_at on public.interview_sessions(started_at desc);
-create index if not exists idx_sessions_user_status on public.interview_sessions(user_id, status);
 
-create index if not exists idx_reports_user_id on public.feedback_reports(user_id);
-create index if not exists idx_reports_session_id on public.feedback_reports(session_id);
-create index if not exists idx_reports_user_created on public.feedback_reports(user_id, created_at desc);
+alter table public.interview_sessions enable row level security;
+drop policy if exists "Users can access own interview sessions" on public.interview_sessions;
+create policy "Users can access own interview sessions" on public.interview_sessions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create index if not exists idx_resumes_user_id on public.resume_analyses(user_id);
-create index if not exists idx_resumes_created_at on public.resume_analyses(created_at desc);
+-- 2. FEEDBACK REPORTS TABLE
+create table if not exists public.feedback_reports (
+  id text primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  session_id text not null,
+  candidate_name text not null default '',
+  role text not null default '',
+  company text not null default '',
+  interview_type text not null default 'technical',
+  source text not null default 'ai',
+  rubric_version text default 'rubric_v2_multitrack',
+  overall_score integer not null default 0,
+  pillars jsonb not null default '{}'::jsonb,
+  performance_tier text not null default 'Needs Practice',
+  strengths text[] default array[]::text[],
+  growth_areas text[] default array[]::text[],
+  actionable_drills text[] default array[]::text[],
+  readiness_status text default 'Practice Recommended',
+  market_percentile integer default 50,
+  report_summary text default '',
+  question_evaluations jsonb default '[]'::jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
 
-create index if not exists idx_profiles_email on public.profiles(email);
+create index if not exists idx_feedback_user_id on public.feedback_reports(user_id);
+create index if not exists idx_feedback_session_id on public.feedback_reports(session_id);
 
--- -------------------------------------------------------------------------
--- 3. Provision Waitlist Table with Insert-Only RLS
--- -------------------------------------------------------------------------
+alter table public.feedback_reports enable row level security;
+drop policy if exists "Users can access own feedback reports" on public.feedback_reports;
+create policy "Users can access own feedback reports" on public.feedback_reports for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 3. RESUME ANALYSES TABLE
+create table if not exists public.resume_analyses (
+  id text primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  file_name text not null,
+  file_size integer not null default 0,
+  role_target text not null default '',
+  source text not null default 'ai',
+  ats_score integer not null default 0,
+  key_findings text[] default array[]::text[],
+  missing_keywords text[] default array[]::text[],
+  formatting_feedback text[] default array[]::text[],
+  bullet_point_improvements jsonb default '[]'::jsonb,
+  parsed_skills text[] default array[]::text[],
+  summary text default '',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create index if not exists idx_resume_user_id on public.resume_analyses(user_id);
+
+alter table public.resume_analyses enable row level security;
+drop policy if exists "Users can access own resume analyses" on public.resume_analyses;
+create policy "Users can access own resume analyses" on public.resume_analyses for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 4. WAITLIST TABLE
 create table if not exists public.waitlist (
   id uuid default gen_random_uuid() primary key,
   email text not null,
@@ -76,62 +95,13 @@ create table if not exists public.waitlist (
 );
 
 create index if not exists idx_waitlist_email on public.waitlist(email);
-create index if not exists idx_waitlist_created_at on public.waitlist(created_at desc);
 create unique index if not exists idx_waitlist_email_plan on public.waitlist(lower(email), plan);
 
--- Enable RLS
 alter table public.waitlist enable row level security;
+drop policy if exists "Anyone can join waitlist" on public.waitlist;
+create policy "Anyone can join waitlist" on public.waitlist for insert with check (true);
 
--- Insert-only RLS: Public and authenticated users can insert their emails
-drop policy if exists "Enable insert for anyone" on public.waitlist;
-create policy "Enable insert for anyone" 
-  on public.waitlist for insert 
-  to anon, authenticated 
-  with check (true);
-
--- Explicitly ensure public has insert access only
-grant insert on public.waitlist to anon, authenticated;
-
--- -------------------------------------------------------------------------
--- 4. Secure handle_new_user() Trigger Function
--- -------------------------------------------------------------------------
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, email, full_name, avatar_url)
-  values (
-    new.id,
-    coalesce(new.email, ''),
-    coalesce(
-      new.raw_user_meta_data->>'full_name',
-      new.raw_user_meta_data->>'name',
-      nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
-      'Candidate'
-    ),
-    coalesce(
-      new.raw_user_meta_data->>'avatar_url',
-      new.raw_user_meta_data->>'picture',
-      null
-    )
-  )
-  on conflict (id) do update set
-    email = excluded.email,
-    full_name = coalesce(excluded.full_name, public.profiles.full_name),
-    avatar_url = coalesce(excluded.avatar_url, public.profiles.avatar_url),
-    updated_at = timezone('utc'::text, now());
-  return new;
-end;
-$$ language plpgsql security definer set search_path = public;
-
--- Rebind trigger safely
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
-
--- -------------------------------------------------------------------------
--- 5. Atomic Quota Functions (consume & increment)
--- -------------------------------------------------------------------------
+-- 5. ATOMIC QUOTA MANAGEMENT FUNCTIONS
 create or replace function public.consume_interview_quota(p_user_id uuid)
 returns jsonb as $$
 declare
@@ -218,15 +188,16 @@ begin
 end;
 $$ language plpgsql security definer set search_path = public;
 
--- Grant execution permissions
+-- 6. ROLE GRANTS
+grant usage on schema public to anon, authenticated;
+
+grant select, insert, update, delete on public.profiles to authenticated, anon;
+grant select, insert, update, delete on public.interview_sessions to authenticated, anon;
+grant select, insert, update, delete on public.feedback_reports to authenticated, anon;
+grant select, insert, update, delete on public.resume_analyses to authenticated, anon;
+grant insert, select on public.waitlist to authenticated, anon;
+
 grant execute on function public.consume_interview_quota(uuid) to authenticated, anon, service_role;
 grant execute on function public.increment_interview_usage(uuid, integer) to authenticated, anon, service_role;
 
--- -------------------------------------------------------------------------
--- 6. Reload PostgREST Cache
--- -------------------------------------------------------------------------
-grant select on public.interview_sessions to anon;
-grant select on public.feedback_reports to anon;
-grant select on public.resume_analyses to anon;
-grant insert, select on public.waitlist to anon, authenticated;
 notify pgrst, 'reload schema';
