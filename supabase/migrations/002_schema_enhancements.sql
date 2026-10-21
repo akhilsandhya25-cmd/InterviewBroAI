@@ -225,4 +225,8 @@ grant execute on function public.increment_interview_usage(uuid, integer) to aut
 -- -------------------------------------------------------------------------
 -- 6. Reload PostgREST Cache
 -- -------------------------------------------------------------------------
+grant select on public.interview_sessions to anon;
+grant select on public.feedback_reports to anon;
+grant select on public.resume_analyses to anon;
+grant insert, select on public.waitlist to anon, authenticated;
 notify pgrst, 'reload schema';

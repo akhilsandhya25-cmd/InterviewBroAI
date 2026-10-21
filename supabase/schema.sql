@@ -420,7 +420,10 @@ grant select, insert, update, delete on public.feedback_reports to authenticated
 grant select, insert, update, delete on public.resume_analyses to authenticated;
 
 -- Waitlist (Insert-only for public)
-grant insert on public.waitlist to anon, authenticated;
+grant insert, select on public.waitlist to anon, authenticated;
+grant select on public.interview_sessions to anon;
+grant select on public.feedback_reports to anon;
+grant select on public.resume_analyses to anon;
 
 -- Quota RPC Execution
 grant execute on function public.consume_interview_quota(uuid) to authenticated, anon, service_role;
