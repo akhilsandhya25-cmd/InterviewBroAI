@@ -244,11 +244,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
           <div>
             <div className="text-xs font-medium text-[#9AA4B2]">Practice Allowance</div>
             <div className="text-2xl sm:text-3xl font-extrabold text-[#C5F36B] mt-1">
-              {quota.interviewsRemaining} of {quota.freeInterviewsTotal}
+              Unlimited
             </div>
             <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              <span>Free Starter Allowance</span>
+              <span>Unrestricted Practice</span>
             </div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-[#F5F7FA]">

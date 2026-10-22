@@ -6,10 +6,10 @@ const SESSION_TOKEN_KEY = 'interviewbro_session_token';
 const LOGGED_OUT_KEY = 'interviewbro_logged_out';
 
 const DEFAULT_QUOTA: UsageQuota = {
-  freeInterviewsTotal: 5,
+  freeInterviewsTotal: 9999,
   interviewsUsed: 0,
-  interviewsRemaining: 5,
-  planName: 'Free Tier'
+  interviewsRemaining: 9999,
+  planName: 'Unlimited Practice'
 };
 
 function handleCloudStorageError(action: string, error: any) {
@@ -95,10 +95,10 @@ export const storage = {
         const remaining = typeof user.interviews_remaining === 'number' ? user.interviews_remaining : 5;
         const used = typeof user.total_interviews_taken === 'number' ? user.total_interviews_taken : 0;
         const q: UsageQuota = {
-          freeInterviewsTotal: 5,
+          freeInterviewsTotal: 9999,
           interviewsUsed: used,
-          interviewsRemaining: Math.min(5, Math.max(0, remaining)),
-          planName: 'Free Tier'
+          interviewsRemaining: 9999,
+          planName: 'Unlimited Practice'
         };
         localStorage.setItem(`interviewbro_quota_${uid}`, JSON.stringify(q));
         return q;

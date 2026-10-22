@@ -154,11 +154,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
     stopMicTest();
     setStartError(null);
 
-    if (quota.interviewsRemaining <= 0) {
-      analyticsService.trackQuotaHit({ context: 'setup_screen_launch' });
-      setShowQuotaModal(true);
-      return;
-    }
+    // Quota limits temporarily lifted
 
     const config: InterviewConfig = {
       role,
@@ -218,7 +214,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
         <div className="self-start sm:self-auto flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#121826] border border-white/[0.08] text-xs font-medium text-[#9AA4B2]">
           <Sparkles className="w-4 h-4 text-[#C5F36B]" />
           <span>
-            Allowance: <strong className="text-[#C5F36B] font-bold">{quota.interviewsRemaining} of {quota.freeInterviewsTotal} left</strong>
+            Allowance: <strong className="text-[#C5F36B] font-bold">Unlimited Practice</strong>
           </span>
         </div>
       </div>
