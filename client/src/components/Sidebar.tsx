@@ -10,7 +10,8 @@ import {
   Shield,
   ArrowRight,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -37,6 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isOp
 
   const studioItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'academy', label: 'Interview Academy', icon: GraduationCap, badge: 'New' },
     { id: 'setup', label: 'Start Mock Interview', icon: Video, badge: 'Live' },
     { id: 'resume', label: 'Resume ATS Analyzer', icon: FileText, badge: 'New' },
     { id: 'history', label: 'Session History', icon: History },

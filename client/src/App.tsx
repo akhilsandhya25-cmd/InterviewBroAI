@@ -17,6 +17,7 @@ import { PricingPage } from './pages/PricingPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LegalCenterPage } from './pages/LegalCenterPage';
 import { PrivacyCenterPage } from './pages/PrivacyCenterPage';
+import { InterviewAcademy } from './pages/InterviewAcademy';
 import { IntroSplashAnimation } from './components/IntroSplashAnimation';
 import { Shield, Lock, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { BrandIcon } from './components/brand/BrandIcon';
@@ -223,6 +224,7 @@ const AppContent: React.FC = () => {
   const renderProtectedBarrier = () => {
     const routeTitles: Record<string, string> = {
       dashboard: 'Candidate Dashboard & Analytics',
+      academy: 'Interview Academy & Placement Masterclass',
       setup: 'AI Mock Interview Studio',
       interview: 'Live AI Interview Room',
       reports: 'Evaluation & Feedback Reports',
@@ -305,6 +307,13 @@ const AppContent: React.FC = () => {
           <LandingPage 
             onStartPracticing={handleStartPracticing} 
             onNavigate={navigateTo} 
+          />
+        );
+      case 'academy':
+        return (
+          <InterviewAcademy 
+            onNavigate={navigateTo} 
+            onOpenAuth={handleOpenAuth} 
           />
         );
       case 'setup':

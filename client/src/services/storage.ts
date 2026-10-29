@@ -1,4 +1,5 @@
-import { UserProfile, InterviewSession, FeedbackReport, ResumeAnalysis, UsageQuota, PrivacyPreferences } from '../types';
+import { UserProfile, InterviewSession, FeedbackReport, ResumeAnalysis, UsageQuota, PrivacyPreferences, UserAcademyProgress, LessonProgress, QuizAttempt, PracticeAttempt } from '../types';
+import { TOTAL_ACADEMY_LESSONS } from '../data/academyCurriculum';
 import { supabase, isSupabaseConfigured, checkSupabaseTablesStatus, CloudSyncStatus, CloudHealthCheckResult } from './supabase';
 
 const CURRENT_USER_KEY = 'interviewbro_current_user';
@@ -837,6 +838,7 @@ export const storage = {
       localStorage.removeItem(`interviewbro_reports_${uid}`);
       localStorage.removeItem(`interviewbro_resumes_${uid}`);
       localStorage.removeItem(`interviewbro_privacy_prefs_${uid}`);
+      localStorage.removeItem(`interviewbro_academy_progress_${uid}`);
       localStorage.removeItem(`interviewbro_profile_completed_${uid}`);
       localStorage.removeItem(CURRENT_USER_KEY);
       localStorage.removeItem(SESSION_TOKEN_KEY);
@@ -869,6 +871,140 @@ export const storage = {
       success: true,
       message: 'Your account credentials and all associated interview sessions, resumes, and reports have been permanently deleted.'
     };
+  },
+
+  // ==========================================
+  // Interview Academy Progress (User-Isolated)
+  // ==========================================
+  getAcademyProgress(userId?: string | null): UserAcademyProgress {
+    const uid = userId || this.getActiveUserId() || 'guest';
+    const defaultProgress: UserAcademyProgress = {
+      userId: uid,
+      completedLessonIds: [],
+      lessonProgress: {},
+      quizAttempts: {},
+      practiceAttempts: {},
+      overallPercent: 0,
+      lastActiveLessonId: 'lesson-1',
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      const data = localStorage.getItem(`interviewbro_academy_progress_${uid}`);
+      if (!data) return defaultProgress;
+
+      const parsed = JSON.parse(data);
+      return {
+        userId: uid,
+        completedLessonIds: Array.isArray(parsed.completedLessonIds) ? parsed.completedLessonIds : [],
+        lessonProgress: parsed.lessonProgress && typeof parsed.lessonProgress === 'object' ? parsed.lessonProgress : {},
+        quizAttempts: parsed.quizAttempts && typeof parsed.quizAttempts === 'object' ? parsed.quizAttempts : {},
+        practiceAttempts: parsed.practiceAttempts && typeof parsed.practiceAttempts === 'object' ? parsed.practiceAttempts : {},
+        overallPercent: typeof parsed.overallPercent === 'number' ? parsed.overallPercent : 0,
+        lastActiveLessonId: typeof parsed.lastActiveLessonId === 'string' ? parsed.lastActiveLessonId : 'lesson-1',
+        updatedAt: parsed.updatedAt || new Date().toISOString()
+      };
+    } catch {
+      return defaultProgress;
+    }
+  },
+
+  saveAcademyProgress(progress: UserAcademyProgress, userId?: string | null): void {
+    const uid = userId || progress.userId || this.getActiveUserId() || 'guest';
+    progress.userId = uid;
+    progress.updatedAt = new Date().toISOString();
+
+    const completedCount = (progress.completedLessonIds || []).length;
+    progress.overallPercent = Math.min(100, Math.round((completedCount / (TOTAL_ACADEMY_LESSONS || 8)) * 100));
+
+    try {
+      localStorage.setItem(`interviewbro_academy_progress_${uid}`, JSON.stringify(progress));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('interviewbro_academy_synced', { detail: { userId: uid, progress } }));
+      }
+    } catch (e) {
+      console.error('Failed to save academy progress', e);
+    }
+  },
+
+  recordLessonQuizAttempt(lessonId: string, attempt: QuizAttempt, userId?: string | null): UserAcademyProgress {
+    const progress = this.getAcademyProgress(userId);
+    const lessonAttempts = progress.quizAttempts[lessonId] || [];
+    lessonAttempts.push(attempt);
+    progress.quizAttempts[lessonId] = lessonAttempts;
+
+    const currentLessonProgress: LessonProgress = progress.lessonProgress[lessonId] || {
+      lessonId,
+      isCompleted: false,
+      quizPassed: false,
+      bestQuizScore: 0,
+      exerciseCompleted: false
+    };
+
+    currentLessonProgress.bestQuizScore = Math.max(currentLessonProgress.bestQuizScore, attempt.score);
+    if (attempt.passed) {
+      currentLessonProgress.quizPassed = true;
+    }
+    currentLessonProgress.lastAttemptAt = attempt.attemptedAt;
+
+    if (currentLessonProgress.quizPassed && !currentLessonProgress.isCompleted) {
+      currentLessonProgress.isCompleted = true;
+      currentLessonProgress.completedAt = new Date().toISOString();
+      if (!progress.completedLessonIds.includes(lessonId)) {
+        progress.completedLessonIds.push(lessonId);
+      }
+    }
+
+    progress.lessonProgress[lessonId] = currentLessonProgress;
+    progress.lastActiveLessonId = lessonId;
+    this.saveAcademyProgress(progress, userId);
+    return progress;
+  },
+
+  recordPracticeAttempt(attempt: PracticeAttempt, userId?: string | null): UserAcademyProgress {
+    const progress = this.getAcademyProgress(userId);
+    const lessonId = attempt.lessonId;
+    const attempts = progress.practiceAttempts[lessonId] || [];
+    attempts.push(attempt);
+    progress.practiceAttempts[lessonId] = attempts;
+
+    const currentLessonProgress: LessonProgress = progress.lessonProgress[lessonId] || {
+      lessonId,
+      isCompleted: false,
+      quizPassed: false,
+      bestQuizScore: 0,
+      exerciseCompleted: false
+    };
+
+    currentLessonProgress.exerciseCompleted = true;
+    currentLessonProgress.lastAttemptAt = attempt.createdAt;
+    progress.lessonProgress[lessonId] = currentLessonProgress;
+    progress.lastActiveLessonId = lessonId;
+
+    this.saveAcademyProgress(progress, userId);
+    return progress;
+  },
+
+  markLessonComplete(lessonId: string, userId?: string | null): UserAcademyProgress {
+    const progress = this.getAcademyProgress(userId);
+    const currentLessonProgress: LessonProgress = progress.lessonProgress[lessonId] || {
+      lessonId,
+      isCompleted: false,
+      quizPassed: false,
+      bestQuizScore: 0,
+      exerciseCompleted: false
+    };
+
+    currentLessonProgress.isCompleted = true;
+    currentLessonProgress.completedAt = new Date().toISOString();
+    if (!progress.completedLessonIds.includes(lessonId)) {
+      progress.completedLessonIds.push(lessonId);
+    }
+
+    progress.lessonProgress[lessonId] = currentLessonProgress;
+    progress.lastActiveLessonId = lessonId;
+    this.saveAcademyProgress(progress, userId);
+    return progress;
   },
 
   /**

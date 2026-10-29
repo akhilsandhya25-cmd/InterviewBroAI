@@ -189,7 +189,7 @@ export interface UsageQuota {
   freeInterviewsTotal: number;
   interviewsUsed: number;
   interviewsRemaining: number;
-  planName: 'Free Tier' | 'Student Pro' | 'Placement Unlimited';
+  planName: 'Free Tier' | 'Student Pro' | 'Placement Unlimited' | 'Unlimited Practice';
   resetsAt?: string;
 }
 
@@ -205,3 +205,7 @@ export interface PrivacyPreferences {
   consentAcknowledgedAt?: string;
   consentVersion?: string;
 }
+
+
+// Re-export Interview Academy types
+export * from './academy';
