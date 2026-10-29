@@ -112,6 +112,12 @@ const AppContent: React.FC = () => {
       }
     }
 
+    // Direct public route navigation via URL search param (e.g. ?route=academy)
+    const targetRouteParam = searchParams.get('route') || (cleanHash && !cleanHash.includes('=') && !cleanHash.includes('/') ? cleanHash : null);
+    if (targetRouteParam && (targetRouteParam === 'academy' || targetRouteParam === 'pricing' || targetRouteParam === 'legal' || targetRouteParam === 'privacy-center')) {
+      setCurrentRoute(targetRouteParam);
+    }
+
     return () => {
       window.removeEventListener('interviewbro_password_recovery', handlePasswordRecovery);
     };
@@ -377,7 +383,7 @@ const AppContent: React.FC = () => {
   const isFullWidth = currentRoute === 'landing' || (!isAuthenticated && (currentRoute === 'legal' || currentRoute === 'privacy-center'));
 
   return (
-    <div className="min-h-screen bg-[#080b11] text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#080b11] text-slate-100 flex flex-col font-sans overflow-x-hidden">
       {/* Active Development Notice Banner */}
       <DevelopmentNoticeBanner onLearnMore={() => navigateTo('legal:terms')} />
 

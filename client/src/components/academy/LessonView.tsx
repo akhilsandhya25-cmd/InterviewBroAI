@@ -25,6 +25,7 @@ interface LessonViewProps {
   lesson: AcademyLesson;
   module: AcademyModule;
   progress?: LessonProgress;
+  initialTab?: 'content' | 'quiz' | 'practice';
   hasPrev: boolean;
   hasNext: boolean;
   onPrev: () => void;
@@ -41,6 +42,7 @@ export const LessonView: React.FC<LessonViewProps> = ({
   lesson,
   module,
   progress,
+  initialTab,
   hasPrev,
   hasNext,
   onPrev,
@@ -52,7 +54,7 @@ export const LessonView: React.FC<LessonViewProps> = ({
   practiceAttempts = [],
   onNavigateToMock
 }) => {
-  const [activeTab, setActiveTab] = useState<'content' | 'quiz' | 'practice'>('content');
+  const [activeTab, setActiveTab] = useState<'content' | 'quiz' | 'practice'>(initialTab || 'content');
   const [currentlySpeakingId, setCurrentlySpeakingId] = useState<string | null>(null);
 
   // Stop any active TTS audio whenever switching lessons or tabs

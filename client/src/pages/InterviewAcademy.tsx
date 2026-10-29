@@ -52,6 +52,7 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
 
   // Active lesson state (null = show all modules/lessons overview)
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
+  const [activeInitialTab, setActiveInitialTab] = useState<'content' | 'quiz' | 'practice'>('content');
 
   // Refresh progress when user changes or when academy updates are broadcast
   useEffect(() => {
@@ -127,11 +128,12 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
             lesson={activeItem.lesson}
             module={activeItem.module}
             progress={lessonProgress}
+            initialTab={activeInitialTab}
             hasPrev={hasPrev}
             hasNext={hasNext}
             onPrev={handlePrev}
             onNext={handleNext}
-            onBackToOverview={() => setActiveLessonId(null)}
+            onBackToOverview={() => { setActiveLessonId(null); setActiveInitialTab('content'); }}
             onMarkComplete={handleMarkComplete}
             onQuizCompleted={handleQuizCompleted}
             onPracticeCompleted={handlePracticeCompleted}
@@ -230,6 +232,37 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
         </div>
       )}
 
+      {/* 2b. AI PRACTICE COACH QUICK LAUNCH CARD */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-[#121826] via-[#161F33] to-[#121826] border border-[#C5F36B]/30 shadow-xl flex flex-col md:flex-row items-center justify-between gap-5 relative overflow-hidden">
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="w-12 h-12 rounded-2xl bg-[#C5F36B]/15 border border-[#C5F36B]/30 text-[#C5F36B] flex items-center justify-center shrink-0 shadow-md">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#C5F36B]/15 text-[#C5F36B] uppercase tracking-wider">
+                Interactive AI Coach
+              </span>
+              <span className="text-xs font-bold text-[#F5F7FA]">AI Interview Practice Coach</span>
+            </div>
+            <p className="text-xs text-[#9AA4B2] leading-relaxed max-w-2xl">
+              Practice your responses to Indian placement interview questions with speech or typing. Receive instant bar-raiser rubric scoring, concrete evidence checks, filler word analytics, and stronger tailored answers.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            setActiveInitialTab('practice');
+            setActiveLessonId('lesson-3');
+          }}
+          className="w-full md:w-auto px-5 py-2.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b0df57] text-[#080B11] shadow-lg shadow-[#C5F36B]/20 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Launch AI Practice Coach</span>
+        </button>
+      </div>
+
       {/* 3. CURRICULUM MODULES & LESSONS GRID */}
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2 px-1">
@@ -257,7 +290,16 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
             return (
               <div
                 key={lesson.id}
+                data-lesson-id={lesson.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => setActiveLessonId(lesson.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setActiveLessonId(lesson.id);
+                  }
+                }}
                 className={`p-5 sm:p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between space-y-4 group ${
                   isLessonDone
                     ? 'bg-[#0B0F19] border-emerald-500/30 hover:border-emerald-500/60 shadow-lg'

@@ -6,9 +6,13 @@
   :root {
     color-scheme: dark;
   }
+
+  html, body {
+    overflow-x: hidden;
+  }
   
   body {
-    @apply bg-[#080B11] text-[#F5F7FA] min-h-screen antialiased selection:bg-[#C5F36B]/25 selection:text-[#C5F36B] overflow-x-hidden;
+    @apply bg-[#080B11] text-[#F5F7FA] min-h-screen antialiased selection:bg-[#C5F36B]/25 selection:text-[#C5F36B];
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 

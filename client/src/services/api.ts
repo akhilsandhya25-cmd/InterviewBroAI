@@ -1,4 +1,5 @@
 import { InterviewConfig, InterviewQuestion, FeedbackReport, ResumeAnalysis, QuestionEvaluation } from '../types';
+import { CoachFeedback } from '../types/academy';
 import { SAMPLE_FALLBACK_QUESTIONS } from '../data/presets';
 import { getCompanyTrack } from '../data/companyTracks';
 import { storage } from './storage';
@@ -213,6 +214,48 @@ export const api = {
     // Only if AI service is offline / unconfigured (503) or generic server error, return instant fallback
     console.warn(`Backend /api/ai/questions returned HTTP ${res.status}, using instant fallback bank.`);
     return this.getInstantInitialQuestions(config, previousQuestions);
+  },
+
+  // Academy Practice Coach Feedback
+  async getPracticeCoachFeedback(
+    question: { title: string; prompt: string; objective?: string; category?: string; sampleAnswer?: string },
+    answer: string,
+    options: {
+      experienceLevel?: string;
+      targetRole?: string;
+      isRevision?: boolean;
+      previousAnswer?: string;
+      previousScore?: number;
+    } = {}
+  ): Promise<{ success: boolean; feedback?: CoachFeedback; error?: string; status?: number }> {
+    try {
+      const res = await fetch(`${API_BASE}/ai/coach`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ question, answer, options })
+      });
+
+      if (res.ok) {
+        const data = await safeJson<{ success: boolean; feedback: CoachFeedback }>(res);
+        if (data?.feedback) {
+          return { success: true, feedback: data.feedback, status: 200 };
+        }
+      }
+
+      const errData = await safeJson<{ error?: string; message?: string }>(res);
+      const errMsg = errData?.message || errData?.error || `Request failed with HTTP ${res.status}`;
+      return {
+        success: false,
+        error: errMsg,
+        status: res.status
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.message || 'Unable to connect to AI Coach service. Please check your internet connection.',
+        status: 0
+      };
+    }
   },
 
   // Evaluate candidate answer

@@ -936,6 +936,76 @@ export default async function handler(req, res) {
     }
   }
 
+  // 6b. Interview Academy AI Practice Coach Endpoint
+  if (url.includes('/ai/coach')) {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    const { url: supaUrl, key: supaKey } = getSupabaseConfig();
+
+    // Optional Authentication: Supports authenticated users and guests
+    let userId = null;
+    const authHeader = req.headers['authorization'] || '';
+    if (authHeader.startsWith('Bearer ') && authHeader.length > 15) {
+      const auth = await authenticateRequest(req, supaUrl, supaKey);
+      if (auth.authenticated && auth.user) {
+        userId = auth.user.id;
+      }
+    }
+
+    // Rate Limiting (15 req/min for IP, 25 req/min for signed-in user)
+    const rateCheck = checkRateLimit(req, userId, 'coach');
+    if (!rateCheck.allowed) {
+      res.setHeader('Retry-After', String(rateCheck.retryAfter || 60));
+      return res.status(429).json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: rateCheck.message,
+        retryAfter: rateCheck.retryAfter
+      });
+    }
+
+    const body = await parseBody(req);
+    const { question, answer, options } = body || {};
+
+    if (!answer || typeof answer !== 'string' || !answer.trim()) {
+      return res.status(400).json({
+        error: 'MISSING_ANSWER',
+        message: 'Please provide your draft interview answer to receive AI coaching.'
+      });
+    }
+
+    if (!question) {
+      return res.status(400).json({
+        error: 'MISSING_QUESTION',
+        message: 'Please specify the interview question being practiced.'
+      });
+    }
+
+    if (!getIsGeminiConfigured()) {
+      return res.status(503).json({
+        error: 'AI_NOT_CONFIGURED',
+        message: 'GEMINI_API_KEY is not configured in environment variables. Practice coaching scores will not be fabricated.'
+      });
+    }
+
+    const safeAnswer = String(answer).slice(0, 4000);
+
+    try {
+      const feedback = await geminiService.generateCoachFeedback(question, safeAnswer, options || {});
+      return res.status(200).json({
+        success: true,
+        feedback,
+        source: 'gemini'
+      });
+    } catch (err) {
+      if (err.code === 'AI_TIMEOUT' || err.name === 'AbortError') {
+        return res.status(504).json({ error: 'AI_TIMEOUT', message: 'Coach feedback generation timed out after 30s. Please try again.' });
+      }
+      return res.status(500).json({ error: 'AI_ERROR', message: err.message || 'An error occurred while generating feedback.' });
+    }
+  }
+
   // 7. Resume Parse & Analysis Endpoint (Serverless Base64 / 5MB Limit)
   if (url.includes('/resume/parse')) {
     if (req.method !== 'POST') {

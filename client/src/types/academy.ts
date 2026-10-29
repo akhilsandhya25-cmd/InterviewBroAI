@@ -96,15 +96,52 @@ export interface AcademyModule {
 // User Progress & Practice Persistence Types
 // ==========================================
 
+export interface CoachRubricPillar {
+  name: string;
+  score: number; // 0 - 100
+  reasoning: string;
+  suggestions?: string;
+}
+
+export interface CoachRubricBreakdown {
+  relevance: CoachRubricPillar;
+  clarityStructure: CoachRubricPillar;
+  examplesEvidence: CoachRubricPillar;
+  communication: CoachRubricPillar;
+}
+
+export interface CoachFeedback {
+  overallScore: number; // 0 - 100
+  summary: string;
+  rubricBreakdown: CoachRubricBreakdown;
+  strengths: string[];
+  areasForImprovement: string[];
+  actionableNextSteps: string[];
+  strongerModelAnswer: string;
+  disclaimer: string;
+  isAiGenerated: boolean;
+  evaluatedAt: string;
+}
+
 export interface PracticeAttempt {
   id: string;
   lessonId: string;
+  questionId?: string;
+  questionTitle?: string;
+  questionPrompt?: string;
+  assessmentObjective?: string;
   type: ExerciseType;
   userResponse: string;
+  originalResponse?: string;
+  revisedResponse?: string;
+  isRevision?: boolean;
+  feedback?: CoachFeedback;
+  originalFeedback?: CoachFeedback;
   fillerWordCount?: number;
   durationSeconds?: number;
   selfRating?: number; // 1 to 5 stars
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface QuizAttempt {

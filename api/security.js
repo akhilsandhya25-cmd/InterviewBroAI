@@ -15,8 +15,10 @@ const WINDOW_MS = 60 * 1000; // 60 seconds
 const LIMITS = {
   ip_ai: 30,         // max 30 AI requests per minute per IP
   ip_resume: 5,      // max 5 resume parse requests per minute per IP
+  ip_coach: 15,      // max 15 practice coach queries per minute per IP
   user_ai: 20,       // max 20 AI requests per minute per user
-  user_resume: 3     // max 3 resume parse requests per minute per user
+  user_resume: 3,    // max 3 resume parse requests per minute per user
+  user_coach: 25     // max 25 practice coach queries per minute per user
 };
 
 export function getClientIp(req) {
@@ -37,8 +39,8 @@ export function checkRateLimit(req, userId, endpointType = 'ai') {
   const ipKey = `ip:${ip}:${endpointType}`;
   const userKey = userId ? `user:${userId}:${endpointType}` : null;
 
-  const maxIp = endpointType === 'resume' ? LIMITS.ip_resume : LIMITS.ip_ai;
-  const maxUser = endpointType === 'resume' ? LIMITS.user_resume : LIMITS.user_ai;
+  const maxIp = endpointType === 'resume' ? LIMITS.ip_resume : endpointType === 'coach' ? LIMITS.ip_coach : LIMITS.ip_ai;
+  const maxUser = endpointType === 'resume' ? LIMITS.user_resume : endpointType === 'coach' ? LIMITS.user_coach : LIMITS.user_ai;
 
   // 1. Check IP rate limit
   let ipTimestamps = rateLimitMap.get(ipKey) || [];

@@ -1,4 +1,4 @@
-import { AcademyModule } from '../types/academy';
+import { AcademyModule, AcademyLesson } from '../types/academy';
 
 /**
  * Interview Academy: Complete 8-Module Curriculum
@@ -1989,3 +1989,9 @@ export const TOTAL_ACADEMY_LESSONS = ACADEMY_MODULES.reduce(
   (count, m) => count + m.lessons.length, 
   0
 );
+
+
+/**
+ * Flat list of all academy lessons for easy navigation and question selection
+ */
+export const ALL_ACADEMY_LESSONS: AcademyLesson[] = ACADEMY_MODULES.flatMap(m => m.lessons);

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Video, Menu, X, LogOut, Settings as SettingsIcon, History, UserCheck, ChevronDown } from 'lucide-react';
+import { User, Video, Menu, X, LogOut, Settings as SettingsIcon, History, UserCheck, ChevronDown, GraduationCap } from 'lucide-react';
 import { BrandLogo } from './brand/BrandLogo';
 
 interface NavbarProps {
@@ -71,6 +71,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="hidden md:flex items-center gap-7 text-xs font-medium text-[#9AA4B2]"
             aria-label="Main page navigation"
           >
+            <button
+              onClick={() => onNavigate('academy')}
+              className="text-[#C5F36B] hover:text-[#b0df57] font-semibold flex items-center gap-1.5 transition-colors"
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Academy</span>
+            </button>
             <a href="#how-it-works" className="hover:text-[#F5F7FA] transition-colors">How It Works</a>
             <a href="#features" className="hover:text-[#F5F7FA] transition-colors">Features</a>
             <a href="#company-tracks" className="hover:text-[#F5F7FA] transition-colors">Company Tracks</a>
@@ -86,10 +93,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Primary Action Button */}
               <button
                 onClick={() => onNavigate('setup')}
-                className="btn-primary text-xs py-2 px-3.5"
+                className="btn-primary text-xs py-2 px-2.5 sm:px-3.5"
+                title="Start Mock Interview"
               >
                 <Video className="w-4 h-4" />
-                <span>Start Mock</span>
+                <span className="hidden sm:inline">Start Mock</span>
               </button>
 
               {/* Authenticated User Menu */}
@@ -180,16 +188,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onOpenAuth ? onOpenAuth('login') : onNavigate('landing')}
-                className="btn-ghost text-xs py-2 px-3.5"
+                className="btn-ghost text-xs py-2 px-2.5 sm:px-3.5"
               >
                 <span>Sign In</span>
               </button>
 
               <button
                 onClick={() => onOpenAuth ? onOpenAuth('signup') : onNavigate('setup')}
-                className="btn-primary text-xs py-2 px-3.5"
+                className="btn-primary text-xs py-2 px-2.5 sm:px-3.5"
               >
-                <span>Start Free Interview</span>
+                <span className="hidden sm:inline">Start Free </span><span>Interview</span>
               </button>
             </div>
           )}
