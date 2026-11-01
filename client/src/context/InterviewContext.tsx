@@ -446,15 +446,17 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         storage.syncWithCloud(user.id);
       }
 
-      // Trigger celebratory confetti
-      try {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch (e) {
-        // Safe check
+      // Trigger celebratory confetti only if candidate actually answered questions and scored > 0
+      if (report && typeof report.overallScore === 'number' && report.overallScore > 0) {
+        try {
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        } catch (e) {
+          // Safe check
+        }
       }
 
       return report;

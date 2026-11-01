@@ -231,6 +231,21 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
           </div>
         </div>
       )}
+      {/* Session Incomplete / 0 Answers Banner */}
+      {report.overallScore === 0 && !isFallback && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-start sm:items-center gap-3 shadow-lg">
+          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+          <div className="text-xs space-y-0.5">
+            <div className="font-bold text-amber-200 text-sm">
+              Session Incomplete: No Answers Recorded (0 / 100)
+            </div>
+            <p className="text-[11px] text-amber-300/80">
+              No verbal or typed answers were recorded during this session. To uphold academic integrity and prevent fake scores, InterviewBro AI never fabricates scores for blank responses. Start a new session and speak or type your answers to receive full placement scoring!
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 1. Header Banner */}
       <div className="p-6 sm:p-8 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-sm relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
@@ -254,6 +269,11 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
                 <span className="text-xs font-extrabold text-[#F5F7FA] leading-tight">Not scored</span>
                 <span className="text-[9px] font-medium text-[#9AA4B2] mt-0.5">Demo mode</span>
               </div>
+            ) : report.overallScore === 0 ? (
+              <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex flex-col items-center justify-center text-[#9AA4B2] shadow-md">
+                <span className="text-2xl font-black leading-none text-[#F5F7FA]">0</span>
+                <span className="text-[10px] font-bold text-[#9AA4B2]">/ 100</span>
+              </div>
             ) : (
               <div className="w-16 h-16 rounded-xl bg-[#C5F36B] flex flex-col items-center justify-center text-[#080B11] shadow-md">
                 <span className="text-2xl font-black leading-none">{report.overallScore}</span>
@@ -265,6 +285,8 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
               <div className="text-[11px] font-medium mt-0.5 text-emerald-400">
                 {isFallback ? (
                   <span className="text-amber-400 font-semibold">Qualitative Review Only</span>
+                ) : report.overallScore === 0 ? (
+                  <span className="text-amber-400 font-semibold">No Answers Submitted (0%)</span>
                 ) : (
                   report.overallScore != null && report.overallScore >= 80
                     ? 'Exceptional Progress • Placement Ready'
@@ -274,7 +296,7 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
                 )}
               </div>
               <div className="text-[10px] text-[#9AA4B2] mt-0.5">
-                {isFallback ? 'Scores Withheld (Demo Mode)' : 'AI Interviewer Evaluation'}
+                {isFallback ? 'Scores Withheld (Demo Mode)' : report.overallScore === 0 ? 'Session Incomplete' : 'AI Interviewer Evaluation'}
               </div>
             </div>
           </div>

@@ -445,6 +445,74 @@ export const api = {
 
   // Generate comprehensive feedback report
   async generateFinalReport(questions: InterviewQuestion[], config: InterviewConfig, candidateName: string): Promise<FeedbackReport> {
+    const answeredQuestions = (questions || []).filter(q => {
+      const ans = String(q.candidateAnswer || '').trim();
+      return ans.length > 0 && ans !== 'No answer provided' && ans !== 'No answer recorded';
+    });
+
+    // Zero-Tolerance Anti-Fabrication: If 0 questions were answered, return an honest 0% report immediately
+    if (answeredQuestions.length === 0) {
+      const zeroPillars = config.interviewType === 'technical'
+        ? [
+            { key: 'correctness', label: 'Technical Correctness', score: 0, description: 'No response submitted', color: 'text-[#C5F36B]' },
+            { key: 'depthAndEdgeCases', label: 'Depth & Edge Cases', score: 0, description: 'No response submitted', color: 'text-emerald-400' },
+            { key: 'tradeoffAwareness', label: 'Complexity & Tradeoffs', score: 0, description: 'No response submitted', color: 'text-violet-400' },
+            { key: 'communicationClarity', label: 'Communication Clarity', score: 0, description: 'No response submitted', color: 'text-cyan-400' }
+          ]
+        : config.interviewType === 'system_design'
+        ? [
+            { key: 'requirementsClarification', label: 'Requirements & Scope', score: 0, description: 'No response submitted', color: 'text-blue-400' },
+            { key: 'architecture', label: 'System Architecture', score: 0, description: 'No response submitted', color: 'text-[#C5F36B]' },
+            { key: 'scalabilityAndTradeoffs', label: 'Scalability & Resilience', score: 0, description: 'No response submitted', color: 'text-emerald-400' },
+            { key: 'communicationClarity', label: 'Articulation & Defensibility', score: 0, description: 'No response submitted', color: 'text-cyan-400' }
+          ]
+        : [
+            { key: 'starStructure', label: 'STAR Methodology', score: 0, description: 'No response submitted', color: 'text-indigo-400' },
+            { key: 'ownership', label: 'Ownership & Impact', score: 0, description: 'No response submitted', color: 'text-[#C5F36B]' },
+            { key: 'relevance', label: 'Question Relevance', score: 0, description: 'No response submitted', color: 'text-emerald-400' },
+            { key: 'communicationClarity', label: 'Delivery & Composure', score: 0, description: 'No response submitted', color: 'text-cyan-400' }
+          ];
+
+      return {
+        id: `rep-${Date.now()}`,
+        sessionId: `sess-${Date.now()}`,
+        source: 'ai',
+        candidateName: candidateName || 'Candidate',
+        role: config.role,
+        company: config.companyName,
+        interviewType: config.interviewType,
+        overallScore: 0,
+        rubricPillars: zeroPillars,
+        technicalAccuracyScore: 0,
+        communicationScore: 0,
+        structureStarScore: config.interviewType === 'technical' || config.interviewType === 'system_design' ? null : 0,
+        relevanceScore: 0,
+        summary: `No answers were recorded during this mock interview session for ${config.role} targeting ${config.companyName}. To receive an objective performance score and personalized placement coaching, please answer the questions using speech or typing.`,
+        strengths: ['Interview session initiated and setup completed'],
+        weaknesses: ['No answers were submitted for evaluation during this session'],
+        missedConcepts: ['All question topics remain unaddressed. Complete a practice session to test your knowledge.'],
+        actionableImprovements: [
+          'Read each question carefully and speak or type your response before clicking Submit',
+          'Use Text Mode if you encounter any microphone difficulties',
+          'Practice explaining your past projects and technical concepts out loud to build fluency'
+        ],
+        recommendedTopics: ['Core Problem Solving', 'Technical Fundamentals', 'Clear Articulation'],
+        exampleImprovedAnswers: (questions || []).map(q => ({
+          question: q.questionText,
+          originalSummary: 'No answer was provided for this question.',
+          improvedAnswer: 'A strong candidate response should address the core concept, provide a concrete real-world example, and discuss edge cases or trade-offs.',
+          whyBetter: 'Demonstrates technical mastery, structured thinking, and clear communication.'
+        })),
+        prepPlan: [
+          {
+            dayOrPhase: 'Phase 1: Getting Started',
+            focus: 'First Practice Session',
+            actionItems: ['Complete at least 2 questions in your next session to unlock full AI rubric scoring']
+          }
+        ]
+      };
+    }
+
     try {
       let res = await fetch(`${API_BASE}/ai/final-report`, {
         method: 'POST',
@@ -468,7 +536,7 @@ export const api = {
       console.warn('Backend /api/ai/final-report fallback triggered:', e);
     }
 
-    const validQuestions = questions.filter(q => q.candidateAnswer && q.candidateAnswer.trim().length > 0);
+    const validQuestions = answeredQuestions;
 
     const roundPillars = config.interviewType === 'technical'
       ? [
