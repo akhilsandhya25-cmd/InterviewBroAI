@@ -1,3 +1,4 @@
+import { applySecurityHeaders, isAllowedOrigin } from '../security.js';
 function getSupabaseConfig() {
   let url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
   if (!url || !url.startsWith('http') || url.includes('undefined')) {
@@ -50,12 +51,18 @@ async function parseBody(req) {
  * 6. Returns 200 only upon complete confirmed erasure
  */
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  applySecurityHeaders(req, res);
+
+  const origin = req.headers['origin'];
+  if (origin && !isAllowedOrigin(origin)) {
+    return res.status(403).json({
+      error: 'CORS_FORBIDDEN',
+      message: 'Cross-Origin Request Blocked: Origin is not permitted.'
+    });
+  }
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(204).end();
   }
 
   if (req.method !== 'POST') {

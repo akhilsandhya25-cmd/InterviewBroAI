@@ -3,9 +3,13 @@ import { resumeParser } from './resume.js';
 import deleteAccountHandler from './auth/delete-account.js';
 import { captureServerlessError } from './errorMonitoring.js';
 import {
+  applySecurityHeaders,
+  isAllowedOrigin,
   authenticateRequest,
   checkRateLimit,
+  getClientIp,
   consumeQuotaOnSessionStart,
+  validateResumeFile,
   verifyUserQuotaAvailable
 } from './security.js';
 
@@ -116,12 +120,18 @@ async function parseBody(req) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  applySecurityHeaders(req, res);
+
+  const origin = req.headers['origin'];
+  if (origin && !isAllowedOrigin(origin)) {
+    return res.status(403).json({
+      error: 'CORS_FORBIDDEN',
+      message: 'Cross-Origin Request Blocked: Origin is not permitted.'
+    });
+  }
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(204).end();
   }
 
   const slugStr = Array.isArray(req.query?.slug) ? '/' + req.query.slug.join('/') : (req.query?.slug ? '/' + req.query.slug : '');
@@ -176,7 +186,7 @@ export default async function handler(req, res) {
       : 'pro';
 
     // Anti-spam rate limiting
-    const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+    const clientIp = getClientIp(req);
     const rateLimitKey = `waitlist:${clientIp}:${cleanEmail}`;
     if (isRateLimited(rateLimitKey)) {
       return res.status(429).json({
@@ -255,6 +265,17 @@ export default async function handler(req, res) {
 
   // 3. Signup endpoint - route directly to Supabase Auth
   if (url.includes('/auth/signup')) {
+    // Rate limiting for signup registration (HTTP 429)
+    const authRateCheck = checkRateLimit(req, null, 'auth');
+    if (!authRateCheck.allowed) {
+      res.setHeader('Retry-After', String(authRateCheck.retryAfter || 60));
+      return res.status(429).json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: authRateCheck.message,
+        retryAfter: authRateCheck.retryAfter
+      });
+    }
+
     if (req.method === 'GET') {
       return res.status(405).json({
         error: 'Method Not Allowed',
@@ -424,6 +445,17 @@ export default async function handler(req, res) {
 
   // 4. Login endpoint - route directly to Supabase Auth
   if (url.includes('/auth/login')) {
+    // Rate limiting for login attempts (HTTP 429)
+    const authRateCheck = checkRateLimit(req, null, 'auth');
+    if (!authRateCheck.allowed) {
+      res.setHeader('Retry-After', String(authRateCheck.retryAfter || 60));
+      return res.status(429).json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: authRateCheck.message,
+        retryAfter: authRateCheck.retryAfter
+      });
+    }
+
     if (req.method === 'GET') {
       return res.status(405).json({
         error: 'Method Not Allowed',
@@ -520,6 +552,17 @@ export default async function handler(req, res) {
 
   // 4a. Resend Verification endpoint
   if (url.includes('/auth/resend-verification')) {
+    // Rate limiting for verification resends (HTTP 429)
+    const authRateCheck = checkRateLimit(req, null, 'auth');
+    if (!authRateCheck.allowed) {
+      res.setHeader('Retry-After', String(authRateCheck.retryAfter || 60));
+      return res.status(429).json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: authRateCheck.message,
+        retryAfter: authRateCheck.retryAfter
+      });
+    }
+
     if (req.method !== 'POST') {
       return res.status(405).json({
         error: 'Method Not Allowed',
@@ -547,7 +590,7 @@ export default async function handler(req, res) {
     }
 
     // In-memory anti-spam rate limiting
-    const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+    const clientIp = getClientIp(req);
     const rateLimitKey = `${clientIp}:${cleanEmail}`;
     if (isRateLimited(rateLimitKey)) {
       return res.status(429).json({
@@ -804,6 +847,9 @@ export default async function handler(req, res) {
       if (err.code === 'AI_TIMEOUT' || err.name === 'AbortError') {
         return res.status(504).json({ error: 'AI_TIMEOUT', message: 'Answer evaluation timed out after 25s.' });
       }
+      if (err.code === 'INVALID_RUBRIC_EVALUATION') {
+        return res.status(422).json({ error: 'INVALID_RUBRIC_EVALUATION', message: err.message });
+      }
       return res.status(500).json({ error: 'AI_ERROR', message: err.message });
     }
   }
@@ -1053,16 +1099,19 @@ export default async function handler(req, res) {
     }
 
     const buffer = Buffer.from(fileBase64, 'base64');
-    if (buffer.length > 5 * 1024 * 1024) {
-      return res.status(413).json({
-        error: 'FILE_TOO_LARGE',
-        message: 'Resume file size exceeds the 5MB limit.'
-      });
-    }
-
     const cleanRole = targetRole || 'Software Engineer';
     const cleanFileName = fileName || 'resume.pdf';
     const cleanMime = fileType || 'application/pdf';
+
+    // Comprehensive file format, MIME type, and magic bytes verification
+    const fileValidation = await validateResumeFile(buffer, cleanFileName, cleanMime);
+    if (!fileValidation.valid) {
+      const statusCode = fileValidation.error === 'FILE_TOO_LARGE' ? 413 : 400;
+      return res.status(statusCode).json({
+        error: fileValidation.error,
+        message: fileValidation.message
+      });
+    }
 
     try {
       const extractedText = await resumeParser.extractText(buffer, cleanMime, cleanFileName);
@@ -1070,7 +1119,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, analysis });
     } catch (err) {
       console.error('[Resume API] Parsing error:', err);
-      return res.status(500).json({ error: 'PARSE_FAILED', message: err.message || 'Failed to parse resume.' });
+      const isCorrupted = err.code === 'CORRUPTED_PDF' || err.code === 'CORRUPTED_DOCX' || err.code === 'EMPTY_DOCUMENT' || err.code === 'INVALID_TEXT_ENCODING';
+      return res.status(isCorrupted ? 400 : 500).json({ error: isCorrupted ? 'DOCUMENT_PARSE_ERROR' : 'PARSE_FAILED', message: err.message || 'Failed to parse resume.' });
     }
   }
 

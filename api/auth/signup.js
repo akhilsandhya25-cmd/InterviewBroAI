@@ -1,3 +1,4 @@
+import { applySecurityHeaders, isAllowedOrigin, checkRateLimit } from '../security.js';
 function getSupabaseConfig() {
   let url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
   if (!url || !url.startsWith('http') || url.includes('undefined')) {
@@ -43,12 +44,29 @@ async function parseBody(req) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  applySecurityHeaders(req, res);
+
+  const origin = req.headers['origin'];
+  if (origin && !isAllowedOrigin(origin)) {
+    return res.status(403).json({
+      error: 'CORS_FORBIDDEN',
+      message: 'Cross-Origin Request Blocked: Origin is not permitted.'
+    });
+  }
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(204).end();
+  }
+
+  // Anti-abuse registration rate limiting (HTTP 429)
+  const rateCheck = checkRateLimit(req, null, 'auth');
+  if (!rateCheck.allowed) {
+    res.setHeader('Retry-After', String(rateCheck.retryAfter || 60));
+    return res.status(429).json({
+      error: 'RATE_LIMIT_EXCEEDED',
+      message: rateCheck.message,
+      retryAfter: rateCheck.retryAfter
+    });
   }
 
   if (req.method === 'GET') {
