@@ -44,8 +44,12 @@
   ],
   "rewrites": [
     {
+      "source": "/api/auth/:path*",
+      "destination": "/api/auth/:path*"
+    },
+    {
       "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "destination": "/api?slug=$1"
     },
     {
       "source": "/((?!api/).*)",

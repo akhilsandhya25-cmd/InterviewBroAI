@@ -134,8 +134,19 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  const slugStr = Array.isArray(req.query?.slug) ? '/' + req.query.slug.join('/') : (req.query?.slug ? '/' + req.query.slug : '');
-  const url = req.headers['x-matched-path'] || req.headers['x-forwarded-uri'] || slugStr || req.url || '';
+  const rawSlug = req.query?.slug;
+  const slugStr = Array.isArray(rawSlug) ? '/' + rawSlug.join('/') : (typeof rawSlug === 'string' && rawSlug.trim() ? (rawSlug.startsWith('/') ? rawSlug : '/' + rawSlug) : '');
+  const matchedPath = req.headers['x-matched-path'] || '';
+  const forwardedUri = req.headers['x-forwarded-uri'] || '';
+  const isGenericPath = (p) => !p || p === '/api' || p === '/api/' || p === '/api/index';
+  let url = req.url || '';
+  if (slugStr) {
+    url = slugStr;
+  } else if (!isGenericPath(forwardedUri)) {
+    url = forwardedUri;
+  } else if (!isGenericPath(matchedPath)) {
+    url = matchedPath;
+  }
 
   try {
   // 1. Health check & Environment Validation
