@@ -111,7 +111,6 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const preflightVideoRef = useRef<HTMLVideoElement | null>(null);
   const recognitionRef = useRef<any>(null);
-  const evaluationSectionRef = useRef<HTMLDivElement | null>(null);
   const hasTypedManually = useRef<boolean>(false);
 
   const getDraftKey = (sessionId?: string, qId?: string) =>
@@ -449,26 +448,31 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     try {
       const res = await submitAnswer(effectiveCandidateAnswer);
       if (!res.success) {
-        const errLower = String(res.error || '').toLowerCase();
-        if (
-          errLower.includes('network') ||
-          errLower.includes('fetch') ||
-          errLower.includes('connection') ||
-          errLower.includes('offline') ||
-          errLower.includes('timeout')
-        ) {
-          setNetworkError(res.error || 'Network connection dropped during evaluation. Your answer is safely saved on this device.');
-        } else {
-          setSubmissionError(res.error || 'Evaluation failed. Please try submitting again.');
-        }
+        setSubmissionError(res.error || 'Failed to record answer. Please try submitting again.');
       } else {
         setSubmissionError(null);
         setNetworkError(null);
         clearDraftLocally();
         setDraftRestored(false);
+        setCandidateTypedText('');
+        setSpokenTranscript('');
+        setInterimText('');
+
+        if (currentQuestionIndex < totalQuestions - 1) {
+          // Seamlessly advance to the next interview question
+          nextQuestion();
+        } else {
+          // Final question answered: finish interview and synthesize comprehensive final report
+          stopSpeechCapture();
+          tts.stop();
+          const report = await endInterview();
+          if (report) {
+            onComplete();
+          }
+        }
       }
     } catch (e: any) {
-      setNetworkError('Network connection dropped mid-interview. Your draft is safely saved on this device. Tap Retry below.');
+      setNetworkError('Your answer is safely saved on this device. Please continue.');
     } finally {
       setIsSubmitting(false);
     }
@@ -489,12 +493,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Smooth scroll to evaluation feedback when available
-  useEffect(() => {
-    if (currentQuestion?.evaluation && evaluationSectionRef.current) {
-      evaluationSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [currentQuestion?.evaluation]);
+
 
   const handleFinishEarly = async () => {
     if (confirm('Finish this interview and generate your performance report?')) {
@@ -876,7 +875,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       )}
 
       {/* Demo Mode / AI Unavailable Banner */}
-      {(currentQuestion?.source === 'fallback' || activeSession.questions.some(q => q.source === 'fallback') || currentQuestion?.evaluation?.source === 'fallback') && (
+      {(currentQuestion?.source === 'fallback' || activeSession.questions.some(q => q.source === 'fallback')) && (
         <div className="p-3 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 shadow-lg flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
           <div className="text-xs text-amber-300">
@@ -1597,180 +1596,24 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             </div>
           </div>
 
-          {/* Evaluation Feedback Panel */}
-          {currentQuestion.evaluation && (
-            <div 
-              ref={evaluationSectionRef}
-              className="p-5 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-xl space-y-4 transition-all"
-            >
-              {(currentQuestion.evaluation.status === 'unavailable' || currentQuestion.evaluation.source === 'fallback' || currentQuestion.evaluation.score == null) ? (
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
-                  <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>Demo mode: AI scoring unavailable. This is not a real evaluation.</span>
-                  </div>
-                  <p className="text-xs text-[#9AA4B2] leading-relaxed">
-                    {currentQuestion.evaluation.unavailableReason || currentQuestion.evaluation.feedback}
-                  </p>
-                  <p className="text-[11px] text-slate-500 italic">
-                    Your transcribed response has been safely recorded into the session history. InterviewBro AI will not fabricate an arbitrary score.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {/* Scorecard Header */}
-                  <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#C5F36B]" />
-                      <div>
-                        <span className="text-xs font-bold text-[#F5F7FA] uppercase tracking-wider">Interviewer Debrief & Review</span>
-                        <div className="text-[10px] text-[#9AA4B2]">Encouraging rubric assessment</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xl font-black text-[#C5F36B] leading-none">
-                        {currentQuestion.evaluation.score}<span className="text-xs text-[#9AA4B2]">/100</span>
-                      </div>
-                      <div className="text-[10px] text-[#C5F36B]/80 font-medium mt-0.5">
-                        {currentQuestion.evaluation.score >= 80 ? 'Strong delivery' : currentQuestion.evaluation.score >= 65 ? 'Solid answer' : 'Good attempt'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Dynamic Competency Rubric Breakdown Grid */}
-                  {currentQuestion.evaluation.rubricBreakdown && (
-                    <div className="space-y-2 pt-1">
-                      <div className="text-[11px] font-bold text-[#9AA4B2] uppercase tracking-wider">
-                        Competency Rubric Breakdown ({currentQuestion.category ? currentQuestion.category.replace('_', ' ') : 'round'}):
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                        {Object.entries(currentQuestion.evaluation.rubricBreakdown).map(([key, val]) => {
-                          if (!val || typeof val.score !== 'number') return null;
-                          const displayName = val.name || key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-                          return (
-                            <div key={key} className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="font-semibold text-blue-300">{displayName}</span>
-                                <span className="font-bold text-blue-400">
-                                  {val.score}%
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-slate-400 leading-snug">
-                                {val.reasoning}
-                              </p>
-                              {val.evidenceQuote && (
-                                <div className="text-[10px] text-slate-500 italic">
-                                  Quote: &ldquo;{val.evidenceQuote}&rdquo;
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Verified Technical Facts vs Questionable Claims */}
-                  {((currentQuestion.evaluation.verifiedClaims && currentQuestion.evaluation.verifiedClaims.length > 0) ||
-                    (currentQuestion.evaluation.unverifiedOrQuestionableClaims && currentQuestion.evaluation.unverifiedOrQuestionableClaims.length > 0)) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                      {currentQuestion.evaluation.verifiedClaims && currentQuestion.evaluation.verifiedClaims.length > 0 && (
-                        <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-xs">
-                          <div className="font-bold text-emerald-400 mb-1 flex items-center gap-1.5">
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Verified Technical Points:</span>
-                          </div>
-                          <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
-                            {currentQuestion.evaluation.verifiedClaims.map((claim, idx) => (
-                              <li key={idx}>{claim}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {currentQuestion.evaluation.unverifiedOrQuestionableClaims && currentQuestion.evaluation.unverifiedOrQuestionableClaims.length > 0 && (
-                        <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 text-xs">
-                          <div className="font-bold text-amber-300 mb-1 flex items-center gap-1.5">
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Claims to Clarify & Back Up:</span>
-                          </div>
-                          <ul className="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
-                            {currentQuestion.evaluation.unverifiedOrQuestionableClaims.map((claim, idx) => (
-                              <li key={idx}>{claim}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Verbal Feedback from Lead Interviewer */}
-                  <div className="p-3.5 rounded-xl bg-[#080B11] border-l-4 border-l-[#C5F36B] border-t border-r border-b border-white/[0.08] space-y-1">
-                    <div className="text-[11px] font-bold text-[#C5F36B] flex items-center gap-1.5">
-                      <UserCheck className="w-3.5 h-3.5" />
-                      <span>Interviewer Verbal Feedback:</span>
-                    </div>
-                    <p className="text-xs text-[#F5F7FA] leading-relaxed italic">
-                      "{currentQuestion.evaluation.feedback}"
-                    </p>
-                  </div>
-
-                  {/* Strengths & Points to Improve */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
-                    <div className="p-3 rounded-xl bg-[#080B11] border border-white/[0.06]">
-                      <div className="font-semibold text-emerald-400 mb-1 flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>What Worked Well:</span>
-                      </div>
-                      <ul className="list-disc list-inside space-y-0.5 text-[#9AA4B2] text-[11px]">
-                        {currentQuestion.evaluation.strengths.map((s, idx) => (
-                          <li key={idx}>{s}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-[#080B11] border border-white/[0.06]">
-                      <div className="font-semibold text-amber-300 mb-1 flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Opportunities to Polish:</span>
-                      </div>
-                      <ul className="list-disc list-inside space-y-0.5 text-[#9AA4B2] text-[11px]">
-                        {currentQuestion.evaluation.missedPoints.map((m, idx) => (
-                          <li key={idx}>{m}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Better Answer Example */}
-                  {currentQuestion.evaluation.betterAnswerExample && (
-                    <div className="p-3.5 rounded-xl bg-[#080B11] border border-white/[0.06] text-xs">
-                      <span className="font-semibold text-[#C5F36B]">Coaching Model Response: </span>
-                      <p className="text-[#9AA4B2] text-[11px] leading-relaxed mt-1">
-                        {currentQuestion.evaluation.betterAnswerExample}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Challenge with Follow-up Action in Scorecard */}
-                  {!currentQuestion.isFollowUp && (
-                    <div className="pt-2 border-t border-white/[0.08] flex flex-wrap items-center justify-between gap-3 text-xs">
-                      <div className="text-[11px] text-[#9AA4B2] flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span>Want to test your answer deeper with a realistic follow-up question?</span>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={isEvaluating || isSubmitting}
-                        onClick={requestFollowUp}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white/[0.06] hover:bg-white/[0.1] text-[#F5F7FA] border border-white/[0.08] transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
-                      >
-                        <Sparkles className="w-3 h-3 text-amber-300" />
-                        <span>Explore Follow-Up Question</span>
-                      </button>
-                    </div>
-                  )}
-                </>
+          {/* Answer Recorded Confirmation Banner (No intermediate report; full report given on completion) */}
+          {currentQuestion.candidateAnswer && (
+            <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.08] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-300">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>
+                  Response recorded for Question {currentQuestionIndex + 1} of {totalQuestions}. Performance scores and full debrief will be provided in your <strong>Final Performance Report</strong> at the end of the session.
+                </span>
+              </div>
+              {currentQuestionIndex < totalQuestions - 1 && (
+                <button
+                  type="button"
+                  onClick={nextQuestion}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white/[0.08] hover:bg-white/[0.14] text-white flex items-center gap-1.5 shrink-0 transition-colors"
+                >
+                  <span>Next Question</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               )}
             </div>
           )}

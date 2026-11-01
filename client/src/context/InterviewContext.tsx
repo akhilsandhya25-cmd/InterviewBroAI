@@ -296,40 +296,43 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return { success: false, error: 'Please provide an answer before submitting.' };
     }
 
-    if (isEvaluating) {
-      return { success: false, error: 'An answer evaluation is already in progress. Please wait.' };
-    }
+    // 1. Immediately record candidate's answer into session
+    const updatedQuestions = [...activeSession.questions];
+    updatedQuestions[currentQuestionIndex] = {
+      ...currentQ,
+      candidateAnswer: trimmedAnswer
+    };
 
-    setIsEvaluating(true);
-    try {
-      const evaluation = await api.evaluateAnswer(currentQ, trimmedAnswer, activeSession.config);
-      if (!evaluation) {
-        throw new Error('Evaluation service was unable to generate a score. Please retry.');
-      }
-      
-      const updatedQuestions = [...activeSession.questions];
-      updatedQuestions[currentQuestionIndex] = {
-        ...currentQ,
-        candidateAnswer: trimmedAnswer,
-        evaluation
-      };
+    const updatedSession: InterviewSession = {
+      ...activeSession,
+      questions: updatedQuestions,
+      elapsedSeconds
+    };
 
-      const updatedSession: InterviewSession = {
-        ...activeSession,
-        questions: updatedQuestions,
-        elapsedSeconds
-      };
+    storage.saveSession(updatedSession, user?.id);
+    setActiveSession(updatedSession);
 
-      storage.saveSession(updatedSession, user?.id);
-      setActiveSession(updatedSession);
-      return { success: true, evaluation };
-    } catch (e: any) {
-      console.error('Error evaluating answer:', e);
-      const errMsg = e.message || 'Evaluation request failed. Please check your connection and try again.';
-      return { success: false, error: errMsg };
-    } finally {
-      setIsEvaluating(false);
-    }
+    // 2. Perform background evaluation asynchronously so rich rubric metrics are saved for final report synthesis
+    api.evaluateAnswer(currentQ, trimmedAnswer, activeSession.config)
+      .then((evaluation) => {
+        if (evaluation) {
+          const fresh = [...(activeSession?.questions || updatedQuestions)];
+          if (fresh[currentQuestionIndex]) {
+            fresh[currentQuestionIndex] = {
+              ...fresh[currentQuestionIndex],
+              evaluation
+            };
+            const withEval = { ...updatedSession, questions: fresh };
+            storage.saveSession(withEval, user?.id);
+            setActiveSession(withEval);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('[Background Eval] Non-blocking evaluation note:', err.message || err);
+      });
+
+    return { success: true };
   };
 
   const requestFollowUp = async () => {
