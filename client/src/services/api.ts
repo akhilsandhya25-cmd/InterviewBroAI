@@ -158,6 +158,13 @@ export const api = {
         headers: getAuthHeaders(),
         body: JSON.stringify({ ...config, previousQuestions })
       });
+      if (res.status === 404) {
+        res = await fetch(`${API_BASE}/ai-questions`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ ...config, previousQuestions })
+        });
+      }
     } catch (netErr: any) {
       console.warn('Network issue reaching /api/ai/questions:', netErr);
       return this.getInstantInitialQuestions(config, previousQuestions);
@@ -261,11 +268,18 @@ export const api = {
   // Evaluate candidate answer
   async evaluateAnswer(question: InterviewQuestion, answer: string, config: InterviewConfig): Promise<QuestionEvaluation> {
     try {
-      const res = await fetch(`${API_BASE}/ai/evaluate`, {
+      let res = await fetch(`${API_BASE}/ai/evaluate`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ question, answer, config })
       });
+      if (res.status === 404) {
+        res = await fetch(`${API_BASE}/ai-evaluate`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ question, answer, config })
+        });
+      }
       if (res.ok) {
         const data = await safeJson<{ evaluation: QuestionEvaluation }>(res);
         if (data?.evaluation) {
@@ -311,7 +325,7 @@ export const api = {
     conversationHistory: Array<{ questionText: string; candidateAnswer: string; category?: string; score?: number | null }> = []
   ): Promise<InterviewQuestion | null> {
     try {
-      const res = await fetch(`${API_BASE}/ai/follow-up`, {
+      let res = await fetch(`${API_BASE}/ai/follow-up`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ 
@@ -323,6 +337,20 @@ export const api = {
           conversationHistory 
         })
       });
+      if (res.status === 404) {
+        res = await fetch(`${API_BASE}/ai-follow-up`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ 
+            question, 
+            answer, 
+            config, 
+            previousQuestions, 
+            previousScore,
+            conversationHistory 
+          })
+        });
+      }
       if (res.ok) {
         const data = await safeJson<{ followUp: InterviewQuestion }>(res);
         if (data?.followUp) {
@@ -407,11 +435,18 @@ export const api = {
   // Generate comprehensive feedback report
   async generateFinalReport(questions: InterviewQuestion[], config: InterviewConfig, candidateName: string): Promise<FeedbackReport> {
     try {
-      const res = await fetch(`${API_BASE}/ai/final-report`, {
+      let res = await fetch(`${API_BASE}/ai/final-report`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ questions, config, candidateName })
       });
+      if (res.status === 404) {
+        res = await fetch(`${API_BASE}/ai-final-report`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ questions, config, candidateName })
+        });
+      }
       if (res.ok) {
         const data = await safeJson<{ report: FeedbackReport }>(res);
         if (data?.report) {
@@ -540,6 +575,19 @@ export const api = {
           targetRole
         })
       });
+      if (res.status === 404) {
+        res = await fetch(`${API_BASE}/resume-parse`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            fileBase64,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            targetRole
+          })
+        });
+      }
     } catch (netErr: any) {
       console.warn('Backend /api/resume/parse not reachable, using client text extraction heuristic:', netErr);
     }

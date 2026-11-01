@@ -710,7 +710,7 @@ export default async function handler(req, res) {
   }
 
   // 5. Voice endpoints
-  if (url.includes('/voice/status')) {
+  if (url.includes('/voice/status') || url.includes('/voice-status')) {
 
     return res.status(200).json({
       isConfigured: false,
@@ -719,14 +719,14 @@ export default async function handler(req, res) {
     });
   }
 
-  if (url.includes('/voice/voices')) {
+  if (url.includes('/voice/voices') || url.includes('/voice-voices')) {
     return res.status(200).json({
       voices: []
     });
   }
 
   // 6. Gemini AI Endpoints
-  if (url.includes('/ai/status')) {
+  if (url.includes('/ai/status') || url.includes('/ai-status')) {
     const isConfigured = getIsGeminiConfigured();
     return res.status(200).json({
       status: 'ok',
@@ -736,7 +736,7 @@ export default async function handler(req, res) {
     });
   }
 
-  if (url.includes('/ai/questions')) {
+  if (url.includes('/ai/questions') || url.includes('/ai-questions')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -799,7 +799,7 @@ export default async function handler(req, res) {
     }
   }
 
-  if (url.includes('/ai/evaluate')) {
+  if (url.includes('/ai/evaluate') || url.includes('/ai-evaluate')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -865,7 +865,7 @@ export default async function handler(req, res) {
     }
   }
 
-  if (url.includes('/ai/follow-up')) {
+  if (url.includes('/ai/follow-up') || url.includes('/ai-follow-up')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -934,7 +934,7 @@ export default async function handler(req, res) {
     }
   }
 
-  if (url.includes('/ai/final-report') || url.includes('/ai/report')) {
+  if (url.includes('/ai/final-report') || url.includes('/ai/report') || url.includes('/ai-final-report') || url.includes('/ai-report')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -994,7 +994,7 @@ export default async function handler(req, res) {
   }
 
   // 6b. Interview Academy AI Practice Coach Endpoint
-  if (url.includes('/ai/coach')) {
+  if (url.includes('/ai/coach') || url.includes('/ai-coach')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -1064,7 +1064,7 @@ export default async function handler(req, res) {
   }
 
   // 7. Resume Parse & Analysis Endpoint (Serverless Base64 / 5MB Limit)
-  if (url.includes('/resume/parse')) {
+  if (url.includes('/resume/parse') || url.includes('/resume-parse')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
