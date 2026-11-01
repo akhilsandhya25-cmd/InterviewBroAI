@@ -8,49 +8,90 @@ export default {
   theme: {
     extend: {
       colors: {
-        dark: {
-          bg: '#080B11',
-          surface: '#0B0F19',
-          elevated: '#121826',
-          border: 'rgba(255, 255, 255, 0.08)',
-          'border-strong': '#1E293B',
+        paper: 'var(--paper)',
+        surface: 'var(--surface)',
+        ink: 'var(--ink)',
+        muted: 'var(--muted)',
+        line: 'var(--line)',
+        accent: {
+          DEFAULT: 'var(--accent)',
+          hover: 'var(--accent-hover)',
+          ink: 'var(--accent-ink)',
         },
-        text: {
-          primary: '#F5F7FA',
-          secondary: '#9AA4B2',
-          muted: '#64748B',
+        good: {
+          DEFAULT: 'var(--good)',
+          bg: 'var(--good-bg)',
+          line: 'var(--good-line)',
         },
-        lime: {
-          DEFAULT: '#C5F36B',
-          hover: '#D2F68A',
-          active: '#B8E85E',
-          glow: 'rgba(197, 243, 107, 0.25)',
+        okay: {
+          DEFAULT: 'var(--okay)',
+          bg: 'var(--okay-bg)',
+          line: 'var(--okay-line)',
         },
+        weak: {
+          DEFAULT: 'var(--weak)',
+          bg: 'var(--weak-bg)',
+          line: 'var(--weak-line)',
+        },
+        // Legacy fallback aliases mapping strictly to warm tokens
         brand: {
-          dark: '#080B11',
-          charcoal: '#0B0F19',
-          surface: '#121826',
-          card: '#161F32',
-          border: 'rgba(255, 255, 255, 0.08)',
-          lime: '#C5F36B',
-          cyan: '#06B6D4',
-          emerald: '#10B981',
-          amber: '#F59E0B',
-          rose: '#F43F5E',
-          purple: '#8B5CF6',
+          dark: 'var(--paper)',
+          charcoal: 'var(--surface)',
+          surface: 'var(--surface)',
+          card: 'var(--surface)',
+          border: 'var(--line)',
+          lime: 'var(--accent)',
+          cyan: 'var(--muted)',
+          emerald: 'var(--good)',
+          amber: 'var(--okay)',
+          rose: 'var(--weak)',
+          purple: 'var(--muted)',
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        headline: ['Fraunces', 'serif'],
+        sans: ['"Plus Jakarta Sans"', '"Noto Sans Devanagari"', '"Noto Sans Telugu"', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+      },
+      fontSize: {
+        'scale-14': ['14px', { lineHeight: '1.6' }],
+        'scale-16': ['16px', { lineHeight: '1.6' }],
+        'scale-20': ['20px', { lineHeight: '1.5' }],
+        'scale-28': ['28px', { lineHeight: '1.3' }],
+        'scale-40': ['40px', { lineHeight: '1.2' }],
+      },
+      borderRadius: {
+        btn: '12px',
+        card: '16px',
+      },
+      borderWidth: {
+        1: '1px',
+      },
+      maxWidth: {
+        content: '720px',
+      },
+      minHeight: {
+        touch: '48px',
+      },
+      minWidth: {
+        touch: '48px',
       },
       animation: {
-        'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'fade-in': 'fadeIn 0.2s ease-out forwards',
+        'pulse-functional': 'pulseRecord 200ms ease-in-out',
+        'fade-in': 'fadeIn 180ms ease-out forwards',
+        'fill-bar': 'fillBar 220ms ease-out forwards',
       },
       keyframes: {
+        pulseRecord: {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.04)' },
+        },
         fadeIn: {
-          '0%': { opacity: '0', transform: 'translateY(4px)' },
+          '0%': { opacity: '0', transform: 'translateY(2px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        fillBar: {
+          '0%': { width: '0%' },
         }
       }
     },
