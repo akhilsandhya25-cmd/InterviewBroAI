@@ -236,11 +236,18 @@ export const api = {
     } = {}
   ): Promise<{ success: boolean; feedback?: CoachFeedback; error?: string; status?: number }> {
     try {
-      const res = await fetch(`${API_BASE}/ai/coach`, {
+      let res = await fetch(`${API_BASE}/ai/coach`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ question, answer, options })
       });
+      if (res.status === 404) {
+        res = await fetch(`${API_BASE}/ai-coach`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ question, answer, options })
+        });
+      }
 
       if (res.ok) {
         const data = await safeJson<{ success: boolean; feedback: CoachFeedback }>(res);
@@ -281,13 +288,17 @@ export const api = {
         });
       }
       if (res.ok) {
-        const data = await safeJson<{ evaluation: QuestionEvaluation }>(res);
+        const data = await safeJson<{ evaluation?: QuestionEvaluation; message?: string }>(res);
         if (data?.evaluation) {
           return { ...data.evaluation, source: 'ai' };
         }
+        if (data?.message) {
+          throw new Error(data.message);
+        }
+        throw new Error('Evaluation service returned an unexpected response structure.');
       } else {
-        const errorData = (await safeJson<{ error?: string }>(res)) || {};
-        throw new Error(errorData.error || `Evaluation request failed with HTTP ${res.status}`);
+        const errorData = (await safeJson<{ error?: string; message?: string }>(res)) || {};
+        throw new Error(errorData.message || errorData.error || `Evaluation request failed with HTTP ${res.status}`);
       }
     } catch (e: any) {
       console.warn('Backend /api/ai/evaluate connection issue:', e);

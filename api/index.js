@@ -134,18 +134,22 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
+  const rawUrl = (req.url || '').split('?')[0];
+  const forwardedUri = (req.headers['x-forwarded-uri'] || '').split('?')[0];
   const rawSlug = req.query?.slug;
-  const slugStr = Array.isArray(rawSlug) ? '/' + rawSlug.join('/') : (typeof rawSlug === 'string' && rawSlug.trim() ? (rawSlug.startsWith('/') ? rawSlug : '/' + rawSlug) : '');
-  const matchedPath = req.headers['x-matched-path'] || '';
-  const forwardedUri = req.headers['x-forwarded-uri'] || '';
-  const isGenericPath = (p) => !p || p === '/api' || p === '/api/' || p === '/api/index';
-  let url = req.url || '';
-  if (slugStr) {
-    url = slugStr;
-  } else if (!isGenericPath(forwardedUri)) {
-    url = forwardedUri;
-  } else if (!isGenericPath(matchedPath)) {
-    url = matchedPath;
+  const slugStr = Array.isArray(rawSlug)
+    ? '/' + rawSlug.join('/')
+    : (typeof rawSlug === 'string' && rawSlug.trim() ? (rawSlug.startsWith('/') ? rawSlug : '/' + rawSlug) : '');
+
+  const isGeneric = (p) => !p || p === '/api' || p === '/api/' || p === '/api/index' || p === '/api/index.js' || p.includes('[...slug]');
+
+  let url = rawUrl;
+  if (isGeneric(url)) {
+    if (slugStr && !isGeneric(slugStr)) {
+      url = slugStr;
+    } else if (forwardedUri && !isGeneric(forwardedUri)) {
+      url = forwardedUri;
+    }
   }
 
   try {
