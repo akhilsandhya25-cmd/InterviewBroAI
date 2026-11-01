@@ -740,7 +740,7 @@ export default async function handler(req, res) {
     });
   }
 
-  if (url.includes('/ai/questions') || url.includes('/ai-questions')) {
+  if (url.includes('/ai/questions') || url.includes('/ai-questions') || url.includes('/questions') || url === 'questions' || url.endsWith('/questions')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -803,7 +803,7 @@ export default async function handler(req, res) {
     }
   }
 
-  if (url.includes('/ai/evaluate') || url.includes('/ai-evaluate')) {
+  if (url.includes('/ai/evaluate') || url.includes('/ai-evaluate') || url.includes('/evaluate') || url === 'evaluate' || url.endsWith('/evaluate')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -869,7 +869,7 @@ export default async function handler(req, res) {
     }
   }
 
-  if (url.includes('/ai/follow-up') || url.includes('/ai-follow-up')) {
+  if (url.includes('/ai/follow-up') || url.includes('/ai-follow-up') || url.includes('/follow-up') || url === 'follow-up' || url.endsWith('/follow-up')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -938,7 +938,7 @@ export default async function handler(req, res) {
     }
   }
 
-  if (url.includes('/ai/final-report') || url.includes('/ai/report') || url.includes('/ai-final-report') || url.includes('/ai-report')) {
+  if (url.includes('/ai/final-report') || url.includes('/ai/report') || url.includes('/ai-final-report') || url.includes('/ai-report') || url.includes('/final-report') || url.includes('/report') || url.endsWith('/report') || url.endsWith('/final-report')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -998,7 +998,7 @@ export default async function handler(req, res) {
   }
 
   // 6b. Interview Academy AI Practice Coach Endpoint
-  if (url.includes('/ai/coach') || url.includes('/ai-coach')) {
+  if (url.includes('/ai/coach') || url.includes('/ai-coach') || url.includes('/coach') || url === 'coach' || url.endsWith('/coach')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -1068,7 +1068,7 @@ export default async function handler(req, res) {
   }
 
   // 7. Resume Parse & Analysis Endpoint (Serverless Base64 / 5MB Limit)
-  if (url.includes('/resume/parse') || url.includes('/resume-parse')) {
+  if (url.includes('/resume/parse') || url.includes('/resume-parse') || url.includes('/parse') || url === 'parse' || url.endsWith('/parse')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
