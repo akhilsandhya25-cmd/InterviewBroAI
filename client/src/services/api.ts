@@ -569,7 +569,9 @@ export const api = {
             focus: 'First Practice Session',
             actionItems: ['Complete at least 2 questions in your next session to unlock full AI rubric scoring']
           }
-        ]
+        ],
+        questionsEvaluated: questions,
+        createdAt: new Date().toISOString()
       };
     }
 

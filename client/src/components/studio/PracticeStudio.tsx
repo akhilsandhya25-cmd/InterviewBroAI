@@ -40,7 +40,7 @@ export const PracticeStudio: React.FC<PracticeStudioProps> = ({
   }, []);
 
   // Timer reference
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number | null>(null);
