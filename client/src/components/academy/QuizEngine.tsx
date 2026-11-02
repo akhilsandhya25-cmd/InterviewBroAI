@@ -38,8 +38,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
-  const [lastScore, setLastScore] = useState<number>(bestScore);
-  const [hasPassed, setHasPassed] = useState<boolean>(initialPassed);
+  const [lastScore, setLastScore] = useState<number>(0);
+  const [hasPassed, setHasPassed] = useState<boolean>(false);
 
   const currentQuestion = questions[currentIndex];
   const totalQuestions = questions.length;
@@ -116,7 +116,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     if (currentIndex < totalQuestions - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
-      setIsCompleted(true);
+      calculateAndPersistResults(selectedOptions);
     }
   };
 
@@ -124,6 +124,8 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
     setSelectedOptions({});
     setCurrentIndex(0);
     setIsCompleted(false);
+    setLastScore(0);
+    setHasPassed(false);
   };
 
   if (!currentQuestion && !isCompleted) {
@@ -140,6 +142,7 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
   // ==========================================
   if (isCompleted) {
     let correctCount = 0;
+    const answeredCount = Object.keys(selectedOptions).length;
     questions.forEach((q) => {
       const selectedId = selectedOptions[q.id];
       const correctOpt = q.options.find((opt) => opt.isCorrect);
@@ -148,10 +151,13 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
       }
     });
 
+    const attemptScore = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+    const isPassing = attemptScore >= 75 && answeredCount > 0;
+
     return (
       <div className="p-6 sm:p-8 rounded-3xl bg-[#0B0F19] border border-white/[0.08] shadow-xl text-center space-y-6">
         <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center bg-white/[0.04] border border-white/[0.08]">
-          {hasPassed ? (
+          {isPassing ? (
             <Award className="w-8 h-8 text-[#C5F36B]" />
           ) : (
             <RotateCcw className="w-8 h-8 text-amber-400" />
@@ -163,12 +169,14 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
             Quiz Results
           </span>
           <h3 className="text-2xl font-black text-[#F5F7FA] mt-2">
-            {hasPassed ? 'Placement Quiz Mastered!' : 'Keep Practicing! Review Your Answers'}
+            {isPassing ? 'Placement Quiz Mastered!' : answeredCount === 0 ? 'No Answers Submitted' : 'Keep Practicing! Review Your Answers'}
           </h3>
           <p className="text-xs sm:text-sm text-[#9AA4B2] max-w-md mx-auto mt-1 leading-relaxed">
-            {hasPassed
-              ? `Outstanding! You scored ${lastScore}% (${correctCount} of ${totalQuestions} correct) on ${lessonTitle}. Your progress has been updated.`
-              : `You scored ${lastScore}% (${correctCount} of ${totalQuestions} correct). You need 75% or higher to earn the completion badge for this lesson.`}
+            {answeredCount === 0
+              ? `You scored 0% (0 of ${totalQuestions} answered). Please select an answer for each question before proceeding to test your placement readiness.`
+              : isPassing
+              ? `Outstanding! You scored ${attemptScore}% (${correctCount} of ${totalQuestions} correct) on ${lessonTitle}. Your progress has been updated.`
+              : `You scored ${attemptScore}% (${correctCount} of ${totalQuestions} correct). You need 75% or higher to earn the completion badge for this lesson.`}
           </p>
         </div>
 
@@ -176,16 +184,16 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
         <div className="max-w-xs mx-auto p-4 rounded-2xl bg-[#121826] border border-white/[0.06]">
           <div className="flex justify-between items-center text-xs font-semibold text-[#9AA4B2] mb-1.5">
             <span>Accuracy Score</span>
-            <span className={hasPassed ? 'text-[#C5F36B] font-bold' : 'text-amber-400 font-bold'}>
-              {lastScore}%
+            <span className={isPassing ? 'text-[#C5F36B] font-bold' : attemptScore === 0 ? 'text-slate-400 font-bold' : 'text-amber-400 font-bold'}>
+              {attemptScore}%
             </span>
           </div>
           <div className="w-full h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
-                hasPassed ? 'bg-[#C5F36B]' : 'bg-amber-400'
+                isPassing ? 'bg-[#C5F36B]' : attemptScore === 0 ? 'bg-slate-600' : 'bg-amber-400'
               }`}
-              style={{ width: `${lastScore}%` }}
+              style={{ width: `${attemptScore}%` }}
             />
           </div>
           <div className="text-[10px] text-[#9AA4B2]/70 mt-2">

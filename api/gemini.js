@@ -655,6 +655,69 @@ export function validateAndScoreRubric(parsed, activeRubric) {
   };
 }
 
+// Helper to verify if candidate answer contains genuine substantive content
+export function isSubstantiveAnswer(text) {
+  if (!text || typeof text !== 'string') return false;
+  const clean = text.trim().toLowerCase().replace(/^[^\w]+|[^\w]+$/g, '');
+  if (!clean || clean.length < 3) return false;
+
+  const nonAnswerExact = new Set([
+    'no answer provided',
+    'no answer recorded',
+    'no answer',
+    'no response',
+    'no',
+    'nope',
+    'none',
+    'nothing',
+    'nil',
+    'na',
+    'n/a',
+    'not applicable',
+    'idk',
+    'i don\'t know',
+    'i dont know',
+    'dont know',
+    'don\'t know',
+    'not sure',
+    'not aware',
+    'no idea',
+    'skip',
+    'skipped',
+    'pass',
+    'passed',
+    'next',
+    'next question',
+    'test',
+    'testing',
+    'check',
+    'checking',
+    'hello',
+    'hi',
+    'silence',
+    '[silence]',
+    '(silence)',
+    'asdf',
+    'qwerty',
+    'uh',
+    'um',
+    'ah',
+    'hmm'
+  ]);
+
+  if (nonAnswerExact.has(clean)) return false;
+
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length < 3 && clean.length < 15) {
+    const dismissalPattern = /^(i\s+)?(do\s*n'?t|cannot|cant)\s+(know|remember|recall|answer)|^(no|skip|pass|none|nothing|idk)\b/i;
+    if (dismissalPattern.test(clean) || words.length < 2) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export const geminiService = {
   async generateInterviewQuestions(config, previousQuestions = []) {
     const {
@@ -778,6 +841,33 @@ ${excludedListFormatted}`;
 
     // 1. Determine round & category specific rubric
     const activeRubric = getRubricForRound(cleanRound, cleanCategory);
+
+    // Zero-Tolerance Anti-Fabrication: If answer is non-substantive or blank, immediately score 0
+    if (!isSubstantiveAnswer(rawAnswer)) {
+      const zeroRubric = {};
+      activeRubric.pillars.forEach(p => {
+        zeroRubric[p.key] = {
+          name: p.label,
+          score: 0,
+          reasoning: 'No substantive answer was provided for this question.',
+          evidenceQuote: rawAnswer || 'No response recorded'
+        };
+      });
+
+      return {
+        status: 'evaluated',
+        source: 'ai',
+        score: 0,
+        rubricBreakdown: zeroRubric,
+        verifiedClaims: [],
+        unverifiedOrQuestionableClaims: [],
+        feedback: 'No substantive technical answer was provided for this question. Outline your thought process or technical approach to receive an objective score.',
+        strengths: [],
+        missedPoints: ['The core concepts of this question were left unaddressed.'],
+        betterAnswerExample: 'A strong candidate response should address the core concept, provide a concrete real-world example, and discuss edge cases or trade-offs.',
+        starMethodologyUsed: false
+      };
+    }
     const experienceGuideline = getExperienceLevelGuideline(cleanExp);
 
     const rubricPillarsDescription = activeRubric.pillars
@@ -981,10 +1071,7 @@ ${formattedHistory}`;
     const activeRubric = getRubricForRound(cleanRound, null);
 
     // 1. Check if candidate provided ANY answers across the entire session
-    const answeredQuestions = (questions || []).filter(q => {
-      const ans = String(q.candidateAnswer || '').trim();
-      return ans.length > 0 && ans !== 'No answer provided' && ans !== 'No answer recorded';
-    });
+    const answeredQuestions = (questions || []).filter(q => isSubstantiveAnswer(q.candidateAnswer));
 
     if (answeredQuestions.length === 0) {
       const zeroPillars = activeRubric.pillars.map(p => ({
@@ -1029,17 +1116,23 @@ ${formattedHistory}`;
       };
     }
 
-    const transcriptSummary = (questions || []).map((q, i) => `
+    const transcriptSummary = (questions || []).map((q, i) => {
+      const hasSubstantive = isSubstantiveAnswer(q.candidateAnswer);
+      const answerText = hasSubstantive
+        ? sanitizeForPrompt(q.candidateAnswer).slice(0, 4000)
+        : `[No substantive answer provided (Candidate recorded: "${sanitizeForPrompt(q.candidateAnswer || 'No response')}") - Must score 0/100]`;
+      return `
 Question ${i + 1} (${q.category || cleanRound}): ${q.questionText}
 Candidate Answer:
 <<<UNTRUSTED_CANDIDATE_ANSWER_${i + 1}>>>
-${sanitizeForPrompt(q.candidateAnswer || 'No answer provided').slice(0, 4000)}
+${answerText}
 <<<END_UNTRUSTED_CANDIDATE_ANSWER_${i + 1}>>>
-Score: ${q.evaluation?.score ?? 'N/A'}/100
+Score: ${hasSubstantive ? (q.evaluation?.score ?? 'N/A') : 0}/100
 Feedback: ${q.evaluation?.feedback || 'N/A'}
 Strengths: ${(q.evaluation?.strengths || []).join('; ')}
 Missed Points: ${(q.evaluation?.missedPoints || []).join('; ')}
-`).join('\n---\n');
+`;
+    }).join('\n---\n');
     const experienceGuideline = getExperienceLevelGuideline(cleanExp);
 
     const systemInstruction = `You are an encouraging Lead Engineering Interviewer and Hiring Mentor conducting a placement debrief.

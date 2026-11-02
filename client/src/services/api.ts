@@ -1,3 +1,66 @@
+// Helper to verify if candidate answer contains genuine substantive content
+export function isSubstantiveAnswer(text: string | null | undefined): boolean {
+  if (!text || typeof text !== 'string') return false;
+  const clean = text.trim().toLowerCase().replace(/^[^\w]+|[^\w]+$/g, '');
+  if (!clean || clean.length < 3) return false;
+
+  const nonAnswerExact = new Set([
+    'no answer provided',
+    'no answer recorded',
+    'no answer',
+    'no response',
+    'no',
+    'nope',
+    'none',
+    'nothing',
+    'nil',
+    'na',
+    'n/a',
+    'not applicable',
+    'idk',
+    'i don\'t know',
+    'i dont know',
+    'dont know',
+    'don\'t know',
+    'not sure',
+    'not aware',
+    'no idea',
+    'skip',
+    'skipped',
+    'pass',
+    'passed',
+    'next',
+    'next question',
+    'test',
+    'testing',
+    'check',
+    'checking',
+    'hello',
+    'hi',
+    'silence',
+    '[silence]',
+    '(silence)',
+    'asdf',
+    'qwerty',
+    'uh',
+    'um',
+    'ah',
+    'hmm'
+  ]);
+
+  if (nonAnswerExact.has(clean)) return false;
+
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length < 3 && clean.length < 15) {
+    const dismissalPattern = /^(i\s+)?(do\s*n'?t|cannot|cant)\s+(know|remember|recall|answer)|^(no|skip|pass|none|nothing|idk)\b/i;
+    if (dismissalPattern.test(clean) || words.length < 2) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 import { InterviewConfig, InterviewQuestion, FeedbackReport, ResumeAnalysis, QuestionEvaluation } from '../types';
 import { CoachFeedback } from '../types/academy';
 import { SAMPLE_FALLBACK_QUESTIONS } from '../data/presets';
@@ -445,10 +508,7 @@ export const api = {
 
   // Generate comprehensive feedback report
   async generateFinalReport(questions: InterviewQuestion[], config: InterviewConfig, candidateName: string): Promise<FeedbackReport> {
-    const answeredQuestions = (questions || []).filter(q => {
-      const ans = String(q.candidateAnswer || '').trim();
-      return ans.length > 0 && ans !== 'No answer provided' && ans !== 'No answer recorded';
-    });
+    const answeredQuestions = (questions || []).filter(q => isSubstantiveAnswer(q.candidateAnswer));
 
     // Zero-Tolerance Anti-Fabrication: If 0 questions were answered, return an honest 0% report immediately
     if (answeredQuestions.length === 0) {
