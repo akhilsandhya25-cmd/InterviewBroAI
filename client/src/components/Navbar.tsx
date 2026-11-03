@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Video, Menu, X, LogOut, Settings as SettingsIcon, History, UserCheck, ChevronDown, GraduationCap } from 'lucide-react';
+import { Video, Menu, X, LogOut, Settings as SettingsIcon, History, UserCheck, ChevronDown, GraduationCap } from 'lucide-react';
 import { BrandLogo } from './brand/BrandLogo';
 
 interface NavbarProps {
@@ -43,14 +43,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#080B11]/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-sm">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 max-w-7xl mx-auto">
         {/* Left: Mobile Navigation Drawer Toggle & Brand Logo */}
         <div className="flex items-center gap-3">
           {onToggleSidebar && (
             <button
               onClick={onToggleSidebar}
-              className="p-2 text-[#9AA4B2] hover:text-[#F5F7FA] rounded-xl hover:bg-white/[0.06] lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C5F36B]"
+              className="p-2 text-slate-600 hover:text-slate-950 rounded-xl hover:bg-slate-100 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
               aria-label={isSidebarOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={isSidebarOpen}
             >
@@ -68,21 +68,21 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Center: Landing Page In-Page Navigation Links */}
         {currentRoute === 'landing' && (
           <nav
-            className="hidden md:flex items-center gap-7 text-xs font-medium text-[#9AA4B2]"
+            className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-600"
             aria-label="Main page navigation"
           >
             <button
               onClick={() => onNavigate('academy')}
-              className="text-[#C5F36B] hover:text-[#b0df57] font-semibold flex items-center gap-1.5 transition-colors"
+              className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100/70 px-2.5 py-1 rounded-lg border border-blue-200/60 font-semibold flex items-center gap-1.5 transition-colors"
             >
-              <GraduationCap className="w-3.5 h-3.5" />
+              <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
               <span>Academy</span>
             </button>
-            <a href="#how-it-works" className="hover:text-[#F5F7FA] transition-colors">How It Works</a>
-            <a href="#features" className="hover:text-[#F5F7FA] transition-colors">Features</a>
-            <a href="#company-tracks" className="hover:text-[#F5F7FA] transition-colors">Company Tracks</a>
-            <a href="#pricing" className="hover:text-[#F5F7FA] transition-colors">Pricing</a>
-            <a href="#faq" className="hover:text-[#F5F7FA] transition-colors">FAQ</a>
+            <a href="#how-it-works" className="hover:text-blue-600 transition-colors">How It Works</a>
+            <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
+            <a href="#company-tracks" className="hover:text-blue-600 transition-colors">Company Tracks</a>
+            <a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a>
+            <a href="#faq" className="hover:text-blue-600 transition-colors">FAQ</a>
           </nav>
         )}
 
@@ -106,26 +106,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   aria-expanded={isUserMenuOpen}
                   aria-haspopup="true"
-                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-white/[0.06] text-[#F5F7FA] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C5F36B]"
+                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-[#121826] border border-white/[0.12] flex items-center justify-center text-xs font-bold text-[#C5F36B]">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-xs font-bold text-blue-700">
                     {user.full_name ? user.full_name.charAt(0).toUpperCase() : (user.email ? user.email.charAt(0).toUpperCase() : 'U')}
                   </div>
-                  <span className="hidden md:block text-xs font-medium text-[#F5F7FA] max-w-[130px] truncate">
+                  <span className="hidden md:block text-xs font-semibold text-slate-800 max-w-[130px] truncate">
                     {user.full_name || user.email.split('@')[0]}
                   </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-[#9AA4B2] transition-transform duration-150 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {/* Dropdown Menu */}
                 {isUserMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute right-0 top-full mt-2 w-56 py-1.5 rounded-2xl bg-[#121826] border border-white/[0.1] shadow-2xl z-50 animate-fade-in"
+                    className="absolute right-0 top-full mt-2 w-56 py-1.5 rounded-2xl bg-white border border-slate-200 shadow-xl z-50 animate-fade-in"
                   >
-                    <div className="px-4 py-3 border-b border-white/[0.08]">
-                      <p className="text-xs font-semibold text-[#F5F7FA] truncate">{user.full_name || 'Candidate'}</p>
-                      <p className="text-[11px] text-[#9AA4B2] truncate mt-0.5">{user.email}</p>
+                    <div className="px-4 py-3 border-b border-slate-100">
+                      <p className="text-xs font-semibold text-slate-950 truncate">{user.full_name || 'Candidate'}</p>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">{user.email}</p>
                     </div>
 
                     <div className="py-1">
@@ -135,9 +135,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsUserMenuOpen(false);
                           onNavigate('profile');
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#9AA4B2] hover:text-[#F5F7FA] hover:bg-white/[0.04] transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50/50 transition-colors text-left"
                       >
-                        <UserCheck className="w-4 h-4 text-[#9AA4B2]" />
+                        <UserCheck className="w-4 h-4 text-blue-600" />
                         <span>Candidate Profile</span>
                       </button>
 
@@ -147,9 +147,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsUserMenuOpen(false);
                           onNavigate('history');
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#9AA4B2] hover:text-[#F5F7FA] hover:bg-white/[0.04] transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50/50 transition-colors text-left"
                       >
-                        <History className="w-4 h-4 text-[#9AA4B2]" />
+                        <History className="w-4 h-4 text-blue-600" />
                         <span>Session History</span>
                       </button>
 
@@ -159,14 +159,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsUserMenuOpen(false);
                           onNavigate('settings');
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#9AA4B2] hover:text-[#F5F7FA] hover:bg-white/[0.04] transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50/50 transition-colors text-left"
                       >
-                        <SettingsIcon className="w-4 h-4 text-[#9AA4B2]" />
+                        <SettingsIcon className="w-4 h-4 text-slate-400" />
                         <span>Settings & Privacy</span>
                       </button>
                     </div>
 
-                    <div className="border-t border-white/[0.08] my-1" />
+                    <div className="border-t border-slate-100 my-1" />
 
                     <button
                       role="menuitem"
@@ -175,9 +175,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                         await logout();
                         onNavigate('landing');
                       }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors text-left font-medium"
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors text-left font-medium"
                     >
-                      <LogOut className="w-4 h-4" />
+                      <LogOut className="w-4 h-4 text-red-600" />
                       <span>Sign Out</span>
                     </button>
                   </div>
@@ -188,7 +188,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onOpenAuth ? onOpenAuth('login') : onNavigate('landing')}
-                className="btn-ghost text-xs py-2 px-2.5 sm:px-3.5"
+                className="btn-ghost text-xs py-2 px-2.5 sm:px-3.5 text-slate-700 hover:text-blue-600 hover:bg-blue-50/40"
               >
                 <span>Sign In</span>
               </button>

@@ -4,28 +4,41 @@
 
 @layer base {
   :root {
-    /* Light mode (default) */
-    --paper: #FAF7F2;
+    /* White Background, Blue & Red Theme */
+    --paper: #FFFFFF;
     --surface: #FFFFFF;
-    --ink: #14181F;
-    --muted: #5B6270;
-    --line: #E6E0D6;
-    --accent: #C93C1A; /* Navy suit, white shirt, one red tie accent */
-    --accent-hover: #B23415;
+    --surface-elevated: #F8FAFC;
+    --ink: #0F172A;
+    --muted: #475569;
+    --line: #E2E8F0;
+    --line-strong: #CBD5E1;
+
+    /* Primary Navy & Royal Blue */
+    --navy: #0A2540;
+    --primary-blue: #1D4ED8;
+    --primary-blue-hover: #1E40AF;
+    --primary-blue-bg: #EFF6FF;
+    --primary-blue-line: #BFDBFE;
+
+    /* Tie Red Accent */
+    --accent: #DC2626; /* Vibrant tie red for key CTAs & recording */
+    --accent-hover: #B91C1C;
     --accent-ink: #FFFFFF;
+    --accent-bg: #FEF2F2;
+    --accent-line: #FECACA;
     
     /* Semantic Status (Always combined with label + icon for WCAG AA) */
-    --good: #3F7D58;
-    --good-bg: #EDF5F0;
-    --good-line: #CCE4D5;
+    --good: #15803D;
+    --good-bg: #F0FDF4;
+    --good-line: #BBF7D0;
     
-    --okay: #9A6516;
-    --okay-bg: #FAF4EB;
-    --okay-line: #EADBBF;
+    --okay: #B45309;
+    --okay-bg: #FFFBEB;
+    --okay-line: #FDE68A;
     
-    --weak: #B23A32;
-    --weak-bg: #FAEEEE;
-    --weak-line: #E8C8C6;
+    --weak: #DC2626;
+    --weak-bg: #FEF2F2;
+    --weak-line: #FECACA;
 
     /* Typography Scale */
     --font-headline: 'Fraunces', serif;
@@ -36,27 +49,38 @@
   }
 
   .dark {
-    /* Dark mode (toggle built from the same warm tokens) */
-    --paper: #14161B;
-    --surface: #1C1F26;
-    --ink: #F3EFE8;
-    --muted: #A0A6B2;
-    --line: #2B2F38;
-    --accent: #D64622;
-    --accent-hover: #E35835;
+    /* High contrast dark fallback */
+    --paper: #0B0F19;
+    --surface: #121826;
+    --surface-elevated: #1E293B;
+    --ink: #F8FAFC;
+    --muted: #94A3B8;
+    --line: #334155;
+    --line-strong: #475569;
+
+    --navy: #1E3A8A;
+    --primary-blue: #3B82F6;
+    --primary-blue-hover: #60A5FA;
+    --primary-blue-bg: #172554;
+    --primary-blue-line: #1E40AF;
+
+    --accent: #EF4444;
+    --accent-hover: #F87171;
     --accent-ink: #FFFFFF;
+    --accent-bg: #450A0A;
+    --accent-line: #7F1D1D;
 
-    --good: #4E9B6E;
-    --good-bg: #1B2921;
-    --good-line: #2B4435;
+    --good: #22C55E;
+    --good-bg: #14532D;
+    --good-line: #166534;
 
-    --okay: #B87B22;
-    --okay-bg: #2B2317;
-    --okay-line: #4A3C26;
+    --okay: #F59E0B;
+    --okay-bg: #78350F;
+    --okay-line: #92400E;
 
-    --weak: #CF4D44;
-    --weak-bg: #2C1A19;
-    --weak-line: #4D2C2A;
+    --weak: #EF4444;
+    --weak-bg: #450A0A;
+    --weak-line: #7F1D1D;
 
     color-scheme: dark;
   }
@@ -131,6 +155,34 @@
   cursor: not-allowed;
 }
 
+.btn-blue {
+  background-color: var(--primary-blue);
+  color: #FFFFFF;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  min-height: 48px;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background-color 180ms ease, transform 180ms ease;
+  user-select: none;
+}
+.btn-blue:hover:not(:disabled) {
+  background-color: var(--primary-blue-hover);
+}
+.btn-blue:active:not(:disabled) {
+  transform: scale(0.99);
+}
+.btn-blue:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn-secondary {
   background-color: var(--surface);
   color: var(--ink);
@@ -149,8 +201,8 @@
   user-select: none;
 }
 .btn-secondary:hover:not(:disabled) {
-  background-color: var(--paper);
-  border-color: var(--muted);
+  background-color: var(--surface-elevated);
+  border-color: var(--line-strong);
 }
 .btn-secondary:active:not(:disabled) {
   transform: scale(0.99);
@@ -177,7 +229,7 @@
 }
 .btn-ghost:hover:not(:disabled) {
   color: var(--ink);
-  background-color: var(--line);
+  background-color: var(--surface-elevated);
 }
 
 .card-flat {
@@ -185,6 +237,7 @@
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 1.25rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 @media (min-width: 640px) {
   .card-flat {
@@ -195,7 +248,59 @@
 /* Visible 2px focus ring for accessibility */
 .focus-ring:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--primary-blue);
+}
+
+/* Universal Palette Normalization — White Background, Blue & Red Accents */
+:root:not(.dark) [class*="bg-[#080B11]"],
+:root:not(.dark) [class*="bg-[#080b11]"],
+:root:not(.dark) [class*="bg-[#0B0F19]"],
+:root:not(.dark) [class*="bg-[#0b101c]"],
+:root:not(.dark) [class*="bg-[#0c111e]"],
+:root:not(.dark) [class*="bg-[#0c111c]"],
+:root:not(.dark) [class*="bg-[#060911]"] {
+  background-color: #FFFFFF !important;
+}
+
+:root:not(.dark) [class*="bg-[#121826]"],
+:root:not(.dark) [class*="bg-[#161F32]"],
+:root:not(.dark) [class*="bg-[#0B0F17]"] {
+  background-color: #FFFFFF !important;
+}
+
+:root:not(.dark) [class*="text-[#F5F7FA]"],
+:root:not(.dark) [class*="text-[#f5f7fa]"] {
+  color: #0F172A !important;
+}
+
+:root:not(.dark) [class*="text-[#9AA4B2]"],
+:root:not(.dark) [class*="text-[#9aa4b2]"] {
+  color: #475569 !important;
+}
+
+:root:not(.dark) [class*="border-white/"] {
+  border-color: #E2E8F0 !important;
+}
+
+:root:not(.dark) [class*="hover:bg-white/"]:hover {
+  background-color: #F1F5F9 !important;
+}
+
+:root:not(.dark) [class*="hover:text-[#F5F7FA]"]:hover {
+  color: #0F172A !important;
+}
+
+:root:not(.dark) [class*="text-[#C5F36B]"],
+:root:not(.dark) [class*="text-lime"] {
+  color: #1D4ED8 !important;
+}
+
+:root:not(.dark) [class*="border-[#C5F36B]"] {
+  border-color: #1D4ED8 !important;
+}
+
+:root:not(.dark) [class*="focus-visible:ring-[#C5F36B]"]:focus-visible {
+  --tw-ring-color: #1D4ED8 !important;
 }
 
 /* Functional Motion Only (150-250ms) */

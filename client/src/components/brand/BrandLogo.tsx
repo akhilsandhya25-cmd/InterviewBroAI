@@ -60,11 +60,11 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
         <BrandIcon size={iconSize} glow={true} className={onClick ? 'group-hover:scale-105 transition-transform duration-200' : ''} />
         
         <div className="mt-3 flex flex-col items-center">
-          <span className={`font-black tracking-tight uppercase text-[#F5F7FA] ${titleSize} transition-colors`}>
-            INTERVIEW <span className="text-[#C5F36B]">BRO</span> AI
+          <span className={`font-black tracking-tight uppercase text-[#0A2540] ${titleSize} transition-colors`}>
+            INTERVIEW <span className="text-[#DC2626]">BRO</span> AI
           </span>
           {showTagline && (
-            <p className="text-[10px] text-[#9AA4B2] tracking-wider uppercase font-semibold mt-1">
+            <p className="text-[10px] text-slate-500 tracking-wider uppercase font-semibold mt-1">
               Practice Smarter • Get Hired
             </p>
           )}
@@ -82,16 +82,16 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       
       <div className="flex flex-col">
         <div className="flex items-center gap-1.5 leading-none">
-          <span className={`font-black tracking-tight text-[#F5F7FA] uppercase ${titleSize} ${onClick ? 'group-hover:text-white' : ''} transition-colors`}>
-            INTERVIEW<span className="text-[#C5F36B] ml-1">BRO</span>
+          <span className={`font-black tracking-tight text-[#0A2540] uppercase ${titleSize} transition-colors`}>
+            INTERVIEW<span className="text-[#DC2626] ml-1">BRO</span>
           </span>
-          <span className={`font-extrabold uppercase tracking-wider bg-[#C5F36B]/15 text-[#C5F36B] border border-[#C5F36B]/30 rounded-md shadow-sm ${badgeSize}`}>
+          <span className={`font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 rounded-md shadow-sm ${badgeSize}`}>
             AI
           </span>
         </div>
         
         {showTagline && (
-          <p className="text-[10px] text-[#9AA4B2] tracking-wider uppercase font-medium mt-1">
+          <p className="text-[10px] text-slate-500 tracking-wider uppercase font-medium mt-1">
             Practice Smarter • Get Hired
           </p>
         )}

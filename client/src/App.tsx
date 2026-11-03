@@ -244,23 +244,23 @@ const AppContent: React.FC = () => {
 
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 sm:py-24 text-center">
-        <div className="p-8 sm:p-12 rounded-3xl bg-[#0c111c] border border-slate-800 shadow-2xl relative overflow-hidden">
+        <div className="p-8 sm:p-12 rounded-3xl bg-white border border-slate-200 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
-          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-violet-600/10 border border-violet-500/30 flex items-center justify-center text-violet-400 shadow-lg">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-sm">
             <Lock className="w-8 h-8" />
           </div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/10 text-violet-300 border border-violet-500/30 text-xs font-semibold mb-3">
-            <Shield className="w-3.5 h-3.5 text-cyan-400" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold mb-3">
+            <Shield className="w-3.5 h-3.5 text-blue-600" />
             <span>Authenticated Resource</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-2">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-2">
             Sign In Required to Access {title}
           </h2>
 
-          <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto mb-8 leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto mb-8 leading-relaxed">
             Your interview transcripts, resume ATS evaluations, and scores are strictly isolated to your verified account. Sign in or create a free student account to continue.
           </p>
 
@@ -281,7 +281,7 @@ const AppContent: React.FC = () => {
                 setAuthModalMode('signup');
                 setIsAuthModalOpen(true);
               }}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 transition-colors"
             >
               Create Free Account
             </button>
@@ -383,7 +383,7 @@ const AppContent: React.FC = () => {
   const isFullWidth = currentRoute === 'landing' || (!isAuthenticated && (currentRoute === 'legal' || currentRoute === 'privacy-center'));
 
   return (
-    <div className="min-h-screen bg-[#080b11] text-slate-100 flex flex-col font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans overflow-x-hidden">
       {/* Active Development Notice Banner */}
       <DevelopmentNoticeBanner onLearnMore={() => navigateTo('legal:terms')} />
 
@@ -415,8 +415,8 @@ const AppContent: React.FC = () => {
         >
           {isLoading ? (
             <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
-              <p className="text-xs text-slate-400 font-medium">Restoring secure session...</p>
+              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+              <p className="text-xs text-slate-600 font-medium">Restoring secure session...</p>
             </div>
           ) : (
             renderPage()

@@ -133,9 +133,18 @@ function fileToBase64(file: File): Promise<string> {
 export const api = {
   // Synchronously generate instant, tailored initial questions in 0ms
   getInstantInitialQuestions(config: InterviewConfig, previousQuestions: string[] = []): InterviewQuestion[] {
+    // Helper for non-biased in-place shuffle
+    const shuffle = <T>(arr: T[]): T[] => {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    };
+
     const primaryPool = SAMPLE_FALLBACK_QUESTIONS[config.interviewType] || SAMPLE_FALLBACK_QUESTIONS.mixed;
-    const allPools = [
-      ...primaryPool,
+    const otherPools = [
       ...SAMPLE_FALLBACK_QUESTIONS.technical,
       ...SAMPLE_FALLBACK_QUESTIONS.system_design,
       ...SAMPLE_FALLBACK_QUESTIONS.behavioral,
@@ -146,23 +155,48 @@ export const api = {
 
     const questions: InterviewQuestion[] = [];
     const trackingList: string[] = [...(previousQuestions || [])];
-
-    // Role-specific instant opening question
-    let openingQuestionText = '';
     const company = config.companyName || 'our engineering team';
     const role = config.role || 'Software Engineer';
-    
-    if (config.interviewType === 'technical') {
-      openingQuestionText = `Welcome to this ${company} technical interview for the ${role} position. To start off, could you briefly introduce yourself and walk me through the architecture and key technical challenges of a recent project you built?`;
-    } else if (config.interviewType === 'system_design') {
-      openingQuestionText = `Welcome to this ${company} system design interview for the ${role} position. Let's start with a high-level discussion: could you describe a distributed system or backend service you have worked on or designed, and how you handled scalability and data consistency?`;
-    } else if (config.interviewType === 'behavioral') {
-      openingQuestionText = `Welcome to your ${company} behavioral interview for the ${role} position. To begin, could you share a bit about your background and tell me about a time you had to overcome a tough technical or team challenge?`;
-    } else if (config.interviewType === 'hr') {
-      openingQuestionText = `Welcome to this ${company} interview for the ${role} role. To get started, please tell me about yourself and what specifically attracts you to working with our team at ${company}?`;
-    } else {
-      openingQuestionText = `Welcome to this ${company} interview for the ${role} position. To kick things off, could you introduce yourself and walk me through the most impactful project from your background?`;
-    }
+
+    // Dynamic Authentic Icebreaker & "Tell me about yourself" pool per interview type
+    const openingOptions: Record<string, string[]> = {
+      technical: [
+        `Welcome to this ${company} technical interview for the ${role} position. To start off, could you briefly introduce yourself and walk me through the architecture and key technical challenges of a recent project you built?`,
+        `Hello and welcome to your ${company} technical interview for the ${role} role. Before we dive into technical problem solving, could you give me a structured introduction of yourself, your primary technical strengths, and what you have been developing recently?`,
+        `Welcome to ${company}! Let's start with a quick introduction: please tell me about your background, what motivated you to pursue software engineering, and the technical project you are most proud of.`,
+        `Good day and welcome to this ${company} session. To kick things off, please introduce yourself, highlighting your programming background, your favorite tools or languages, and a real-world problem you enjoyed solving.`
+      ],
+      system_design: [
+        `Welcome to this ${company} system design interview for the ${role} position. Let's start with a high-level discussion: could you introduce yourself and describe a distributed system or backend service you have worked on or designed, and how you handled scalability and data consistency?`,
+        `Hello and welcome to ${company}. Before we jump into architectural designs, please tell me about yourself and walk me through the most scalable or high-throughput service you have engineered or studied in depth.`,
+        `Welcome to your system design interview at ${company}. To begin, please introduce yourself, your experience with backend architecture, and an example of a technical trade-off you made in a past project.`
+      ],
+      behavioral: [
+        `Welcome to your ${company} behavioral interview for the ${role} position. To begin, could you share a bit about your background and tell me about a time you had to overcome a tough technical or team challenge?`,
+        `Hello and welcome to ${company}! Before we dive into situational scenarios, please tell me about yourself, what drives your work ethic, and how you typically collaborate within multidisciplinary teams.`,
+        `Welcome to ${company}. To start our discussion, please introduce yourself and share a brief story about a project where things did not go as planned and how you adapted to deliver results.`
+      ],
+      hr: [
+        `Welcome to this ${company} interview for the ${role} role. To get started, please tell me about yourself, your educational and project journey, and what specifically attracts you to working with our team at ${company}?`,
+        `Hello and welcome to ${company}! Could you give us a brief introduction of who you are outside your resume, your key strengths, and what your career goals look like for the next 2-3 years?`,
+        `Welcome to your HR discussion at ${company}. Please introduce yourself, walk us through what drives your engineering passions, and why you believe this ${role} position aligns with your aspirations.`
+      ],
+      managerial: [
+        `Welcome to this ${company} interview for the ${role} position. To begin, please introduce yourself, walk me through your leadership or project coordination experience, and how you balance technical excellence with project deadlines.`,
+        `Hello and welcome to ${company}. To start off, please tell me about yourself and describe a time when you helped align team members or unblocked a colleague facing a complex roadblock.`
+      ],
+      mixed: [
+        `Welcome to this ${company} interview for the ${role} position. To kick things off, could you introduce yourself and walk me through the most impactful project from your background?`,
+        `Hello and welcome to ${company}! Let's start with a quick introduction: please tell me about yourself, your technical journey, and an engineering accomplishment you take pride in.`,
+        `Welcome to your ${company} interview for the ${role} role. To begin, could you briefly introduce yourself, highlight your core skills, and share what excites you most about software development?`
+      ]
+    };
+
+    const candidateOpeners = openingOptions[config.interviewType] || openingOptions.mixed;
+    const availableOpeners = candidateOpeners.filter(op => !isClientDuplicate(op, trackingList));
+    const openingQuestionText = availableOpeners.length > 0
+      ? availableOpeners[Math.floor(Math.random() * availableOpeners.length)]
+      : candidateOpeners[Math.floor(Math.random() * candidateOpeners.length)];
 
     questions.push({
       id: `q-${Date.now()}-0`,
@@ -177,7 +211,8 @@ export const api = {
     // If a company track is matched, incorporate company-specific question themes
     const track = getCompanyTrack(config.companyName || config.companyTrack?.id);
     if (track && track.exampleQuestionThemes && track.exampleQuestionThemes.length > 0) {
-      for (const theme of track.exampleQuestionThemes) {
+      const shuffledThemes = shuffle(track.exampleQuestionThemes);
+      for (const theme of shuffledThemes) {
         if (questions.length >= config.questionCount) break;
         if (!isClientDuplicate(theme, trackingList)) {
           questions.push({
@@ -193,8 +228,9 @@ export const api = {
       }
     }
 
-    // Populate remaining questions from curated pools without duplicates
-    for (const item of allPools) {
+    // Populate remaining questions from randomized curated pools without duplicates
+    const prioritizedPool = [...shuffle(primaryPool), ...shuffle(otherPools)];
+    for (const item of prioritizedPool) {
       if (questions.length >= config.questionCount) break;
       if (!isClientDuplicate(item.text, trackingList)) {
         questions.push({
