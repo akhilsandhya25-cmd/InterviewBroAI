@@ -450,11 +450,13 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <InterviewProvider>
-        <AppContent />
-      </InterviewProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <InterviewProvider>
+          <AppContent />
+        </InterviewProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 
