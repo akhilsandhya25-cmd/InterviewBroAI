@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { InterviewProvider, useInterview } from './context/InterviewContext';
 import { Navbar } from './components/Navbar';
@@ -383,7 +384,7 @@ const AppContent: React.FC = () => {
   const isFullWidth = currentRoute === 'landing' || (!isAuthenticated && (currentRoute === 'legal' || currentRoute === 'privacy-center'));
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans overflow-x-hidden transition-colors duration-150">
       {/* Active Development Notice Banner */}
       <DevelopmentNoticeBanner onLearnMore={() => navigateTo('legal:terms')} />
 

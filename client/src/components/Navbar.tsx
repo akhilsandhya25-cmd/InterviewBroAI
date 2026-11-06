@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Video, Menu, X, LogOut, Settings as SettingsIcon, History, UserCheck, ChevronDown, GraduationCap } from 'lucide-react';
 import { BrandLogo } from './brand/BrandLogo';
+import { ThemeToggle } from './ThemeToggle';
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -43,14 +44,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-sm">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-sm transition-colors duration-150">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 max-w-7xl mx-auto">
         {/* Left: Mobile Navigation Drawer Toggle & Brand Logo */}
         <div className="flex items-center gap-3">
           {onToggleSidebar && (
             <button
               onClick={onToggleSidebar}
-              className="p-2 text-slate-600 hover:text-slate-950 rounded-xl hover:bg-slate-100 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+              className="p-2 text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
               aria-label={isSidebarOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={isSidebarOpen}
             >
@@ -68,26 +69,28 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Center: Landing Page In-Page Navigation Links */}
         {currentRoute === 'landing' && (
           <nav
-            className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-600"
+            className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-600 dark:text-slate-400"
             aria-label="Main page navigation"
           >
             <button
               onClick={() => onNavigate('academy')}
-              className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100/70 px-2.5 py-1 rounded-lg border border-blue-200/60 font-semibold flex items-center gap-1.5 transition-colors"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100/70 dark:hover:bg-blue-900/60 px-2.5 py-1 rounded-lg border border-blue-200/60 dark:border-blue-800/60 font-semibold flex items-center gap-1.5 transition-colors"
             >
-              <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
+              <GraduationCap className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <span>Academy</span>
             </button>
-            <a href="#how-it-works" className="hover:text-blue-600 transition-colors">How It Works</a>
-            <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
-            <a href="#company-tracks" className="hover:text-blue-600 transition-colors">Company Tracks</a>
-            <a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a>
-            <a href="#faq" className="hover:text-blue-600 transition-colors">FAQ</a>
+            <a href="#how-it-works" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">How It Works</a>
+            <a href="#features" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Features</a>
+            <a href="#company-tracks" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Company Tracks</a>
+            <a href="#pricing" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Pricing</a>
+            <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">FAQ</a>
           </nav>
         )}
 
         {/* Right Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Theme Toggle Icon Button */}
+          <ThemeToggle variant="icon" />
           {user ? (
             <>
               {/* Primary Action Button */}
@@ -106,12 +109,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   aria-expanded={isUserMenuOpen}
                   aria-haspopup="true"
-                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-xs font-bold text-blue-700">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-xs font-bold text-blue-700 dark:text-blue-300">
                     {user.full_name ? user.full_name.charAt(0).toUpperCase() : (user.email ? user.email.charAt(0).toUpperCase() : 'U')}
                   </div>
-                  <span className="hidden md:block text-xs font-semibold text-slate-800 max-w-[130px] truncate">
+                  <span className="hidden md:block text-xs font-semibold text-slate-800 dark:text-slate-200 max-w-[130px] truncate">
                     {user.full_name || user.email.split('@')[0]}
                   </span>
                   <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
@@ -121,11 +124,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {isUserMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute right-0 top-full mt-2 w-56 py-1.5 rounded-2xl bg-white border border-slate-200 shadow-xl z-50 animate-fade-in"
+                    className="absolute right-0 top-full mt-2 w-56 py-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-50 animate-fade-in"
                   >
-                    <div className="px-4 py-3 border-b border-slate-100">
-                      <p className="text-xs font-semibold text-slate-950 truncate">{user.full_name || 'Candidate'}</p>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">{user.email}</p>
+                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                      <p className="text-xs font-semibold text-slate-950 dark:text-slate-100 truncate">{user.full_name || 'Candidate'}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{user.email}</p>
                     </div>
 
                     <div className="py-1">
@@ -135,9 +138,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsUserMenuOpen(false);
                           onNavigate('profile');
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50/50 transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 transition-colors text-left"
                       >
-                        <UserCheck className="w-4 h-4 text-blue-600" />
+                        <UserCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <span>Candidate Profile</span>
                       </button>
 
@@ -147,9 +150,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsUserMenuOpen(false);
                           onNavigate('history');
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50/50 transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 transition-colors text-left"
                       >
-                        <History className="w-4 h-4 text-blue-600" />
+                        <History className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <span>Session History</span>
                       </button>
 
@@ -159,14 +162,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsUserMenuOpen(false);
                           onNavigate('settings');
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50/50 transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 transition-colors text-left"
                       >
                         <SettingsIcon className="w-4 h-4 text-slate-400" />
                         <span>Settings & Privacy</span>
                       </button>
                     </div>
 
-                    <div className="border-t border-slate-100 my-1" />
+                    <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
 
                     <button
                       role="menuitem"
@@ -175,9 +178,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                         await logout();
                         onNavigate('landing');
                       }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors text-left font-medium"
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-left font-medium"
                     >
-                      <LogOut className="w-4 h-4 text-red-600" />
+                      <LogOut className="w-4 h-4 text-red-600 dark:text-red-400" />
                       <span>Sign Out</span>
                     </button>
                   </div>
@@ -188,7 +191,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onOpenAuth ? onOpenAuth('login') : onNavigate('landing')}
-                className="btn-ghost text-xs py-2 px-2.5 sm:px-3.5 text-slate-700 hover:text-blue-600 hover:bg-blue-50/40"
+                className="btn-ghost text-xs py-2 px-2.5 sm:px-3.5 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/40 dark:hover:bg-blue-950/40"
               >
                 <span>Sign In</span>
               </button>

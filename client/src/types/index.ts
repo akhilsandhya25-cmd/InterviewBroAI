@@ -100,6 +100,11 @@ export interface QuestionEvaluation {
   missedPoints: string[];
   betterAnswerExample: string;
   starMethodologyUsed?: boolean;
+  fillerCount?: number;
+  fillerWords?: string[];
+  fillerDensity?: number;
+  fluencyScore?: number;
+  fluencyFeedback?: string;
 }
 
 export interface InterviewQuestion {
@@ -149,6 +154,13 @@ export interface FeedbackReport {
     actionItems: string[];
   }[];
   questionsEvaluated: InterviewQuestion[];
+  speechFluency?: {
+    totalFillers: number;
+    fillerDensity: number;
+    overallFluencyScore: number;
+    topFillers: Array<{ word: string; count: number }>;
+    deliveryAdvice: string;
+  };
   createdAt: string;
 }
 

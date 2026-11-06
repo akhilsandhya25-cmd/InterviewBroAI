@@ -29,45 +29,45 @@ export const VoiceInterviewerOrb: React.FC<VoiceInterviewerOrbProps> = ({
     }
   }, [size]);
 
-  // Color profiles based on current state
+  // Color profiles based on current state tailored for modern polished UI
   const stateConfig = useMemo(() => {
     switch (state) {
       case 'thinking':
         return {
-          glow: 'from-cyan-500/20 to-indigo-500/20',
-          ring: 'border-cyan-400 border-t-white',
+          glow: 'from-blue-500/20 to-indigo-500/20',
+          ring: 'border-blue-500 border-t-indigo-600',
           label: 'Analyzing Response...',
-          badgeBg: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
+          badgeBg: 'bg-blue-50 text-blue-700 border-blue-200 font-semibold',
           icon: BrainCircuit,
-          accentColor: '#06B6D4'
+          accentColor: '#2563EB'
         };
       case 'speaking':
         return {
-          glow: 'from-[#C5F36B]/25 to-emerald-500/20',
-          ring: 'border-[#C5F36B] border-t-white',
+          glow: 'from-blue-600/25 to-indigo-600/25',
+          ring: 'border-blue-600 border-t-indigo-500',
           label: 'Interviewer Speaking',
-          badgeBg: 'bg-[#C5F36B]/15 text-[#C5F36B] border-[#C5F36B]/30 font-bold',
+          badgeBg: 'bg-blue-50 text-blue-700 border-blue-200 font-bold shadow-sm shadow-blue-500/10',
           icon: Volume2,
-          accentColor: '#C5F36B'
+          accentColor: '#2563EB'
         };
       case 'listening':
         return {
-          glow: 'from-cyan-400/25 to-emerald-500/20',
-          ring: 'border-cyan-400 border-t-emerald-300',
+          glow: 'from-emerald-500/25 to-teal-500/20',
+          ring: 'border-emerald-500 border-t-teal-400',
           label: 'Listening to You...',
-          badgeBg: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 font-semibold',
+          badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold',
           icon: Mic,
-          accentColor: '#10B981'
+          accentColor: '#059669'
         };
       case 'idle':
       default:
         return {
-          glow: 'from-white/[0.05] to-transparent',
-          ring: 'border-white/[0.1] border-t-white/[0.3]',
+          glow: 'from-slate-200/50 to-transparent',
+          ring: 'border-slate-300 border-t-slate-400',
           label: 'Interviewer Ready',
-          badgeBg: 'bg-[#121826] text-[#9AA4B2] border-white/[0.08]',
+          badgeBg: 'bg-slate-100 text-slate-700 border-slate-200 font-medium',
           icon: UserCheck,
-          accentColor: '#9AA4B2'
+          accentColor: '#64748B'
         };
     }
   }, [state]);
@@ -103,7 +103,7 @@ export const VoiceInterviewerOrb: React.FC<VoiceInterviewerOrbProps> = ({
 
         {/* Core Orb Center */}
         <div
-          className="relative rounded-full bg-[#121826] border border-white/[0.12] shadow-2xl flex items-center justify-center overflow-hidden transition-transform duration-200"
+          className="relative rounded-full bg-white border border-slate-200/90 shadow-xl flex items-center justify-center overflow-hidden transition-transform duration-200"
           style={{
             width: pixelDimensions.orb,
             height: pixelDimensions.orb,
@@ -111,39 +111,39 @@ export const VoiceInterviewerOrb: React.FC<VoiceInterviewerOrbProps> = ({
         >
           {state === 'speaking' ? (
             /* Animated Audio Bars */
-            <div className="flex items-center gap-1 z-10">
-              <span className="w-1.5 bg-[#C5F36B] rounded-full animate-bounce [animation-delay:0ms] h-4" />
-              <span className="w-1.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:120ms] h-7" />
-              <span className="w-1.5 bg-white rounded-full animate-bounce [animation-delay:60ms] h-9" />
-              <span className="w-1.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:180ms] h-7" />
-              <span className="w-1.5 bg-[#C5F36B] rounded-full animate-bounce [animation-delay:90ms] h-4" />
+            <div className="flex items-center gap-1.5 z-10">
+              <span className="w-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:0ms] h-4" />
+              <span className="w-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:120ms] h-7" />
+              <span className="w-1.5 bg-blue-700 rounded-full animate-bounce [animation-delay:60ms] h-9" />
+              <span className="w-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:180ms] h-7" />
+              <span className="w-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:90ms] h-4" />
             </div>
           ) : state === 'listening' ? (
             /* Receptive Mic Waves */
             <div className="flex flex-col items-center justify-center z-10">
-              <Mic className="w-6 h-6 text-emerald-400 animate-pulse mb-1" />
+              <Mic className="w-6 h-6 text-emerald-600 animate-pulse mb-1" />
               <div className="flex items-center gap-1">
-                <span className="w-1 h-1.5 bg-emerald-400 rounded-full animate-pulse [animation-delay:0ms]" />
-                <span className="w-1 h-3 bg-emerald-300 rounded-full animate-pulse [animation-delay:100ms]" />
-                <span className="w-1 h-1.5 bg-emerald-400 rounded-full animate-pulse [animation-delay:200ms]" />
+                <span className="w-1 h-1.5 bg-emerald-500 rounded-full animate-pulse [animation-delay:0ms]" />
+                <span className="w-1 h-3 bg-emerald-600 rounded-full animate-pulse [animation-delay:100ms]" />
+                <span className="w-1 h-1.5 bg-emerald-500 rounded-full animate-pulse [animation-delay:200ms]" />
               </div>
             </div>
           ) : state === 'thinking' ? (
             /* Analyzing State */
             <div className="flex flex-col items-center justify-center z-10">
-              <BrainCircuit className="w-7 h-7 text-cyan-300 animate-pulse" />
-              <span className="text-[9px] font-mono tracking-wider text-cyan-400 mt-1 uppercase font-semibold">
+              <BrainCircuit className="w-7 h-7 text-blue-600 animate-pulse" />
+              <span className="text-[9px] font-mono tracking-wider text-blue-600 mt-1 uppercase font-bold">
                 Thinking
               </span>
             </div>
           ) : (
             /* Idle Ready State */
-            <div className="flex flex-col items-center justify-center z-10 text-[#9AA4B2]">
-              <UserCheck className="w-7 h-7 text-[#9AA4B2] mb-1" />
+            <div className="flex flex-col items-center justify-center z-10 text-slate-500">
+              <UserCheck className="w-7 h-7 text-slate-600 mb-1" />
               <div className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#C5F36B]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-white/[0.2]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-white/[0.2]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
               </div>
             </div>
           )}
@@ -152,12 +152,12 @@ export const VoiceInterviewerOrb: React.FC<VoiceInterviewerOrbProps> = ({
 
       {/* State Badge and Role Tag */}
       <div className="mt-2.5 flex flex-col items-center text-center space-y-1">
-        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-colors duration-150 ${stateConfig.badgeBg}`}>
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border transition-colors duration-150 ${stateConfig.badgeBg}`}>
           <StatusIcon className="w-3.5 h-3.5" />
           <span>{stateConfig.label}</span>
         </div>
 
-        <div className="text-[11px] text-[#9AA4B2] font-medium">
+        <div className="text-[11px] text-slate-500 font-medium">
           {interviewerName} {company ? `• ${company}` : ''}
         </div>
       </div>

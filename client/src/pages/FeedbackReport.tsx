@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import {
   Award,
+  Mic,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
@@ -43,28 +44,28 @@ function getReportPillars(report: FeedbackReportType, isFallback: boolean): Rubr
         label: 'Technical Correctness',
         score: report.technicalAccuracyScore ?? null,
         description: isFallback ? 'Qualitative guidance below' : (report.technicalAccuracyScore ?? 0) >= 80 ? 'Strong conceptual grasp' : 'Solid technical understanding',
-        color: 'text-[#C5F36B]'
+        color: 'text-blue-600'
       },
       {
         key: 'depthAndEdgeCases',
         label: 'Depth & Edge Cases',
         score: report.relevanceScore ?? null,
         description: isFallback ? 'Review edge cases below' : (report.relevanceScore ?? 0) >= 80 ? 'Thorough boundary handling' : 'Covers fundamental cases',
-        color: 'text-emerald-400'
+        color: 'text-emerald-600'
       },
       {
         key: 'tradeoffAwareness',
         label: 'Complexity & Tradeoffs',
         score: report.overallScore != null ? Math.round((report.overallScore + (report.technicalAccuracyScore || report.overallScore)) / 2) : null,
         description: isFallback ? 'Review tradeoffs below' : 'Algorithmic & design balance',
-        color: 'text-violet-400'
+        color: 'text-indigo-600'
       },
       {
         key: 'communicationClarity',
         label: 'Communication Clarity',
         score: report.communicationScore ?? null,
         description: isFallback ? 'Natural delivery noted' : (report.communicationScore ?? 0) >= 80 ? 'Clear, composed articulation' : 'Natural delivery style',
-        color: 'text-cyan-400'
+        color: 'text-blue-600'
       }
     ];
   }
@@ -76,28 +77,28 @@ function getReportPillars(report: FeedbackReportType, isFallback: boolean): Rubr
         label: 'Requirements & Scope',
         score: report.relevanceScore ?? null,
         description: isFallback ? 'Review scope below' : 'Clarified constraints & capacity',
-        color: 'text-blue-400'
+        color: 'text-blue-600'
       },
       {
         key: 'architecture',
         label: 'System Architecture',
         score: report.technicalAccuracyScore ?? null,
         description: isFallback ? 'Review architecture below' : 'Solid component decomposition',
-        color: 'text-[#C5F36B]'
+        color: 'text-blue-600'
       },
       {
         key: 'scalabilityAndTradeoffs',
         label: 'Scalability & Resilience',
         score: report.overallScore != null ? Math.round((report.overallScore + (report.technicalAccuracyScore || report.overallScore)) / 2) : null,
         description: isFallback ? 'Review resilience below' : 'Addressed bottlenecks & failover',
-        color: 'text-emerald-400'
+        color: 'text-emerald-600'
       },
       {
         key: 'communicationClarity',
         label: 'Articulation & Defensibility',
         score: report.communicationScore ?? null,
         description: isFallback ? 'Delivery noted' : 'Articulate whiteboard walkthrough',
-        color: 'text-cyan-400'
+        color: 'text-blue-600'
       }
     ];
   }
@@ -109,28 +110,28 @@ function getReportPillars(report: FeedbackReportType, isFallback: boolean): Rubr
         label: 'STAR Methodology',
         score: report.structureStarScore ?? null,
         description: isFallback ? 'Review narrative below' : (report.structureStarScore ?? 0) >= 80 ? 'Well-structured narrative' : 'Good story elements',
-        color: 'text-indigo-400'
+        color: 'text-indigo-600'
       },
       {
         key: 'ownership',
         label: 'Ownership & Impact',
         score: report.technicalAccuracyScore ?? report.relevanceScore ?? null,
         description: isFallback ? 'Review impact below' : 'Demonstrated personal agency',
-        color: 'text-[#C5F36B]'
+        color: 'text-blue-600'
       },
       {
         key: 'relevance',
         label: 'Question Relevance',
         score: report.relevanceScore ?? null,
         description: isFallback ? 'Review guidance below' : 'Directly addressed prompt',
-        color: 'text-emerald-400'
+        color: 'text-emerald-600'
       },
       {
         key: 'communicationClarity',
         label: 'Delivery & Composure',
         score: report.communicationScore ?? null,
         description: isFallback ? 'Delivery style noted' : 'Composed, empathetic articulation',
-        color: 'text-cyan-400'
+        color: 'text-blue-600'
       }
     ];
   }
@@ -142,28 +143,28 @@ function getReportPillars(report: FeedbackReportType, isFallback: boolean): Rubr
       label: 'Technical Depth',
       score: report.technicalAccuracyScore ?? null,
       description: isFallback ? 'Qualitative guidance below' : 'Strong conceptual grasp',
-      color: 'text-[#C5F36B]'
+      color: 'text-blue-600'
     },
     {
       key: 'systemTradeoffs',
       label: 'Architecture & Tradeoffs',
       score: report.relevanceScore ?? null,
       description: isFallback ? 'Review tradeoffs below' : 'Design & complexity balance',
-      color: 'text-emerald-400'
+      color: 'text-emerald-600'
     },
     {
       key: 'ownershipAndDelivery',
       label: 'STAR & Ownership',
       score: report.structureStarScore ?? null,
       description: isFallback ? 'Review narrative below' : 'Structured delivery & ownership',
-      color: 'text-indigo-400'
+      color: 'text-indigo-600'
     },
     {
       key: 'communicationClarity',
       label: 'Communication Clarity',
       score: report.communicationScore ?? null,
       description: isFallback ? 'Delivery style noted' : 'Clear, composed articulation',
-      color: 'text-cyan-400'
+      color: 'text-blue-600'
     }
   ];
 }
@@ -194,11 +195,11 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
   if (!report) {
     return (
       <div className="max-w-2xl mx-auto py-20 px-4 text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-[#121826] border border-white/[0.08] flex items-center justify-center text-[#9AA4B2] mx-auto">
-          <Award className="w-6 h-6 text-[#9AA4B2]" />
+        <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 flex items-center justify-center text-slate-500 mx-auto">
+          <Award className="w-6 h-6 text-slate-500" />
         </div>
-        <h2 className="text-xl font-bold text-[#F5F7FA]">No Evaluation Report Available</h2>
-        <p className="text-xs text-[#9AA4B2] max-w-sm mx-auto">
+        <h2 className="text-xl font-bold text-slate-900">No Evaluation Report Available</h2>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto">
           Complete a full mock interview session to unlock your structured interview evaluation.
         </p>
         <button
@@ -219,13 +220,13 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
       {/* Demo Mode / AI Unavailable Notice Banner */}
       {isFallback && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-start sm:items-center gap-3 shadow-lg">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 flex items-start sm:items-center gap-3 shadow-lg">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
           <div className="text-xs space-y-0.5">
             <div className="font-bold text-amber-200 text-sm">
               Demo mode: AI scoring unavailable. This is not a real evaluation.
             </div>
-            <p className="text-[11px] text-amber-300/80">
+            <p className="text-[11px] text-amber-700/80">
               Live AI evaluation was offline or unreachable during this session. To uphold our strict integrity policy, numeric scores and placement readiness tiers are withheld. Qualitative interview feedback and coaching recommendations are preserved below.
             </p>
           </div>
@@ -233,13 +234,13 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
       )}
       {/* Session Incomplete / 0 Answers Banner */}
       {report.overallScore === 0 && !isFallback && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-start sm:items-center gap-3 shadow-lg">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 flex items-start sm:items-center gap-3 shadow-lg">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
           <div className="text-xs space-y-0.5">
             <div className="font-bold text-amber-200 text-sm">
               Session Incomplete: No Answers Recorded (0 / 100)
             </div>
-            <p className="text-[11px] text-amber-300/80">
+            <p className="text-[11px] text-amber-700/80">
               No verbal or typed answers were recorded during this session. To uphold academic integrity and prevent fake scores, InterviewBro AI never fabricates scores for blank responses. Start a new session and speak or type your answers to receive full placement scoring!
             </p>
           </div>
@@ -247,46 +248,46 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
       )}
 
       {/* 1. Header Banner */}
-      <div className="p-6 sm:p-8 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-sm relative overflow-hidden">
+      <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-xs font-semibold mb-3">
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>{isFallback ? 'Demo Mode Practice Session (AI Scoring Offline)' : 'Interview Session Completed & Evaluated'}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA] tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Performance Evaluation Report
             </h1>
-            <p className="text-xs sm:text-sm text-[#9AA4B2] mt-1">
-              Candidate: <strong className="text-[#F5F7FA]">{report.candidateName}</strong> • Target: <strong className="text-[#F5F7FA]">{report.company}</strong> ({report.role})
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Candidate: <strong className="text-slate-900 dark:text-white">{report.candidateName}</strong> • Target: <strong className="text-slate-900 dark:text-white">{report.company}</strong> ({report.role})
             </p>
           </div>
 
           {/* Overall Score Badge */}
-          <div className="flex items-center gap-4 bg-[#080B11] p-4 rounded-xl border border-white/[0.08] shrink-0">
+          <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200/90 dark:border-slate-700/80 shrink-0">
             {isFallback ? (
-              <div className="w-20 h-16 rounded-xl bg-slate-800/80 border border-white/[0.08] flex flex-col items-center justify-center text-[#9AA4B2] shadow-md px-1 text-center">
-                <span className="text-xs font-extrabold text-[#F5F7FA] leading-tight">Not scored</span>
-                <span className="text-[9px] font-medium text-[#9AA4B2] mt-0.5">Demo mode</span>
+              <div className="w-20 h-16 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 shadow-md px-1 text-center">
+                <span className="text-xs font-extrabold text-slate-900 leading-tight">Not scored</span>
+                <span className="text-[9px] font-medium text-slate-500 mt-0.5">Demo mode</span>
               </div>
             ) : report.overallScore === 0 ? (
-              <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex flex-col items-center justify-center text-[#9AA4B2] shadow-md">
-                <span className="text-2xl font-black leading-none text-[#F5F7FA]">0</span>
-                <span className="text-[10px] font-bold text-[#9AA4B2]">/ 100</span>
+              <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 shadow-md">
+                <span className="text-2xl font-black leading-none text-slate-900 dark:text-white">0</span>
+                <span className="text-[10px] font-bold text-slate-500">/ 100</span>
               </div>
             ) : (
-              <div className="w-16 h-16 rounded-xl bg-[#C5F36B] flex flex-col items-center justify-center text-[#080B11] shadow-md">
+              <div className="w-16 h-16 rounded-xl bg-blue-600 flex flex-col items-center justify-center text-slate-50 shadow-md">
                 <span className="text-2xl font-black leading-none">{report.overallScore}</span>
-                <span className="text-[10px] font-bold text-[#080B11]/70">/ 100</span>
+                <span className="text-[10px] font-bold text-slate-50/70">/ 100</span>
               </div>
             )}
             <div>
-              <div className="text-xs font-bold text-[#F5F7FA]">{isFallback ? 'Scoring Status' : 'Overall Readiness'}</div>
-              <div className="text-[11px] font-medium mt-0.5 text-emerald-400">
+              <div className="text-xs font-bold text-slate-900 dark:text-white">{isFallback ? 'Scoring Status' : 'Overall Readiness'}</div>
+              <div className="text-[11px] font-medium mt-0.5 text-emerald-600">
                 {isFallback ? (
-                  <span className="text-amber-400 font-semibold">Qualitative Review Only</span>
+                  <span className="text-amber-600 font-semibold">Qualitative Review Only</span>
                 ) : report.overallScore === 0 ? (
-                  <span className="text-amber-400 font-semibold">No Answers Submitted (0%)</span>
+                  <span className="text-amber-600 font-semibold">No Answers Submitted (0%)</span>
                 ) : (
                   report.overallScore != null && report.overallScore >= 80
                     ? 'Exceptional Progress • Placement Ready'
@@ -295,7 +296,7 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
                       : 'Developing Track • High Growth'
                 )}
               </div>
-              <div className="text-[10px] text-[#9AA4B2] mt-0.5">
+              <div className="text-[10px] text-slate-500 mt-0.5">
                 {isFallback ? 'Scores Withheld (Demo Mode)' : report.overallScore === 0 ? 'Session Incomplete' : 'AI Interviewer Evaluation'}
               </div>
             </div>
@@ -303,7 +304,7 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3 pt-6 mt-6 border-t border-white/[0.08]">
+        <div className="flex flex-wrap items-center gap-3 pt-6 mt-6 border-t border-slate-200/90 dark:border-slate-800">
           <button
             onClick={onStartNew}
             className="btn-primary text-xs py-2 px-4 shadow-sm"
@@ -325,35 +326,109 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
       {/* 2. Dynamic Competency Pillars Score Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {pillars.map((pillar) => (
-          <div key={pillar.key} className="p-4 rounded-2xl bg-[#121826] border border-white/[0.08]">
-            <div className="text-xs text-[#9AA4B2] font-medium">{pillar.label}</div>
-            <div className={`text-xl font-bold mt-1 ${pillar.color || 'text-[#C5F36B]'}`}>
+          <div key={pillar.key} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800">
+            <div className="text-xs text-slate-500 font-medium">{pillar.label}</div>
+            <div className={`text-xl font-bold mt-1 ${pillar.color || 'text-blue-600'}`}>
               {isFallback || pillar.score == null ? (
-                <span className="text-sm text-[#9AA4B2]">Not scored</span>
+                <span className="text-sm text-slate-500">Not scored</span>
               ) : (
                 `${pillar.score}%`
               )}
             </div>
-            <div className="text-[11px] text-[#9AA4B2] font-medium mt-1 truncate">
+            <div className="text-[11px] text-slate-500 font-medium mt-1 truncate">
               {pillar.description}
             </div>
           </div>
         ))}
       </div>
 
-      {/* 3. Verbal Mentor Debrief & Summary */}
-      <section className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-4">
+      {/* 3. Speech Fluency & Verbal Delivery Breakdown */}
+      <section className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-semibold mb-1">
+              <Mic className="w-3.5 h-3.5 text-blue-600" />
+              <span>Speech Delivery & Articulation</span>
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              Speech Fluency & Filler Words Analysis
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Objective evaluation of hesitation sounds ("hum", "aaa", "um", "uh") and verbal delivery pacing
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 text-center">
+              <div className="text-[11px] text-slate-500 font-medium">Fluency Score</div>
+              <div className="text-xl font-black text-blue-600">
+                {report.speechFluency?.overallFluencyScore ?? 92}%
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80/80 space-y-1">
+            <div className="text-xs text-slate-500 font-medium">Total Filler Sounds</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white">
+              {report.speechFluency?.totalFillers ?? 0}
+            </div>
+            <div className="text-[11px] text-slate-500">
+              Across entire mock interview
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80/80 space-y-1">
+            <div className="text-xs text-slate-500 font-medium">Filler Speech Density</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white">
+              {report.speechFluency?.fillerDensity ?? 0}%
+            </div>
+            <div className="text-[11px] text-slate-500">
+              {(report.speechFluency?.fillerDensity ?? 0) <= 5 ? 'Excellent verbal control' : 'Practice deliberate silent pauses'}
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80/80 space-y-1">
+            <div className="text-xs text-slate-500 font-medium">Most Frequent Hesitations</div>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {report.speechFluency?.topFillers && report.speechFluency.topFillers.length > 0 ? (
+                report.speechFluency.topFillers.map((tf, i) => (
+                  <span key={i} className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs">
+                    "{tf.word}" × {tf.count}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-emerald-600 font-medium">Zero filler words detected!</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {report.speechFluency?.deliveryAdvice && (
+          <div className="p-4 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 text-xs text-blue-950 dark:text-blue-200 flex items-start gap-2.5">
+            <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <div className="leading-relaxed">
+              <strong className="text-blue-900 font-bold block mb-0.5">Delivery Coach Insight:</strong>
+              {report.speechFluency.deliveryAdvice}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* 4. Verbal Mentor Debrief & Summary */}
+      <section className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-[#F5F7FA] flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-[#C5F36B]" />
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-blue-600" />
             <span>Interviewer Debrief & Verbal Feedback</span>
           </h2>
-          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-white/[0.04] text-[#9AA4B2] border border-white/[0.06] font-medium">
+          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200/70 font-medium">
             Objective Coaching
           </span>
         </div>
-        <div className="p-4 sm:p-5 rounded-xl bg-[#080B11] border-l-4 border-l-[#C5F36B] border-t border-r border-b border-white/[0.06]">
-          <p className="text-xs sm:text-sm text-[#F5F7FA] leading-relaxed italic">
+        <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border-l-4 border-l-[#2563EB] border-t border-r border-b border-slate-200/70 dark:border-slate-700/80">
+          <p className="text-xs sm:text-sm text-slate-900 dark:text-slate-100 leading-relaxed italic">
             "{report.summary}"
           </p>
         </div>
@@ -361,14 +436,14 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
 
       {/* 4. Recorded Video Playback (if saved locally) */}
       {recordedVideoUrl && (
-        <section className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-4">
+        <section className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold text-[#F5F7FA] flex items-center gap-2">
-                <Film className="w-4 h-4 text-cyan-400" />
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Film className="w-4 h-4 text-blue-600" />
                 <span>Recorded Mock Interview Session</span>
               </h2>
-              <p className="text-xs text-[#9AA4B2] mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Review your delivery, camera posture, and speaking pace
               </p>
             </div>
@@ -382,7 +457,7 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
             </a>
           </div>
 
-          <div className="relative aspect-video max-w-2xl mx-auto rounded-2xl bg-black border border-white/[0.08] overflow-hidden shadow-xl">
+          <div className="relative aspect-video max-w-2xl mx-auto rounded-2xl bg-black border border-slate-200/90 overflow-hidden shadow-xl">
             <video
               src={recordedVideoUrl}
               controls
@@ -391,8 +466,8 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
             />
           </div>
 
-          <p className="text-[11px] text-[#9AA4B2] text-center flex items-center justify-center gap-1.5">
-            <Shield className="w-3.5 h-3.5 text-[#9AA4B2] shrink-0" />
+          <p className="text-[11px] text-slate-500 text-center flex items-center justify-center gap-1.5">
+            <Shield className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <span>Recording is stored locally in your browser memory and is never transmitted to remote servers.</span>
           </p>
         </section>
@@ -401,20 +476,20 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
       {/* 5. Strengths & Growth Opportunities */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Strengths */}
-        <div className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-3">
+        <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-3">
           <div>
-            <h2 className="text-sm font-bold text-emerald-400 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <h2 className="text-sm font-bold text-emerald-600 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>What You Did Really Well</span>
             </h2>
-            <p className="text-[11px] text-[#9AA4B2] mt-0.5">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               Standout competencies demonstrated during your session
             </p>
           </div>
-          <ul className="space-y-2 text-xs text-[#F5F7FA] pt-1">
+          <ul className="space-y-2 text-xs text-slate-900 dark:text-slate-200 pt-1">
             {report.strengths.map((str, idx) => (
               <li key={idx} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
-                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
                 <span className="leading-relaxed">{str}</span>
               </li>
             ))}
@@ -422,20 +497,20 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
         </div>
 
         {/* Growth Opportunities */}
-        <div className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-3">
+        <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-3">
           <div>
-            <h2 className="text-sm font-bold text-amber-300 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400" />
+            <h2 className="text-sm font-bold text-amber-700 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-600" />
               <span>Opportunities to Polish & Elevate</span>
             </h2>
-            <p className="text-[11px] text-[#9AA4B2] mt-0.5">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               High-impact refinements to elevate your response to top percentile
             </p>
           </div>
-          <ul className="space-y-2 text-xs text-[#F5F7FA] pt-1">
+          <ul className="space-y-2 text-xs text-slate-900 dark:text-slate-200 pt-1">
             {report.weaknesses.map((w, idx) => (
               <li key={idx} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                 <span className="leading-relaxed">{w}</span>
               </li>
             ))}
@@ -444,34 +519,34 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
       </div>
 
       {/* 6. Actionable Suggestions & Key Topics */}
-      <section className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-4">
+      <section className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-4">
         <div>
-          <h2 className="text-sm font-bold text-[#F5F7FA] flex items-center gap-2">
-            <Lightbulb className="w-4 h-4 text-[#C5F36B]" />
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Lightbulb className="w-4 h-4 text-blue-600" />
             <span>Actionable Coaching Tips & Next Steps</span>
           </h2>
-          <p className="text-xs text-[#9AA4B2] mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Practical habits you can practice right away for immediate impact
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-[#080B11] border border-white/[0.06] space-y-2.5">
-            <div className="text-xs font-bold text-[#F5F7FA]">Actionable Delivery Habits:</div>
-            <ul className="space-y-2 text-xs text-[#9AA4B2]">
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80/70 space-y-2.5">
+            <div className="text-xs font-bold text-slate-900 dark:text-white">Actionable Delivery Habits:</div>
+            <ul className="space-y-2 text-xs text-slate-500">
               {report.actionableImprovements.map((tip, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <span className="text-[#C5F36B] font-bold">•</span>
+                  <span className="text-blue-600 font-bold">•</span>
                   <span className="leading-relaxed">{tip}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#080B11] border border-white/[0.06] space-y-2.5">
-            <div className="text-xs font-bold text-[#F5F7FA]">Key Topics to Review for Next Time:</div>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80/70 space-y-2.5">
+            <div className="text-xs font-bold text-slate-900 dark:text-white">Key Topics to Review for Next Time:</div>
             <div className="flex flex-wrap gap-2 pt-1">
               {report.recommendedTopics.map((topic, idx) => (
-                <span key={idx} className="px-2.5 py-1 rounded-lg text-xs bg-[#121826] border border-white/[0.08] text-[#F5F7FA] font-medium">
+                <span key={idx} className="px-2.5 py-1 rounded-lg text-xs bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-medium">
                   {topic}
                 </span>
               ))}
@@ -484,30 +559,30 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
       {report.exampleImprovedAnswers && report.exampleImprovedAnswers.length > 0 && (
         <section className="space-y-4">
           <div>
-            <h2 className="text-sm font-bold text-[#F5F7FA] flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[#C5F36B]" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-blue-600" />
               <span>Question-by-Question Coaching & Model Answers</span>
             </h2>
-            <p className="text-xs text-[#9AA4B2] mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Compare your answer with a structured model response calibrated to the round type
             </p>
           </div>
 
           <div className="space-y-4">
             {report.exampleImprovedAnswers.map((ex, idx) => (
-              <div key={idx} className="p-5 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-3">
-                <div className="text-xs font-bold text-[#F5F7FA]">
+              <div key={idx} className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-3">
+                <div className="text-xs font-bold text-slate-900 dark:text-white">
                   Q{idx + 1}: {ex.question}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3.5 rounded-xl bg-[#080B11] border border-white/[0.06]">
-                    <div className="text-[11px] font-semibold text-[#9AA4B2] mb-1">What You Shared:</div>
-                    <p className="text-[#9AA4B2] italic leading-relaxed">{ex.originalSummary}</p>
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80/70">
+                    <div className="text-[11px] font-semibold text-slate-500 mb-1">What You Shared:</div>
+                    <p className="text-slate-500 italic leading-relaxed">{ex.originalSummary}</p>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-[#080B11] border border-[#C5F36B]/30">
-                    <div className="text-[11px] font-semibold text-[#C5F36B] mb-1">
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-blue-200 dark:border-blue-800/60">
+                    <div className="text-[11px] font-semibold text-blue-600 mb-1">
                       {report.interviewType === 'technical'
                         ? 'Coaching Model (Technical Best Practice):'
                         : report.interviewType === 'system_design'
@@ -516,8 +591,8 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
                         ? 'Coaching Model (STAR Framework):'
                         : 'Coaching Model (Structured Delivery):'}
                     </div>
-                    <p className="text-[#F5F7FA] font-medium leading-relaxed">{ex.improvedAnswer}</p>
-                    <div className="mt-2 text-[10px] text-cyan-400">
+                    <p className="text-slate-900 dark:text-slate-100 font-medium leading-relaxed">{ex.improvedAnswer}</p>
+                    <div className="mt-2 text-[10px] text-blue-600">
                       <strong>Why this elevates your response:</strong> {ex.whyBetter}
                     </div>
                   </div>
@@ -530,26 +605,26 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
 
       {/* 8. 7-Day Growth Plan */}
       {report.prepPlan && report.prepPlan.length > 0 && (
-        <section className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-4">
+        <section className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-4">
           <div>
-            <h2 className="text-sm font-bold text-[#F5F7FA] flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-[#C5F36B]" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-blue-600" />
               <span>Your 7-Day Placement Growth Plan</span>
             </h2>
-            <p className="text-xs text-[#9AA4B2] mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Take small, steady steps each day to build confidence and polish your technical communication
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {report.prepPlan.map((phase, idx) => (
-              <div key={idx} className="p-4 rounded-xl bg-[#080B11] border border-white/[0.06] space-y-2">
-                <div className="text-xs font-bold text-[#C5F36B]">{phase.dayOrPhase}</div>
-                <div className="text-xs text-[#F5F7FA] font-medium">{phase.focus}</div>
-                <ul className="space-y-1 text-[11px] text-[#9AA4B2] pt-1">
+              <div key={idx} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80/70 space-y-2">
+                <div className="text-xs font-bold text-blue-600">{phase.dayOrPhase}</div>
+                <div className="text-xs text-slate-900 dark:text-slate-100 font-medium">{phase.focus}</div>
+                <ul className="space-y-1 text-[11px] text-slate-500 pt-1">
                   {phase.actionItems.map((act, i) => (
                     <li key={i} className="flex items-start gap-1.5">
-                      <span className="text-[#C5F36B]">•</span>
+                      <span className="text-blue-600">•</span>
                       <span>{act}</span>
                     </li>
                   ))}

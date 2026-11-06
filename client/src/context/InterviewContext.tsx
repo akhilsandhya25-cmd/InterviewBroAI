@@ -29,6 +29,7 @@ interface InterviewContextType {
   startNewSession: (config: InterviewConfig) => Promise<boolean>;
   submitAnswer: (answerText: string) => Promise<{ success: boolean; error?: string; evaluation?: QuestionEvaluation }>;
   requestFollowUp: () => Promise<void>;
+  replaceUpcomingQuestion: (targetIndex: number, newQuestion: InterviewQuestion) => void;
   nextQuestion: () => void;
   previousQuestion: () => void;
   togglePause: () => void;
@@ -385,6 +386,22 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const replaceUpcomingQuestion = (targetIndex: number, newQuestion: InterviewQuestion) => {
+    if (!activeSession) return;
+    if (targetIndex < 0 || targetIndex >= activeSession.questions.length) return;
+    const updatedQuestions = [...activeSession.questions];
+    updatedQuestions[targetIndex] = {
+      ...newQuestion,
+      orderIndex: targetIndex
+    };
+    const updatedSession = {
+      ...activeSession,
+      questions: updatedQuestions
+    };
+    storage.saveSession(updatedSession, user?.id);
+    setActiveSession(updatedSession);
+  };
+
   const nextQuestion = () => {
     if (!activeSession) return;
     if (currentQuestionIndex < activeSession.questions.length - 1) {
@@ -503,6 +520,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         startNewSession,
         submitAnswer,
         requestFollowUp,
+        replaceUpcomingQuestion,
         nextQuestion,
         previousQuestion,
         togglePause,

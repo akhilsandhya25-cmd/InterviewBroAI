@@ -18,13 +18,15 @@ import {
   Download,
   Lock,
   FileText,
-  CloudOff
+  CloudOff,
+  Palette
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isSupabaseConfigured, checkSupabaseTablesStatus, CloudHealthCheckResult } from '../services/supabase';
 import { tts } from '../services/speech';
 import { storage } from '../services/storage';
 import { BrandIcon } from '../components/brand/BrandIcon';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 interface VoiceOption {
   voice_id: string;
@@ -179,6 +181,30 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
         <p className="text-xs sm:text-sm text-[#9AA4B2] mt-1">
           Review your database synchronization, backend AI proxy configuration, and device permissions.
         </p>
+      </div>
+
+      {/* Appearance & Color Mode Selector */}
+      <div className="p-6 rounded-2xl bg-white dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-[#080B11] border border-blue-200 dark:border-white/[0.08] text-blue-600 dark:text-blue-400">
+            <Palette className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-[#F5F7FA] flex items-center gap-2">
+              <span>Appearance & Color Theme</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                Light / Dark / Auto
+              </span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-[#9AA4B2]">
+              Choose between daylight high-clarity white mode or sleek low-light dark mode, or follow your operating system preferences.
+            </p>
+          </div>
+        </div>
+
+        <div className="pt-1">
+          <ThemeToggle variant="expanded" />
+        </div>
       </div>
 
       {/* Backend & AI Provider Status */}

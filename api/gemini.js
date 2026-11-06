@@ -656,6 +656,96 @@ export function validateAndScoreRubric(parsed, activeRubric) {
 }
 
 // Helper to verify if candidate answer contains genuine substantive content
+// Centralized filler word pattern: detects repeated hesitation sounds and colloquial fillers
+// Matches variations like "hum", "humm", "hummm", "aaa", "aaaa", "um", "umm", "uh", "uhh", "ah", "ahh", "er", "err", "like", "you know", "basically", "actually"
+export const FILLER_WORD_REGEX = /\b(u+m+|u+h+m*|a+h+|e+r+|h+u+m+|h+m+|a{2,}|ha+|like|you know|basically|actually|sort of|kind of|i mean)\b/gi;
+
+export function analyzeFillerWords(text) {
+  if (!text || typeof text !== 'string') {
+    return {
+      totalWords: 0,
+      fillerCount: 0,
+      fillerWords: {},
+      fillerDensity: 0,
+      cleanedText: '',
+      fluencyScore: 100,
+      fluencyFeedback: 'No speech recorded.'
+    };
+  }
+
+  const rawWords = text.trim().split(/\s+/).filter(Boolean);
+  const totalWords = rawWords.length;
+  if (totalWords === 0) {
+    return {
+      totalWords: 0,
+      fillerCount: 0,
+      fillerWords: {},
+      fillerDensity: 0,
+      cleanedText: '',
+      fluencyScore: 100,
+      fluencyFeedback: 'No speech recorded.'
+    };
+  }
+
+  const matches = text.match(FILLER_WORD_REGEX) || [];
+  const fillerCount = matches.length;
+  const fillerWords = {};
+  for (const m of matches) {
+    const key = m.toLowerCase();
+    fillerWords[key] = (fillerWords[key] || 0) + 1;
+  }
+
+  const fillerDensity = Math.min(100, Math.round((fillerCount / Math.max(1, totalWords)) * 100));
+
+  // Remove filler words to get substantive content for semantic evaluation
+  const cleanedText = text
+    .replace(FILLER_WORD_REGEX, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  let fluencyScore = 100;
+  let fluencyFeedback = 'Excellent verbal fluency and polished delivery with clear pacing.';
+
+  if (fillerDensity === 0) {
+    fluencyScore = 100;
+    fluencyFeedback = 'Outstanding verbal clarity: clean, direct delivery with zero filler words.';
+  } else if (fillerDensity <= 4) {
+    fluencyScore = Math.max(90, 100 - fillerDensity * 2);
+    fluencyFeedback = `Natural, fluent pacing. Only ${fillerCount} minor filler ${fillerCount === 1 ? 'sound' : 'sounds'} detected (${fillerDensity}% density).`;
+  } else if (fillerDensity <= 10) {
+    fluencyScore = Math.max(80, 94 - (fillerDensity - 4) * 2.5);
+    fluencyFeedback = `Good conversational delivery. Detected ${fillerCount} filler words (${fillerDensity}% density). Try pausing silently instead of using "${Object.keys(fillerWords).slice(0, 2).join('", "')}".`;
+  } else if (fillerDensity <= 20) {
+    fluencyScore = Math.max(55, 79 - (fillerDensity - 10) * 2.4);
+    fluencyFeedback = `Noticeable hesitation. ${fillerCount} filler words detected (${fillerDensity}% density, primarily "${Object.keys(fillerWords).slice(0, 2).join('", "')}"). Practice comfortable silent pauses between thoughts.`;
+  } else {
+    fluencyScore = Math.max(25, 55 - (fillerDensity - 20) * 1.5);
+    fluencyFeedback = `High frequency of hesitation sounds (${fillerCount} filler words, ${fillerDensity}% density). Taking 1-2 second structured pauses before speaking will dramatically improve authority.`;
+  }
+
+  return {
+    totalWords,
+    fillerCount,
+    fillerWords,
+    fillerDensity,
+    cleanedText,
+    fluencyScore: Math.round(fluencyScore),
+    fluencyFeedback
+  };
+}
+
+// Helper to extract substantive words without filler sounds
+export function getSubstantiveWords(text) {
+  if (!text || typeof text !== 'string') return [];
+  return text
+    .replace(FILLER_WORD_REGEX, ' ')
+    .replace(/[^\w\s]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(w => w.length > 0 && !/^\d+$/.test(w));
+}
+
+// Helper to verify if candidate answer contains genuine substantive content
 export function isSubstantiveAnswer(text) {
   if (!text || typeof text !== 'string') return false;
   const clean = text.trim().toLowerCase().replace(/^[^\w]+|[^\w]+$/g, '');
@@ -702,22 +792,31 @@ export function isSubstantiveAnswer(text) {
     'uh',
     'um',
     'ah',
-    'hmm'
+    'hmm',
+    'hum',
+    'aaa'
   ]);
 
   if (nonAnswerExact.has(clean)) return false;
 
-  const words = clean.split(/\s+/).filter(Boolean);
-  if (words.length < 3 && clean.length < 15) {
-    const dismissalPattern = /^(i\s+)?(do\s*n'?t|cannot|cant)\s+(know|remember|recall|answer)|^(no|skip|pass|none|nothing|idk)\b/i;
-    if (dismissalPattern.test(clean) || words.length < 2) {
+  // Filter out all filler words to test if ANY meaningful substance remains
+  const nonFillerWords = getSubstantiveWords(clean);
+
+  // If the answer is purely hesitation sounds ("hummm aaa ummm", "uh ah like um"), it is non-substantive!
+  if (nonFillerWords.length === 0) {
+    return false;
+  }
+
+  // If after removing fillers, there is only 1 single tiny non-answer word or dismissal
+  if (nonFillerWords.length < 2 && clean.length < 15) {
+    const dismissalPattern = /^(i\s+)?(do\s*n'?t|cannot|cant)\s+(know|remember|recall|answer)|^(no|skip|pass|none|nothing|idk|yeah|yes|ok|okay)\b/i;
+    if (dismissalPattern.test(clean) || nonFillerWords.length < 1) {
       return false;
     }
   }
 
   return true;
 }
-
 export const geminiService = {
   async generateInterviewQuestions(config, previousQuestions = []) {
     const {
@@ -842,6 +941,8 @@ ${excludedListFormatted}`;
     const rawAnswer = String(answer || '').trim();
     // Cap candidate answer to 4,000 characters
     const safeAnswer = sanitizeForPrompt(rawAnswer).slice(0, 4000);
+    const fillerAnalysis = analyzeFillerWords(rawAnswer);
+    const safeCleanedAnswer = sanitizeForPrompt(fillerAnalysis.cleanedText).slice(0, 4000);
 
     // 1. Determine round & category specific rubric
     const activeRubric = getRubricForRound(cleanRound, cleanCategory);
@@ -884,6 +985,7 @@ EVALUATION & SCORING PRINCIPLES:
 - Score strictly based on the 4 rubric pillars specified in the evaluation context (each scored 0-100).
 - If the interview round is Technical or System Design, DO NOT judge or penalize on STAR narrative structure; focus on technical correctness, depth, edge cases, and architectural tradeoffs.
 - If the candidate is a Fresher/Intern/Student, evaluate against fundamentals and academic/personal projects, not enterprise production stories.
+- In Communication & Delivery (Pillar 4), evaluate verbal clarity, structural coherence, and speech fluency. Factor in the provided Speech Fluency & Filler Words Analysis: if filler words ('um', 'uh', 'hum', 'aaa', 'like') or hesitation are excessive, deduct appropriately from the communication pillar and provide constructive delivery advice.
 - All 4 rubric pillar scores MUST be numeric and clamped strictly between 0 and 100.
 - Overall score MUST be the rounded average of the 4 rubric pillars.
 - Provide balanced, encouraging, and actionable feedback citing specific evidence quotes from the candidate's answer where applicable.
@@ -927,9 +1029,19 @@ STAR Methodology Applicable: ${activeRubric.roundType === 'behavioral' || active
 
 Question Asked: "${sanitizeForPrompt(question?.questionText || '')}"
 
-[UNTRUSTED_CANDIDATE_ANSWER]
+SPEECH FLUENCY & FILLER WORDS ANALYSIS:
+- Total Words: ${fillerAnalysis.totalWords}
+- Filler / Hesitation Words Detected: ${fillerAnalysis.fillerCount} (${fillerAnalysis.fillerDensity}% density)
+- Top Filler Words: ${Object.keys(fillerAnalysis.fillerWords).join(', ') || 'None (Clean delivery)'}
+- Fluency Score: ${fillerAnalysis.fluencyScore}/100
+
+[UNTRUSTED_CANDIDATE_RAW_ANSWER]
 ${safeAnswer}
-[/UNTRUSTED_CANDIDATE_ANSWER]`;
+[/UNTRUSTED_CANDIDATE_RAW_ANSWER]
+
+[FILTERED_SEMANTIC_CONTENT_FOR_TECHNICAL_EVALUATION]
+${safeCleanedAnswer}
+[/FILTERED_SEMANTIC_CONTENT_FOR_TECHNICAL_EVALUATION]`;
 
     // Low temperature 0.2 for highly consistent deterministic rubric scoring
     let raw = await callGemini(userPrompt, 0.2, systemInstruction);
@@ -966,7 +1078,12 @@ You MUST provide a complete JSON response containing valid numeric scores (0 to 
       source: 'ai',
       ...parsed,
       score: evalResult.overallScore,
-      rubricBreakdown: evalResult.rubricBreakdown
+      rubricBreakdown: evalResult.rubricBreakdown,
+      fillerCount: fillerAnalysis.fillerCount,
+      fillerDensity: fillerAnalysis.fillerDensity,
+      fillerWords: Object.keys(fillerAnalysis.fillerWords),
+      fluencyScore: fillerAnalysis.fluencyScore,
+      fluencyFeedback: fillerAnalysis.fluencyFeedback
     };
   },
 
@@ -1224,6 +1341,48 @@ ${transcriptSummary}
         };
       });
       parsed.rubricPillars = finalPillars;
+
+      // Calculate session-wide speech fluency & filler word analytics
+      let totalSessionWords = 0;
+      let totalSessionFillers = 0;
+      const sessionFillerCounts = {};
+
+      (questions || []).forEach(q => {
+        if (q.candidateAnswer) {
+          const analysis = analyzeFillerWords(q.candidateAnswer);
+          totalSessionWords += analysis.totalWords;
+          totalSessionFillers += analysis.fillerCount;
+          for (const [w, cnt] of Object.entries(analysis.fillerWords)) {
+            sessionFillerCounts[w] = (sessionFillerCounts[w] || 0) + cnt;
+          }
+        }
+      });
+
+      const sessionFillerDensity = totalSessionWords > 0
+        ? Math.round((totalSessionFillers / totalSessionWords) * 100)
+        : 0;
+
+      const topFillers = Object.entries(sessionFillerCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([word, count]) => ({ word, count }));
+
+      let deliveryAdvice = 'Outstanding verbal clarity! You delivered your responses without distracting filler sounds.';
+      if (sessionFillerDensity > 15) {
+        deliveryAdvice = `High frequency of hesitation sounds (${totalSessionFillers} total fillers, ${sessionFillerDensity}% density), most frequently "${topFillers.map(f => f.word).join('", "')}". Replace automatic fillers with 1-second comfortable silent pauses to sound commanding and thoughtful.`;
+      } else if (sessionFillerDensity > 5) {
+        deliveryAdvice = `Good speech flow. Detected ${totalSessionFillers} filler words (${sessionFillerDensity}% density, primarily "${topFillers.map(f => f.word).join('", "')}"). Practicing slow, deliberate breaths before answering each question will refine your pacing.`;
+      } else if (totalSessionFillers > 0) {
+        deliveryAdvice = `Natural, fluent delivery. Only ${totalSessionFillers} minor filler words detected (${sessionFillerDensity}% density). Great executive presence.`;
+      }
+
+      parsed.speechFluency = {
+        totalFillers: totalSessionFillers,
+        fillerDensity: sessionFillerDensity,
+        overallFluencyScore: Math.max(0, Math.min(100, Math.round(100 - (sessionFillerDensity * 2.2)))),
+        topFillers,
+        deliveryAdvice
+      };
 
       // Mathematical recalculation of overallScore server-side from rubric pillars and completion ratio
       const sumPillars = finalPillars.reduce((sum, p) => sum + p.score, 0);
