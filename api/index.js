@@ -1104,7 +1104,7 @@ export default async function handler(req, res) {
     }
 
     const body = await parseBody(req);
-    const { fileBase64, fileName, fileType, fileSize, targetRole } = body || {};
+    const { fileBase64, fileName, fileType, fileSize, targetRole, academicProfile } = body || {};
 
     if (!fileBase64) {
       return res.status(400).json({
@@ -1130,7 +1130,7 @@ export default async function handler(req, res) {
 
     try {
       const extractedText = await resumeParser.extractText(buffer, cleanMime, cleanFileName);
-      const analysis = await resumeParser.analyze(extractedText, cleanRole, cleanFileName, buffer.length);
+      const analysis = await resumeParser.analyze(extractedText, cleanRole, cleanFileName, buffer.length, academicProfile);
       return res.status(200).json({ success: true, analysis });
     } catch (err) {
       console.error('[Resume API] Parsing error:', err);

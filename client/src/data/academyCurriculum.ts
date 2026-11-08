@@ -1,19 +1,22 @@
 import { AcademyModule, AcademyLesson } from '../types/academy';
+import { ACADEMY_PATHWAYS, ACADEMY_EXPANSION_MODULES, getRecommendedPathway } from './universalAcademyData';
 
 /**
- * Interview Academy: Complete 8-Module Curriculum
+ * Interview Academy: Complete Multi-Stream Curriculum
  * 
- * Tailored for Indian college students, freshers, campus placement candidates,
- * and job seekers with zero prior corporate interview experience.
+ * Tailored for Indian students across all academic streams:
+ * Intermediate, Diploma, Undergraduate, Postgraduate, Professional,
+ * ITI/Vocational, and Corporate Technology candidates.
  */
 
-export const ACADEMY_MODULES: AcademyModule[] = [
+const FOUNDATION_MODULES: AcademyModule[] = [
   // =========================================================================
   // MODULE 1: PREPARING FOR AN INTERVIEW
   // =========================================================================
   {
     id: 'module-1-preparation',
     order: 1,
+    pathwayId: 'foundation',
     title: 'Pre-Interview Preparation & Placement Readiness',
     subtitle: 'From Company Research to Virtual Setup',
     description: 'Learn the exact steps to research recruiters, decode job descriptions, test your technical equipment, and dress for success.',
@@ -260,6 +263,7 @@ export const ACADEMY_MODULES: AcademyModule[] = [
   {
     id: 'module-2-entry-greeting',
     order: 2,
+    pathwayId: 'foundation',
     title: 'Room Entry & Professional First Impressions',
     subtitle: 'Door Etiquette, Posture & The Opening 30 Seconds',
     description: 'Learn how to knock, enter confidently, greet panel members, maintain professional posture, and avoid common fresher blunders.',
@@ -499,6 +503,7 @@ export const ACADEMY_MODULES: AcademyModule[] = [
   {
     id: 'module-3-tell-me-about-yourself',
     order: 3,
+    pathwayId: 'foundation',
     title: 'Answering "Tell Me About Yourself"',
     subtitle: 'The Present-Past-Future Formula for Freshers',
     description: 'Structure a compelling 60 to 90-second self-introduction without reciting your entire resume or repeating your high school percentages.',
@@ -742,6 +747,7 @@ If you talk passionately about your React project, their next question will be a
   {
     id: 'module-4-common-hr-questions',
     order: 4,
+    pathwayId: 'foundation',
     title: 'Answering Common HR Interview Questions',
     subtitle: 'Decoding "Why Us?", Relocation & 5-Year Visions',
     description: 'Master the high-stakes HR questions that test your culture fit, company loyalty, stability, and work ethic.',
@@ -982,6 +988,7 @@ Use the **Triple Threat Formula**:
   {
     id: 'module-5-strengths-weaknesses-salary',
     order: 5,
+    pathwayId: 'foundation',
     title: 'Strengths, Weaknesses, Projects & Salary Etiquette',
     subtitle: 'The STAR Method, Safe Weaknesses & Fresher CTC',
     description: 'Learn how to answer "What are your weaknesses?" without clichés, present college projects using STAR, and handle salary questions professionally.',
@@ -1221,6 +1228,7 @@ Use the **STAR Framework**:
   {
     id: 'module-6-communication-body-language',
     order: 6,
+    pathwayId: 'foundation',
     title: 'Communication, Body Language & Managing Nervousness',
     subtitle: 'Eye Contact, Voice Modulation & Filler Words',
     description: 'Master non-verbal communication, conquer interview anxiety with the 3-second breathing technique, and speak with steady, calm authority.',
@@ -1468,6 +1476,7 @@ Using 10 filler words in a two-minute answer makes you sound uncertain and disor
   {
     id: 'module-7-difficult-questions-curveballs',
     order: 7,
+    pathwayId: 'foundation',
     title: 'Handling Difficult Questions & Placement Curveballs',
     subtitle: 'What to Do When You Have No Idea What the Answer Is',
     description: 'Learn the graceful 3-step recovery method when stuck, how to say "I don\'t know" professionally, and how to tackle logic puzzles and guestimates.',
@@ -1711,6 +1720,7 @@ Instead, use the **Acknowledge -> Bridge -> Reason** framework:
   {
     id: 'module-8-asking-questions-ending',
     order: 8,
+    pathwayId: 'foundation',
     title: 'Smart Reverse Questions & Ending Professionally',
     subtitle: 'Leaving a Memorable Lasting Impression',
     description: 'Learn why you must never say "No questions, Sir", the top 4 smart questions freshers should ask, and how to exit with memorable polish.',
@@ -1961,6 +1971,16 @@ When the interviewer signals the interview is over:
     ]
   }
 ];
+
+/**
+ * Complete Universal Academy Curriculum combining foundation and multi-stream specialized modules.
+ */
+export const ACADEMY_MODULES: AcademyModule[] = [
+  ...FOUNDATION_MODULES,
+  ...ACADEMY_EXPANSION_MODULES
+];
+
+export { ACADEMY_PATHWAYS, getRecommendedPathway };
 
 /**
  * Helper to retrieve a module by ID

@@ -96,7 +96,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#080B11] border border-white/[0.08] text-xs font-semibold text-[#F5F7FA] mb-3">
               <Sparkles className="w-3.5 h-3.5 text-[#C5F36B]" />
-              <span>Campus & Placement Readiness Mode</span>
+              <span>
+                {user?.educationLevel === 'intermediate'
+                  ? `Intermediate (${user.intermediateGroup ? user.intermediateGroup.toUpperCase() : '10+2'}) Preparation Mode`
+                  : 'Campus & Placement Readiness Mode'}
+              </span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA] tracking-tight">

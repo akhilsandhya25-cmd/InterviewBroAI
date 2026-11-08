@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   GraduationCap,
   CheckCircle2,
@@ -17,11 +17,13 @@ import {
   Activity,
   ShieldAlert,
   HelpCircle,
-  Shield
+  Shield,
+  Wrench,
+  Layers
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { storage } from '../services/storage';
-import { ACADEMY_MODULES, TOTAL_ACADEMY_LESSONS } from '../data/academyCurriculum';
+import { ACADEMY_MODULES, TOTAL_ACADEMY_LESSONS, ACADEMY_PATHWAYS, getRecommendedPathway } from '../data/academyCurriculum';
 import { AcademyLesson, AcademyModule, UserAcademyProgress, PracticeAttempt } from '../types/academy';
 import { LessonView } from '../components/academy/LessonView';
 
@@ -39,7 +41,13 @@ const MODULE_ICONS: Record<string, React.FC<{ className?: string }>> = {
   Target,
   Activity,
   ShieldAlert,
-  CheckCircle2
+  CheckCircle2,
+  GraduationCap,
+  Wrench,
+  BookOpen,
+  Award,
+  HelpCircle,
+  Shield
 };
 
 export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, onOpenAuth }) => {
@@ -53,6 +61,10 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
   // Active lesson state (null = show all modules/lessons overview)
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [activeInitialTab, setActiveInitialTab] = useState<'content' | 'quiz' | 'practice'>('content');
+
+  // Academic pathway selector & personalized recommendation
+  const recommendedPathway = useMemo(() => getRecommendedPathway(user), [user]);
+  const [selectedPathwayId, setSelectedPathwayId] = useState<string>('all');
 
   // Refresh progress when user changes or when academy updates are broadcast
   useEffect(() => {
@@ -69,22 +81,43 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
     };
   }, [user?.id]);
 
-  // Flatten all 8 lessons into an indexed array for easy navigation
-  const allLessons: { lesson: AcademyLesson; module: AcademyModule }[] = [];
-  ACADEMY_MODULES.forEach((mod) => {
-    mod.lessons.forEach((les) => {
-      allLessons.push({ lesson: les, module: mod });
+  // Flatten all lessons into an indexed array for easy navigation
+  const allLessons: { lesson: AcademyLesson; module: AcademyModule }[] = useMemo(() => {
+    const list: { lesson: AcademyLesson; module: AcademyModule }[] = [];
+    ACADEMY_MODULES.forEach((mod) => {
+      mod.lessons.forEach((les) => {
+        list.push({ lesson: les, module: mod });
+      });
     });
-  });
+    return list;
+  }, []);
+
+  // Filter lessons based on selected pathway
+  const displayedLessons = useMemo(() => {
+    if (selectedPathwayId === 'all') {
+      return allLessons;
+    }
+    const pathway = ACADEMY_PATHWAYS.find((p) => p.id === selectedPathwayId);
+    if (!pathway) return allLessons;
+    return allLessons.filter(
+      (item) => pathway.moduleIds.includes(item.module.id) || item.module.pathwayId === pathway.id
+    );
+  }, [selectedPathwayId, allLessons]);
 
   const completedCount = (progress.completedLessonIds || []).length;
   const overallPercent = Math.min(100, Math.round((completedCount / TOTAL_ACADEMY_LESSONS) * 100));
 
-  // Find next uncompleted lesson to recommend
-  const nextUncompleted = allLessons.find(
+  // Find next uncompleted lesson: prioritize student's recommended pathway, then global
+  const recommendedModuleIds = recommendedPathway.moduleIds || [];
+  const nextRecommendedUncompleted = allLessons.find(
+    (item) =>
+      recommendedModuleIds.includes(item.module.id) &&
+      !progress.completedLessonIds.includes(item.lesson.id)
+  );
+  const nextGlobalUncompleted = allLessons.find(
     (item) => !progress.completedLessonIds.includes(item.lesson.id)
   );
-  const targetContinueLesson = nextUncompleted || allLessons[0];
+  const targetContinueLesson = nextRecommendedUncompleted || nextGlobalUncompleted || allLessons[0];
 
   // If a lesson is currently active, render LessonView
   if (activeLessonId) {
@@ -158,15 +191,15 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#C5F36B]/10 text-[#C5F36B] border border-[#C5F36B]/25 text-xs font-bold uppercase tracking-wider">
               <GraduationCap className="w-4 h-4" />
-              <span>Interview Academy • Zero to Placement Ready</span>
+              <span>Interview Academy • Universal Preparation for Every Stream</span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#F5F7FA] tracking-tight">
-              Master Corporate Interviews From Scratch
+              Master Admissions, Vivas & Job Interviews
             </h1>
 
             <p className="text-xs sm:text-sm text-[#9AA4B2] leading-relaxed">
-              Designed specifically for Indian college students, engineering freshers, and campus placement candidates. Learn how to greet recruiters, structure answers using the STAR method, conquer interview anxiety, and leave a memorable impression—even if you've never attended an interview before.
+              Designed for all academic levels: Intermediate (MPC, BiPC, MEC, CEC, HEC), Diploma, Polytechnic, Undergraduate, Postgraduate, Professional degrees (Medicine, Law, CA), and ITI trades. Learn how to articulate subject knowledge, defend lab experiments, master STAR answers, and conquer interview anxiety.
             </p>
           </div>
 
@@ -191,12 +224,12 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
 
             <div className="flex items-center justify-between text-[11px] text-[#9AA4B2]">
               <span>{completedCount} of {TOTAL_ACADEMY_LESSONS} Lessons Finished</span>
-              <span>8 Comprehensive Modules</span>
+              <span>{ACADEMY_MODULES.length} Comprehensive Modules</span>
             </div>
 
             <button
               onClick={() => setActiveLessonId(targetContinueLesson.lesson.id)}
-              className="w-full px-4 py-2.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b0df57] text-[#080B11] shadow-lg shadow-[#C5F36B]/20 transition-all flex items-center justify-center gap-2 group"
+              className="w-full px-4 py-2.5 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b0df57] text-[#080B11] shadow-lg shadow-[#C5F36B]/20 transition-all flex items-center justify-center gap-2 group cursor-pointer"
             >
               <span>{completedCount === 0 ? 'Start Lesson 1' : 'Continue Learning'}</span>
               <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -217,14 +250,14 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
                 Guest Preview Mode Active
               </div>
               <div className="text-[11px] text-[#9AA4B2]">
-                You can browse lessons and quizzes freely. Create a free account to permanently sync your progress and practice transcripts across devices.
+                You can browse lessons and quizzes freely across all academic pathways. Create a free account to permanently sync your progress and practice transcripts.
               </div>
             </div>
           </div>
           {onOpenAuth && (
             <button
               onClick={() => onOpenAuth('signup')}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white transition-colors whitespace-nowrap shrink-0"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               Create Free Account
             </button>
@@ -246,7 +279,7 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
               <span className="text-xs font-bold text-[#F5F7FA]">AI Interview Practice Coach</span>
             </div>
             <p className="text-xs text-[#9AA4B2] leading-relaxed max-w-2xl">
-              Practice your responses to Indian placement interview questions with speech or typing. Receive instant bar-raiser rubric scoring, concrete evidence checks, filler word analytics, and stronger tailored answers.
+              Practice your responses to viva and interview questions with speech or typing. Receive instant rubric scoring, filler word analytics, and model answers tailored to your academic stream.
             </p>
           </div>
         </div>
@@ -264,23 +297,103 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
       </div>
 
       {/* 3. CURRICULUM MODULES & LESSONS GRID */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-2 px-1">
           <div>
             <h2 className="text-lg font-bold text-[#F5F7FA]">
               Step-by-Step Curriculum
             </h2>
             <p className="text-xs text-[#9AA4B2]">
-              Work through the 8 foundational topics in sequence or jump into any specific area of hesitation.
+              Explore universal foundation lessons or select your stream-specific learning pathway.
             </p>
           </div>
           <span className="text-xs text-[#9AA4B2] font-semibold bg-white/[0.04] px-3 py-1 rounded-full border border-white/[0.06]">
-            8 Modules • Self-Paced
+            {displayedLessons.length} of {TOTAL_ACADEMY_LESSONS} Lessons Showing
           </span>
         </div>
 
+        {/* Personalized Pathway Recommendation Banner */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-cyan-950/20 via-[#121826] to-emerald-950/20 border border-cyan-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/25 flex items-center justify-center shrink-0">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30">
+                  Recommended For Your Profile
+                </span>
+                <span className="text-xs font-bold text-[#F5F7FA]">
+                  {recommendedPathway.title}
+                </span>
+                <span className="text-[10px] text-cyan-400 font-medium">
+                  ({recommendedPathway.badge})
+                </span>
+              </div>
+              <p className="text-xs text-[#9AA4B2] mt-1 line-clamp-2 leading-relaxed">
+                {recommendedPathway.description}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setSelectedPathwayId(recommendedPathway.id)}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
+              selectedPathwayId === recommendedPathway.id
+                ? 'bg-cyan-500 text-[#080B11] shadow-lg shadow-cyan-500/20'
+                : 'bg-white/[0.08] text-[#F5F7FA] hover:bg-white/[0.14] border border-white/[0.08]'
+            }`}
+          >
+            <span>{selectedPathwayId === recommendedPathway.id ? 'Viewing Pathway' : 'Focus Pathway'}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Multi-Stream Pathway Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-1">
+          <button
+            onClick={() => setSelectedPathwayId('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              selectedPathwayId === 'all'
+                ? 'bg-[#C5F36B] text-[#080B11] shadow-md shadow-[#C5F36B]/20'
+                : 'bg-[#121826] text-[#9AA4B2] hover:text-[#F5F7FA] border border-white/[0.06]'
+            }`}
+          >
+            All Lessons ({TOTAL_ACADEMY_LESSONS})
+          </button>
+          {ACADEMY_PATHWAYS.map((p) => {
+            const isSelected = selectedPathwayId === p.id;
+            const isRec = recommendedPathway.id === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setSelectedPathwayId(p.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                  isSelected
+                    ? 'bg-[#C5F36B] text-[#080B11] shadow-md shadow-[#C5F36B]/20'
+                    : isRec
+                    ? 'bg-cyan-950/40 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-900/40'
+                    : 'bg-[#121826] text-[#9AA4B2] hover:text-[#F5F7FA] border border-white/[0.06]'
+                }`}
+              >
+                <span>{p.title}</span>
+                {p.badge && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                    isSelected ? 'bg-black/20 text-[#080B11]' : 'bg-white/[0.06] text-[#9AA4B2]'
+                  }`}>
+                    {p.badge}
+                  </span>
+                )}
+                {isRec && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Lessons Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {allLessons.map(({ lesson, module }) => {
+          {displayedLessons.map(({ lesson, module }) => {
             const Icon = MODULE_ICONS[module.iconName] || BookOpen;
             const isLessonDone = progress.completedLessonIds.includes(lesson.id);
             const lessonProgress = progress.lessonProgress[lesson.id];
@@ -306,16 +419,21 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
                     : 'bg-[#0B0F19] border-white/[0.08] hover:border-white/[0.18] hover:bg-[#0c111e] shadow-md'
                 }`}
               >
-                {/* Header: Lesson # + Category Badge */}
+                {/* Header: Lesson # + Category Badge + Target Audience */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="w-7 h-7 rounded-lg bg-white/[0.06] text-[#F5F7FA] text-xs font-bold flex items-center justify-center border border-white/[0.08]">
                         {lesson.number}
                       </span>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-[#9AA4B2] bg-white/[0.03] px-2 py-0.5 rounded-md border border-white/[0.04]">
-                        {module.category}
+                        {module.category === 'Trade & Vocational' ? 'ITI & Technical Trades' : module.category}
                       </span>
+                      {module.targetAudience && (
+                        <span className="text-[10px] font-medium text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">
+                          {module.targetAudience}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -356,7 +474,7 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
                       </span>
                     ) : (
                       <span className="text-[11px] text-[#9AA4B2]/70">
-                        4 Quiz Questions • Practice Lab
+                        {lesson.quiz?.length || 4} Quiz Questions • Practice Lab
                       </span>
                     )}
                   </div>
@@ -382,13 +500,13 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
             Put Your Academy Knowledge into Live Simulation
           </h3>
           <p className="text-xs text-[#9AA4B2] max-w-xl leading-relaxed">
-            Ready to test your introduction, STAR answers, and poise? Step into our AI Mock Interview Room to simulate real rounds for TCS, Infosys, Amazon, startups, and product roles with instant voice feedback.
+            Ready to test your introduction, technical knowledge, and poise? Step into our AI Mock Interview Room to simulate real rounds for college admissions, ITI trades, lab vivas, campus drives, and professional roles with instant voice feedback.
           </p>
         </div>
 
         <button
           onClick={() => onNavigate('setup')}
-          className="w-full md:w-auto px-6 py-3 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b0df57] text-[#080B11] shadow-lg shadow-[#C5F36B]/20 transition-all flex items-center justify-center gap-2 shrink-0 group"
+          className="w-full md:w-auto px-6 py-3 rounded-xl font-bold text-xs bg-[#C5F36B] hover:bg-[#b0df57] text-[#080B11] shadow-lg shadow-[#C5F36B]/20 transition-all flex items-center justify-center gap-2 shrink-0 group cursor-pointer"
         >
           <Video className="w-4 h-4" />
           <span>Launch AI Mock Interview</span>

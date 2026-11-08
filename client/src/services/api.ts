@@ -174,6 +174,12 @@ import { InterviewConfig, InterviewQuestion, FeedbackReport, ResumeAnalysis, Que
 import { CoachFeedback } from '../types/academy';
 import { SAMPLE_FALLBACK_QUESTIONS } from '../data/presets';
 import { getCompanyTrack } from '../data/companyTracks';
+import {
+  UNIVERSAL_QUESTION_BANKS,
+  getQuestionsByEducationLevel,
+  getQuestionsByIntermediateGroup,
+  getQuestionsByStream
+} from '../data/universalQuestionBanks';
 import { storage } from './storage';
 import { isSupabaseConfigured, supabase } from './supabase';
 
@@ -266,6 +272,106 @@ export const api = {
     const trackingList: string[] = [...(previousQuestions || [])];
     const company = config.companyName || 'our engineering team';
     const role = config.role || 'Software Engineer';
+
+    // Multi-Stream Universal Student Expansion Instant Fallback Questions
+    const isAcademic = Boolean(
+      config.educationLevel ||
+      config.intermediateGroup ||
+      config.academicStream ||
+      config.preparationMode ||
+      config.isAcademic
+    );
+
+    if (isAcademic) {
+      const eduLevel = config.educationLevel || 'undergraduate';
+      const interGroup = config.intermediateGroup ? config.intermediateGroup.toUpperCase() : '';
+      const stream = config.academicStream || '';
+      const degree = config.degreeCourse || '';
+
+      // 1. Calibrated Opening Question (orderIndex 0)
+      let openingText = '';
+      if (eduLevel === 'intermediate') {
+        openingText = `Welcome to your Intermediate preparation session! To get started, please introduce yourself, tell me about your Intermediate group (${interGroup || 'MPC/BiPC/MEC/CEC/HEC'}), and what made you choose these subjects.`;
+      } else if (eduLevel === 'iti_vocational') {
+        openingText = `Welcome to your ITI trade interview preparation! Please introduce yourself, describe your trade training, the workshop machinery you have handled, and your career goals.`;
+      } else if (eduLevel === 'diploma_polytechnic') {
+        openingText = `Welcome to your Diploma engineering interview session! Please introduce yourself, describe your diploma branch and core technical subjects, and share an interesting practical lab or project experience.`;
+      } else if (stream === 'healthcare_medicine' || stream === 'nursing' || stream === 'pharmacy') {
+        openingText = `Welcome! Please introduce yourself, describe your background in healthcare, and tell me what motivated you to pursue patient care and medical science.`;
+      } else if (stream === 'law_legal') {
+        openingText = `Welcome to your legal studies interview session. Please introduce yourself, your areas of interest in law, and what sparked your dedication to the legal profession.`;
+      } else {
+        openingText = `Welcome! To start off our session, please introduce yourself, tell me about your background in ${degree || stream || 'your course'}, and what specific goals you are working toward.`;
+      }
+
+      questions.push({
+        id: `q-academic-${Date.now()}-0`,
+        orderIndex: 0,
+        questionText: openingText,
+        category: 'subject_specific',
+        contextOrHints: 'Deliver a clear, composed self-introduction (1-2 minutes). Focus on your background, subjects, and future aspirations.',
+        source: 'fallback'
+      });
+      trackingList.push(openingText);
+
+      // 2. Multi-stream universal bank selection
+      let bankSubset = UNIVERSAL_QUESTION_BANKS;
+      if (config.intermediateGroup) {
+        bankSubset = getQuestionsByIntermediateGroup(config.intermediateGroup as any);
+      } else if (config.academicStream) {
+        bankSubset = getQuestionsByStream(config.academicStream as any, config.educationLevel as any);
+      } else if (config.educationLevel) {
+        bankSubset = getQuestionsByEducationLevel(config.educationLevel as any);
+      }
+
+      const mapCategory = (cat: string): InterviewQuestion['category'] => {
+        if (cat === 'self_introduction' || cat === 'hr_general') return 'hr';
+        if (cat === 'subject_specific') return 'subject_specific';
+        if (cat === 'internship_entry_level') return 'behavioral';
+        if (cat === 'communication') return 'communication';
+        if (cat === 'college_admission') return 'college_admission';
+        if (cat === 'career_exploration') return 'career_exploration';
+        if (cat === 'aptitude_reasoning') return 'aptitude_reasoning';
+        return 'technical';
+      };
+
+      const shuffledBank = shuffle(bankSubset);
+      for (const item of shuffledBank) {
+        if (questions.length >= config.questionCount) break;
+        if (!isClientDuplicate(item.questionText, trackingList)) {
+          questions.push({
+            id: `q-univ-${Date.now()}-${questions.length}`,
+            orderIndex: questions.length,
+            questionText: item.questionText,
+            category: mapCategory(item.category),
+            contextOrHints: item.hints || item.whatInterviewerLooksFor || '',
+            source: 'fallback'
+          });
+          trackingList.push(item.questionText);
+        }
+      }
+
+      // If still need more questions, pull from general universal banks
+      if (questions.length < config.questionCount) {
+        const extraBank = shuffle(UNIVERSAL_QUESTION_BANKS);
+        for (const item of extraBank) {
+          if (questions.length >= config.questionCount) break;
+          if (!isClientDuplicate(item.questionText, trackingList)) {
+            questions.push({
+              id: `q-univ-extra-${Date.now()}-${questions.length}`,
+              orderIndex: questions.length,
+              questionText: item.questionText,
+              category: mapCategory(item.category),
+              contextOrHints: item.hints || item.whatInterviewerLooksFor || '',
+              source: 'fallback'
+            });
+            trackingList.push(item.questionText);
+          }
+        }
+      }
+
+      return questions;
+    }
 
     // Dynamic Authentic Icebreaker & "Tell me about yourself" pool per interview type
     const openingOptions: Record<string, string[]> = {
@@ -843,7 +949,7 @@ export const api = {
   },
 
   // Parse and analyze resume (Serverless Base64 payload, 5MB limit)
-  async analyzeResume(file: File, targetRole: string): Promise<ResumeAnalysis> {
+  async analyzeResume(file: File, targetRole: string, academicProfile?: any): Promise<ResumeAnalysis> {
     const activeUid = storage.getActiveUserId() || 'usr-guest';
     const headers = getAuthHeaders();
     let res: Response | null = null;
@@ -858,7 +964,8 @@ export const api = {
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,
-          targetRole
+          targetRole,
+          academicProfile
         })
       });
       if (res.status === 404) {
@@ -870,7 +977,8 @@ export const api = {
             fileName: file.name,
             fileType: file.type,
             fileSize: file.size,
-            targetRole
+            targetRole,
+            academicProfile
           })
         });
       }
@@ -920,45 +1028,172 @@ export const api = {
       }
     }
 
-    // Client fallback analysis
+    // Client fallback analysis with stream-awareness
     const fileName = file.name;
-    const isPdf = fileName.toLowerCase().endsWith('.pdf');
-    
+    const isIntermediate = academicProfile?.educationLevel === 'intermediate' || !!academicProfile?.intermediateGroup;
+    const isDiploma = academicProfile?.educationLevel === 'diploma_polytechnic';
+    const isCommerce = academicProfile?.academicStream?.includes('commerce');
+    const isNursing = academicProfile?.academicStream?.includes('nursing') || academicProfile?.academicStream?.includes('healthcare');
+    const isLaw = academicProfile?.academicStream?.includes('law');
+    const isITI = academicProfile?.educationLevel === 'iti_vocational' || academicProfile?.academicStream === 'vocational_trades' || /\biti\b/i.test(academicProfile?.academicStream || '');
+
+    let extractedSkills = ['JavaScript', 'React.js', 'Node.js', 'SQL', 'Git', 'Data Structures', 'REST APIs', 'HTML5/CSS3'];
+    let missingSkillsForRole = ['Docker & Containerization', 'Cloud Deployment (AWS/GCP)', 'Redis / Distributed Caching', 'Unit Testing (Jest/Mocha)'];
+    let educationFound = ['B.Tech / B.E. Computer Science & Engineering'];
+    let experienceSummary = 'Academic projects in full-stack web development and frontend implementation.';
+    let projectsDetected = ['E-Commerce Web Application with React, Node.js and MongoDB', 'Portfolio Website with Tailwind CSS'];
+    let strengths = ['Clear educational background and contact details', 'Modern tech stack for technical and full-stack positions', 'Demonstrated hands-on projects with functional features'];
+    let keywordGaps = ['CI/CD, Docker, Microservices, System Architecture, Performance Profiling'];
+    let actionableImprovements = [
+      'Quantify project outcomes with measurable metrics (e.g. "reduced latency by 25%", "served 1k+ users")',
+      'Add a dedicated "Technical Skills" section grouped into Languages, Frameworks, and Tools',
+      'Include live links to deployed projects and GitHub repositories'
+    ];
+    let tailoredInterviewQuestions = [
+      `In your highlighted project for the ${targetRole} position, how did you architect state management and API communication?`,
+      'Walk me through the database schema you designed: what indexing and data normalization choices did you make?',
+      'If your application experienced sudden traffic spikes, what caching or scaling strategies would you implement?'
+    ];
+    let evaluationCriteria = ['Technical Skills Relevance', 'System Architecture & Design', 'Hands-on Coding Projects', 'Git Best Practices', 'Database Proficiency'];
+
+    if (isIntermediate) {
+      const grp = (academicProfile?.intermediateGroup || 'mpc').toUpperCase();
+      extractedSkills = ['Mathematics', 'Physics', 'Chemistry', 'Problem Solving', 'Scientific Documentation', 'Computer Literacy'];
+      missingSkillsForRole = ['Advanced Spreadsheets / Digital Tools', 'Extracurricular Leadership Documentation', 'Community Volunteering'];
+      educationFound = [`Intermediate (${grp}) Board Education`, 'Secondary School Certificate (10th Standard)'];
+      experienceSummary = `Intermediate student with strong academic fundamentals in ${grp} coursework and participation in school science/co-curricular activities with zero formal employment history.`;
+      projectsDetected = ['Science Fair / Commerce Exhibition Project', 'School Practical Demonstrations & Lab Experiments'];
+      strengths = ['Clear presentation of 10th and 12th academic foundation', 'Authentic student profile with genuine school achievements without fabricated claims', 'Demonstrated extracurricular engagement'];
+      keywordGaps = ['Quantitative Board Marks / CGPA, Science Fair Model, School Leadership Roles'];
+      actionableImprovements = [
+        'Specify your 10th and Intermediate board percentages or CGPA clearly in the Education block',
+        'Describe a science exhibition model, commerce trade fair project, or school presentation you delivered',
+        'Highlight extracurricular activities like sports, NCC, NSS, or debate clubs to showcase teamwork'
+      ];
+      tailoredInterviewQuestions = [
+        `What concept or chapter in your Intermediate ${grp} coursework did you find most captivating and why?`,
+        'Walk me through an academic project, lab demonstration, or school exhibition model you worked on.',
+        'How do you manage your daily schedule to balance board exam preparation with entrance examination goals?'
+      ];
+      evaluationCriteria = ['Academic Foundation & 10th/12th Presentation', 'Core Subject Knowledge', 'School & Science Projects', 'Extracurricular & Leadership', 'Authentic Career & Degree Objective'];
+    } else if (isDiploma) {
+      extractedSkills = ['Workshop Safety (5S)', 'Blueprint & Drawing Reading', 'Machinery Operation', 'Precision Calibration', 'Technical Troubleshooting'];
+      missingSkillsForRole = ['NATS / NEAPS Apprenticeship Registration', 'Preventive Maintenance Logging', 'Lockout-Tagout (LOTO) Protocol'];
+      educationFound = ['State Board of Technical Education - Diploma in Engineering'];
+      experienceSummary = 'Polytechnic engineering student with extensive hands-on workshop, laboratory testing, and capstone project fabrication experience.';
+      projectsDetected = ['Diploma Final Year Engineering Capstone Project', 'Workshop Machinery Setup & Circuit Demonstration'];
+      strengths = ['Extensive physical laboratory and machine shop execution hours', 'Strong blueprint and engineering drawing literacy', 'Applied problem solving demonstrated during hands-on fabrication'];
+      keywordGaps = ['Machine Models Operated, Tolerance Limits (0.02 mm), NATS Apprenticeship, PPE Compliance'];
+      actionableImprovements = [
+        'Detail the specific physical fabrication, soldering, wiring, or machining you personally executed on your capstone project',
+        'List specific machinery and precision instruments operated (e.g. lathe machine, digital multimeter, vernier caliper)',
+        'State your readiness for plant floor shifts and NATS technician apprenticeship enrollment'
+      ];
+      tailoredInterviewQuestions = [
+        'Walk me through the blueprint schematic and fabrication challenges of your diploma capstone project.',
+        'What exact safety procedures and PPE do you check before powering on heavy workshop equipment?',
+        'If a machine on your shift produces an abnormal vibration or sound, what is your immediate step-by-step reaction?'
+      ];
+      evaluationCriteria = ['Hands-on Technical Skills', 'Machine & Tool Proficiency', 'Capstone Project Fabrication', 'Workshop Safety & Standards', 'Blueprint Literacy'];
+    } else if (isCommerce) {
+      extractedSkills = ['Financial Accounting', 'GST & Direct Taxation', 'Auditing Procedures', 'Tally Prime', 'Advanced MS Excel'];
+      missingSkillsForRole = ['Financial Ratio Modeling & Sensitivity Analysis', 'ERP System Navigation', 'Internal Audit Sampling'];
+      educationFound = ['Bachelor of Commerce (B.Com) / Management Degree'];
+      experienceSummary = 'Commerce candidate with rigorous grounding in statutory compliance, GST e-invoicing, financial accounting, and ledger auditing.';
+      projectsDetected = ['GST Reconciliation & Audit Sampling Project', 'Corporate Financial Statement & Ratio Analysis'];
+      strengths = ['Clear understanding of statutory tax compliance and double-entry bookkeeping', 'Practical application of accounting software and spreadsheet formulas', 'Analytical approach to balance sheet and profit & loss reconciliation'];
+      keywordGaps = ['Ind AS 115, GST Input Tax Credit (ITC), Debt-to-Equity, Audit Vouching, Advanced Pivot Tables'];
+      actionableImprovements = [
+        'Quantify audit sample sizes and transaction volumes reconciled in your projects or internships',
+        'Highlight specific advanced Excel functions used (Pivot Tables, VLOOKUP/XLOOKUP, Conditional Formatting)',
+        'Detail your understanding of recent statutory compliance changes in corporate taxation and GST'
+      ];
+      tailoredInterviewQuestions = [
+        'How do you verify whether a company has appropriately recognized revenue and accounted for trade receivables at year-end?',
+        'Walk me through how you handled GST input tax credit (ITC) reconciliation in your coursework or project.',
+        'What financial ratios do you prioritize when evaluating a company\'s short-term liquidity and solvency?'
+      ];
+      evaluationCriteria = ['Statutory Compliance (GST/Tax)', 'Accounting Standards Grounding', 'Financial Statement Analysis', 'Spreadsheet Acumen (Excel/Tally)', 'Professional Skepticism'];
+    } else if (isNursing) {
+      extractedSkills = ['Patient Care', 'Vital Signs Monitoring', 'Clinical Pharmacology', 'Infection Control', 'SOAP Documentation'];
+      missingSkillsForRole = ['Basic Life Support (BLS / ACLS) Certification', 'Electronic Health Record (EHR) Documentation', 'Critical Care Rotation'];
+      educationFound = ['B.Sc Nursing / Healthcare Degree'];
+      experienceSummary = 'Healthcare professional with verified hospital clinical rotations, bedside patient care, and strict medical protocol compliance.';
+      projectsDetected = ['Hospital Ward Clinical Postings (ICU, Emergency, Surgery, Pediatrics)', 'Patient Safety & Nosocomial Infection Prevention Audit'];
+      strengths = ['Hands-on hospital clinical postings across high-volume departments', 'Strict adherence to patient confidentiality and infection control standards', 'Systematic vital sign monitoring and pharmacological safety verification'];
+      keywordGaps = ['BLS Certification, Hospital Bed Capacity, Ward Rotation Hours, IV Cannulation, SOAP Charting'];
+      actionableImprovements = [
+        'Explicitly list your clinical ward postings with department names (e.g. ICU, Emergency, Pediatrics) and total rotation hours',
+        'Highlight certified competencies such as Basic Life Support (BLS), IV administration, and wound dressing',
+        'Mention patient bed count and triage volume handled during hospital postings'
+      ];
+      tailoredInterviewQuestions = [
+        'Walk me through how you present an unstable patient using the SOAP framework during clinical handovers.',
+        'What vital signs and pharmacological contraindications do you check before administering high-alert medications?',
+        'Describe a challenging bedside situation during your clinical postings and how you maintained patient safety.'
+      ];
+      evaluationCriteria = ['Clinical Ward Rotation Experience', 'Patient Assessment & Vital Signs Competency', 'Pharmacological Knowledge & Drug Safety', 'Infection Control Adherence', 'Empathetic Bedside Communication'];
+    } else if (isLaw) {
+      extractedSkills = ['Legal Research (SCC / Manupatra)', 'Statutory Interpretation', 'IRAC Legal Drafting', 'Moot Court Advocacy'];
+      missingSkillsForRole = ['Arbitration & ADR Mechanisms', 'Due Diligence & Commercial Contract Drafting', 'Published Legal Journal Articles'];
+      educationFound = ['Bachelor of Laws (LL.B / B.A. LL.B)'];
+      experienceSummary = 'Law student with active experience in statutory research, moot court oral advocacy, and legal brief drafting.';
+      projectsDetected = ['National Moot Court Memorial & Oral Submissions', 'Legal Chamber Internship & Judicial Precedent Briefs'];
+      strengths = ['Grounding in constitutional and procedural statutes using IRAC methodology', 'Familiarity with legal research databases and citation standards', 'Demonstrated oral advocacy in competitive moot court environments'];
+      keywordGaps = ['Ratio Decidendi, Writ Petitions, Civil Procedure Code, Contract Act, Moot Court Awards'];
+      actionableImprovements = [
+        'Highlight specific moot court competitions, trial advocacy rounds, and citation memorial awards',
+        'Detail chamber or law firm internship responsibilities (e.g. drafted bail petitions, prepared case notes)',
+        'List published legal articles, law review notes, or research papers'
+      ];
+      tailoredInterviewQuestions = [
+        'How do you structure an appellate legal argument using the IRAC method?',
+        'When citing judicial precedents, how do you distinguish between binding ratio decidendi and obiter dicta?',
+        'Walk me through a statutory interpretation challenge you resolved during moot court preparation or internships.'
+      ];
+      evaluationCriteria = ['Statutory & Precedent Analysis', 'IRAC Argumentation', 'Moot Court & Drafting Experience', 'Legal Research Tools Literacy', 'Professional Demeanor'];
+    } else if (isITI) {
+      extractedSkills = ['Trade Theory', 'Workshop Safety (5S)', 'Precision Calibration (0.02 mm)', 'Machine Tool Operation', 'Electrical Wiring / Assembly'];
+      missingSkillsForRole = ['NCVT National Trade Certificate (NTC) Details', 'Preventive Maintenance Logbook Documentation', 'First Aid & Electric Shock Resuscitation'];
+      educationFound = ['National Council for Vocational Training (NCVT) - ITI Certificate'];
+      experienceSummary = 'Skilled technical trade candidate with over 1,200 hours of workshop practical training, precision machining, and strict safety compliance.';
+      projectsDetected = ['Workshop Practical Metal Fitting / Wiring Workpiece', 'Distribution Panel Installation & Machinery Maintenance'];
+      strengths = ['Extensive physical shopfloor execution hours under formal NCVT syllabus', 'Familiarity with precision measurement instruments within 0.02 mm tolerances', 'Disciplined adherence to workplace safety, PPE, and 5S housekeeping'];
+      keywordGaps = ['NCVT Certificate Number, Total Workshop Hours (1200+), Lathe/Milling Operation, 0.02 mm Tolerance'];
+      actionableImprovements = [
+        'Quantify your total practical workshop hours completed in the ITI training syllabus',
+        'State precision measurement tolerances achieved (e.g. "machined step turning within 0.02 mm tolerance")',
+        'Mention safety certifications, fire extinguisher classifications, and first aid training'
+      ];
+      tailoredInterviewQuestions = [
+        'What immediate safety protocol do you follow if an electrical hazard or machine breakdown occurs on your workshop shift?',
+        'How do you read and calibrate a metric vernier caliper to ensure zero-error before machining a metal job piece?',
+        'Explain the difference between Class A, B, and C fires and which extinguisher type you must never use on live electrical circuits.'
+      ];
+      evaluationCriteria = ['Hands-on Machine Operation & Trade Execution', 'Precision Tool Calibration', 'Workshop Safety Protocols & PPE Adherence', 'Drawing & Blueprint Reading', 'Industrial Apprenticeship Readiness'];
+    }
+
     return {
       id: `res-${Date.now()}`,
       userId: activeUid,
       fileName,
       fileSize: file.size,
       source: 'fallback',
-      extractedSkills: ['JavaScript', 'React.js', 'Node.js', 'SQL', 'Git', 'Data Structures', 'REST APIs', 'HTML5/CSS3'],
-      missingSkillsForRole: ['Docker & Containerization', 'Cloud Deployment (AWS/GCP)', 'Redis / Distributed Caching', 'Unit Testing (Jest/Mocha)'],
+      extractedSkills,
+      missingSkillsForRole,
       atsScoreEstimate: null,
-      educationFound: ['B.Tech / B.E. Computer Science & Engineering (2021 - 2025)'],
-      experienceSummary: 'Academic projects in full-stack web development and freelance frontend implementation.',
-      projectsDetected: [
-        'E-Commerce Web Application with React, Node.js and MongoDB',
-        'Real-Time Chat App with Socket.io and Express',
-        'Portfolio Website with Tailwind CSS'
-      ],
-      strengths: [
-        'Clear educational background and contact details',
-        'Modern, relevant tech stack for frontend and full-stack positions',
-        'Demonstrated hands-on projects with functional features'
-      ],
-      keywordGaps: [
-        'CI/CD, Docker, Microservices, System Architecture, Performance Profiling'
-      ],
-      actionableImprovements: [
-        'Quantify your project outcomes (e.g. "reduced bundle size by 28%", "served 500+ users")',
-        'Add a dedicated "Technical Skills" section grouped into Languages, Frameworks, Databases, and Tools',
-        'Include live links to deployed projects and GitHub repositories',
-        'Tailor bullet points to emphasize problem-solving over just listing features built'
-      ],
-      tailoredInterviewQuestions: [
-        'In your E-Commerce project, how did you handle user authentication and session management securely?',
-        'How did you manage state in your React application, and how did you prevent unnecessary re-renders?',
-        'If 10,000 users joined your Real-Time Chat App simultaneously, how would you scale the WebSocket connections?'
-      ],
+      educationFound,
+      experienceSummary,
+      projectsDetected,
+      strengths,
+      keywordGaps,
+      actionableImprovements,
+      tailoredInterviewQuestions,
+      isStudent: isIntermediate || isDiploma || isITI,
+      educationLevel: academicProfile?.educationLevel,
+      academicStream: academicProfile?.academicStream,
+      intermediateGroup: academicProfile?.intermediateGroup,
+      evaluationCriteria,
       createdAt: new Date().toISOString()
     };
   },

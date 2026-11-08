@@ -1,4 +1,4 @@
-import { UserProfile, InterviewSession, FeedbackReport, ResumeAnalysis, UsageQuota, PrivacyPreferences, UserAcademyProgress, LessonProgress, QuizAttempt, PracticeAttempt } from '../types';
+import { UserProfile, InterviewSession, FeedbackReport, ResumeAnalysis, UsageQuota, PrivacyPreferences, UserAcademyProgress, LessonProgress, QuizAttempt, PracticeAttempt, ResumeBuilderData } from '../types';
 import { TOTAL_ACADEMY_LESSONS } from '../data/academyCurriculum';
 import { supabase, isSupabaseConfigured, checkSupabaseTablesStatus, CloudSyncStatus, CloudHealthCheckResult } from './supabase';
 
@@ -67,6 +67,13 @@ export const storage = {
         localStorage.removeItem(CURRENT_USER_KEY);
         localStorage.removeItem(SESSION_TOKEN_KEY);
         localStorage.setItem(LOGGED_OUT_KEY, 'true');
+        try {
+          if (typeof window !== 'undefined' && window.sessionStorage) {
+            window.sessionStorage.removeItem('interviewbro_active_resume_text');
+          }
+        } catch {
+          // sessionStorage guard
+        }
       } else {
         localStorage.removeItem(LOGGED_OUT_KEY);
         localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
@@ -428,6 +435,116 @@ export const storage = {
     } catch (e) {
       console.error('Failed to delete resume', e);
     }
+  },
+
+  // User-Isolated Resume Builder Drafts
+  getResumeDraft(userId?: string | null): ResumeBuilderData | null {
+    const uid = userId || this.getActiveUserId();
+    if (!uid) return null;
+    try {
+      const data = localStorage.getItem(`interviewbro_resume_draft_${uid}`);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveResumeDraft(draft: ResumeBuilderData, userId?: string | null): void {
+    const uid = userId || draft.userId || this.getActiveUserId();
+    if (!uid) return;
+    try {
+      draft.updatedAt = new Date().toISOString();
+      localStorage.setItem(`interviewbro_resume_draft_${uid}`, JSON.stringify(draft));
+    } catch (e) {
+      console.error('Failed to save resume draft', e);
+    }
+  },
+
+  clearResumeDraft(userId?: string | null): void {
+    const uid = userId || this.getActiveUserId();
+    if (!uid) return;
+    try {
+      localStorage.removeItem(`interviewbro_resume_draft_${uid}`);
+    } catch (e) {
+      console.error('Failed to clear resume draft', e);
+    }
+  },
+
+  /**
+   * Converts a structured resume draft into clean, formatted text
+   * for passing into mock interview setups and plain text exports.
+   */
+  formatResumeForInterview(draft: ResumeBuilderData): string {
+    const parts: string[] = [];
+
+    // Header
+    parts.push(`CANDIDATE: ${draft.fullName}`);
+    if (draft.location) parts.push(`LOCATION: ${draft.location}`);
+    if (draft.resumeType) parts.push(`PROFILE TYPE: ${draft.resumeType}`);
+
+    // Objective
+    if (draft.summaryOrObjective && !draft.hiddenSections.includes('objective')) {
+      parts.push(`\nOBJECTIVE / SUMMARY:\n${draft.summaryOrObjective}`);
+    }
+
+    // Education
+    if (draft.education && draft.education.length > 0 && !draft.hiddenSections.includes('education')) {
+      parts.push('\nEDUCATION:');
+      draft.education.forEach(edu => {
+        let eduStr = `- ${edu.degreeOrGroup} | ${edu.institution} (${edu.yearOfCompletion})`;
+        if (edu.scoreOrGrade) eduStr += ` - Grade: ${edu.scoreOrGrade}`;
+        parts.push(eduStr);
+      });
+    }
+
+    // Subjects
+    if (draft.subjects && draft.subjects.length > 0 && !draft.hiddenSections.includes('subjects')) {
+      parts.push(`\nCORE SUBJECTS / COURSEWORK: ${draft.subjects.join(', ')}`);
+    }
+
+    // Projects
+    if (draft.projects && draft.projects.length > 0 && !draft.hiddenSections.includes('projects')) {
+      parts.push('\nACADEMIC & TECHNICAL PROJECTS:');
+      draft.projects.forEach(proj => {
+        let pStr = `- ${proj.title}`;
+        if (proj.toolsOrTech) pStr += ` [Tools: ${proj.toolsOrTech}]`;
+        pStr += `: ${proj.description}`;
+        if (proj.outcomeMetric) pStr += ` (Outcome: ${proj.outcomeMetric})`;
+        parts.push(pStr);
+      });
+    }
+
+    // Skills
+    if (draft.skills && draft.skills.length > 0 && !draft.hiddenSections.includes('skills')) {
+      parts.push(`\nSKILLS & TOOLS: ${draft.skills.join(', ')}`);
+    }
+
+    // Experience / Practical Training / Apprenticeships
+    if (draft.experience && draft.experience.length > 0 && !draft.hiddenSections.includes('experience')) {
+      parts.push('\nPRACTICAL EXPERIENCE / TRAINING:');
+      draft.experience.forEach(exp => {
+        parts.push(`- ${exp.roleTitle} at ${exp.organization} (${exp.startDate} - ${exp.endDate})`);
+        if (exp.keyResponsibilities && exp.keyResponsibilities.length > 0) {
+          exp.keyResponsibilities.forEach(resp => parts.push(`  * ${resp}`));
+        }
+      });
+    }
+
+    // Certifications
+    if (draft.certifications && draft.certifications.length > 0 && !draft.hiddenSections.includes('certifications')) {
+      parts.push(`\nCERTIFICATIONS & TRAINING: ${draft.certifications.join(', ')}`);
+    }
+
+    // Achievements & Extracurricular
+    if (draft.achievements && draft.achievements.length > 0 && !draft.hiddenSections.includes('achievements')) {
+      parts.push(`\nACHIEVEMENTS & HONORS: ${draft.achievements.join(', ')}`);
+    }
+
+    if (draft.extracurricular && draft.extracurricular.length > 0 && !draft.hiddenSections.includes('extracurricular')) {
+      parts.push(`\nACTIVITIES & LEADERSHIP: ${draft.extracurricular.join(', ')}`);
+    }
+
+    return parts.join('\n');
   },
 
   /**
@@ -837,6 +954,7 @@ export const storage = {
       localStorage.removeItem(`interviewbro_sessions_${uid}`);
       localStorage.removeItem(`interviewbro_reports_${uid}`);
       localStorage.removeItem(`interviewbro_resumes_${uid}`);
+      localStorage.removeItem(`interviewbro_resume_draft_${uid}`);
       localStorage.removeItem(`interviewbro_privacy_prefs_${uid}`);
       localStorage.removeItem(`interviewbro_academy_progress_${uid}`);
       localStorage.removeItem(`interviewbro_profile_completed_${uid}`);
@@ -848,6 +966,13 @@ export const storage = {
       localStorage.removeItem('interviewbro_active_session');
       localStorage.removeItem('interviewbro_active_report');
       localStorage.setItem(LOGGED_OUT_KEY, 'true');
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.removeItem('interviewbro_active_resume_text');
+        }
+      } catch {
+        // sessionStorage guard
+      }
     } catch (e) {
       console.error('Error clearing local storage on delete:', e);
     }

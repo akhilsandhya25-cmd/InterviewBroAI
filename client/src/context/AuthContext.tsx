@@ -103,7 +103,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
+      const previousUserId = user?.id;
       const response = await authService.login(email, password);
+      if (previousUserId && previousUserId !== response.user.id) {
+        try {
+          if (typeof window !== 'undefined' && window.sessionStorage) {
+            window.sessionStorage.removeItem('interviewbro_active_resume_text');
+          }
+        } catch {
+          // sessionStorage guard
+        }
+      }
       setUser(response.user);
       setQuota(storage.getQuota(response.user.id));
       storage.syncWithCloud(response.user.id);
@@ -123,6 +133,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fullName: fullName || email.split('@')[0]
       });
       if (response.user) {
+        try {
+          if (typeof window !== 'undefined' && window.sessionStorage) {
+            window.sessionStorage.removeItem('interviewbro_active_resume_text');
+          }
+        } catch {
+          // sessionStorage guard
+        }
         setUser(response.user);
         setQuota(storage.getQuota(response.user.id));
       }

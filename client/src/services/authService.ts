@@ -424,7 +424,18 @@ export const authService = {
             // Non-critical profile fetch
           }
 
-          const user: UserProfile = profile || {
+          const cachedUser = storage.getUser();
+          const user: UserProfile = profile ? {
+            ...profile,
+            educationLevel: (profile as any).educationLevel ?? (profile as any).education_level ?? (cachedUser?.id === data.user.id ? cachedUser?.educationLevel : undefined),
+            academicStream: (profile as any).academicStream ?? (profile as any).academic_stream ?? (cachedUser?.id === data.user.id ? cachedUser?.academicStream : undefined),
+            degreeCourse: (profile as any).degreeCourse ?? (profile as any).degree_course ?? (cachedUser?.id === data.user.id ? cachedUser?.degreeCourse : undefined),
+            specialisation: (profile as any).specialisation ?? (cachedUser?.id === data.user.id ? cachedUser?.specialisation : undefined),
+            intermediateGroup: (profile as any).intermediateGroup ?? (profile as any).intermediate_group ?? (cachedUser?.id === data.user.id ? cachedUser?.intermediateGroup : undefined),
+            yearOfStudy: (profile as any).yearOfStudy ?? (profile as any).year_of_study ?? (cachedUser?.id === data.user.id ? cachedUser?.yearOfStudy : undefined),
+            careerInterests: (profile as any).careerInterests ?? (profile as any).career_interests ?? (cachedUser?.id === data.user.id ? cachedUser?.careerInterests : undefined),
+            careerGoal: (profile as any).careerGoal ?? (profile as any).career_goal ?? (cachedUser?.id === data.user.id ? cachedUser?.careerGoal : undefined),
+          } : {
             id: data.user.id,
             email: data.user.email || cleanEmail,
             full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
@@ -620,7 +631,23 @@ export const authService = {
             // Handled if DB table not yet created
           }
 
-          const userToSet: UserProfile = profile || {
+          const userToSet: UserProfile = profile ? {
+            ...profile,
+            educationLevel: (profile as any).educationLevel ?? (profile as any).education_level ?? cachedUser?.educationLevel ?? cachedUser?.education_level,
+            academicStream: (profile as any).academicStream ?? (profile as any).academic_stream ?? cachedUser?.academicStream ?? cachedUser?.academic_stream,
+            degreeCourse: (profile as any).degreeCourse ?? (profile as any).degree_course ?? cachedUser?.degreeCourse ?? cachedUser?.degree_course,
+            specialisation: (profile as any).specialisation ?? cachedUser?.specialisation,
+            intermediateGroup: (profile as any).intermediateGroup ?? (profile as any).intermediate_group ?? cachedUser?.intermediateGroup ?? cachedUser?.intermediate_group,
+            yearOfStudy: (profile as any).yearOfStudy ?? (profile as any).year_of_study ?? cachedUser?.yearOfStudy ?? cachedUser?.year_of_study,
+            careerInterests: (profile as any).careerInterests ?? (profile as any).career_interests ?? cachedUser?.careerInterests ?? cachedUser?.career_interests,
+            careerGoal: (profile as any).careerGoal ?? (profile as any).career_goal ?? cachedUser?.careerGoal,
+            education_level: (profile as any).education_level ?? cachedUser?.education_level ?? cachedUser?.educationLevel,
+            academic_stream: (profile as any).academic_stream ?? cachedUser?.academic_stream ?? cachedUser?.academicStream,
+            degree_course: (profile as any).degree_course ?? cachedUser?.degree_course ?? cachedUser?.degreeCourse,
+            intermediate_group: (profile as any).intermediate_group ?? cachedUser?.intermediate_group ?? cachedUser?.intermediateGroup,
+            year_of_study: (profile as any).year_of_study ?? cachedUser?.year_of_study ?? cachedUser?.yearOfStudy,
+            career_interests: (profile as any).career_interests ?? cachedUser?.career_interests ?? cachedUser?.careerInterests
+          } : {
             id: data.session.user.id,
             email: data.session.user.email || (cachedUser?.email || ''),
             full_name: data.session.user.user_metadata?.full_name 
@@ -842,7 +869,21 @@ export const authService = {
     // Save to Supabase
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('profiles').update(updates).eq('id', currentUser.id);
+        const KNOWN_SUPABASE_COLUMNS = new Set([
+          'id', 'email', 'full_name', 'avatar_url', 'role_target',
+          'experience_level', 'college', 'graduation_year', 'skills',
+          'career_goals', 'interviews_remaining', 'total_interviews_taken',
+          'profile_completed', 'updated_at'
+        ]);
+        const dbUpdates: Record<string, any> = {};
+        for (const [k, v] of Object.entries(updates)) {
+          if (KNOWN_SUPABASE_COLUMNS.has(k)) {
+            dbUpdates[k] = v;
+          }
+        }
+        if (Object.keys(dbUpdates).length > 0) {
+          await supabase.from('profiles').update(dbUpdates).eq('id', currentUser.id);
+        }
       } catch (e) {
         console.warn('Could not sync profile to Supabase:', e);
       }
@@ -894,5 +935,12 @@ export const authService = {
 
     storage.setUser(null);
     storage.setToken(null);
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.removeItem('interviewbro_active_resume_text');
+      }
+    } catch {
+      // sessionStorage guard
+    }
   }
 };

@@ -83,11 +83,36 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
   const [language, setLanguage] = useState<string>('English');
   const [mode, setMode] = useState<InterviewDeliveryMode>('voice_only');
   const [jobDescription, setJobDescription] = useState<string>('');
-  const [resumeText, setResumeText] = useState<string>('');
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [resumeText, setResumeText] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem('interviewbro_active_resume_text') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(() => {
+    try {
+      return Boolean(sessionStorage.getItem('interviewbro_active_resume_text'));
+    } catch {
+      return false;
+    }
+  });
   const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [showQuotaModal, setShowQuotaModal] = useState<boolean>(false);
+
+  const handleResumeTextChange = (val: string) => {
+    setResumeText(val);
+    try {
+      if (!val.trim()) {
+        sessionStorage.removeItem('interviewbro_active_resume_text');
+      } else {
+        sessionStorage.setItem('interviewbro_active_resume_text', val);
+      }
+    } catch {
+      // Ignore storage errors in restricted browser contexts
+    }
+  };
 
   // Pre-interview Mic Readiness
   const [voiceCapabilities] = useState<BrowserVoiceCapabilities>(() => getBrowserVoiceCapabilities());
@@ -175,6 +200,12 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
     setIsStartingSession(true);
     try {
       await startNewSession(config);
+      // Clean up cached resume text once safely stored in session config
+      try {
+        sessionStorage.removeItem('interviewbro_active_resume_text');
+      } catch {
+        // Ignore storage errors
+      }
       onStart();
     } catch (err: any) {
       if (err.code === 'QUOTA_EXCEEDED' || err.status === 402) {
@@ -863,16 +894,32 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             </div>
 
             <div>
-              <label className="block text-xs text-[#F5F7FA] mb-1 font-medium">
-                Paste Resume Project Summary (Optional)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs text-[#F5F7FA] font-medium">
+                  Paste Resume Project Summary (Optional)
+                </label>
+                {resumeText && (
+                  <button
+                    type="button"
+                    onClick={() => handleResumeTextChange('')}
+                    className="text-[11px] text-rose-400 hover:text-rose-300 font-medium transition-colors"
+                  >
+                    Remove Resume
+                  </button>
+                )}
+              </div>
               <textarea
                 rows={3}
                 value={resumeText}
-                onChange={(e) => setResumeText(e.target.value)}
+                onChange={(e) => handleResumeTextChange(e.target.value)}
                 placeholder="Paste key projects, technologies used, or achievements from your resume so the AI interviewer can ask you direct project questions..."
                 className="w-full p-3 rounded-xl bg-[#080B11] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
               />
+              {resumeText && (
+                <p className="mt-1 text-[11px] text-[#9AA4B2]">
+                  {resumeText.length} characters attached. This context will be used for your mock interview questions.
+                </p>
+              )}
             </div>
           </div>
         )}

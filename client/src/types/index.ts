@@ -1,3 +1,5 @@
+import type { EducationLevelId, AcademicStreamId, IntermediateGroupId } from '../data/studentStreams';
+
 export type ExperienceLevel = 'student' | 'fresher' | 'junior' | 'mid' | 'senior';
 
 export type InterviewType = 'technical' | 'behavioral' | 'hr' | 'system_design' | 'managerial' | 'mixed';
@@ -24,6 +26,24 @@ export interface UserProfile {
   profile_completed?: boolean;
   created_at: string;
   updated_at: string;
+
+  // Universal Student Expansion — Optional Academic Profile Fields (Stage 2)
+  educationLevel?: EducationLevelId | string;
+  academicStream?: AcademicStreamId | string;
+  degreeCourse?: string;
+  specialisation?: string;
+  intermediateGroup?: IntermediateGroupId | string;
+  yearOfStudy?: string;
+  careerInterests?: string[];
+  careerGoal?: string;
+
+  // Database / Snake-case compatibility aliases
+  education_level?: EducationLevelId | string;
+  academic_stream?: AcademicStreamId | string;
+  degree_course?: string;
+  intermediate_group?: IntermediateGroupId | string;
+  year_of_study?: string;
+  career_interests?: string[];
 }
 
 export interface CompanyPreset {
@@ -61,6 +81,21 @@ export interface InterviewConfig {
   resumeFileName?: string;
   resumeText?: string;
   companyTrack?: any;
+
+  // Universal Student Expansion (Stage 3 Integration)
+  isAcademic?: boolean;
+  educationLevel?: string;
+  academicStream?: string;
+  degreeCourse?: string;
+  specialisation?: string;
+  intermediateGroup?: string;
+  yearOfStudy?: string;
+  careerGoal?: string;
+  careerInterests?: string[];
+  preparationMode?: string;
+  subject?: string;
+  targetRole?: string;
+  interviewDuration?: number;
 }
 
 export type InterviewSource = 'ai' | 'fallback';
@@ -111,7 +146,17 @@ export interface InterviewQuestion {
   id: string;
   orderIndex: number;
   questionText: string;
-  category: 'technical' | 'behavioral' | 'hr' | 'system_design' | 'situational';
+  category:
+    | 'technical'
+    | 'behavioral'
+    | 'hr'
+    | 'system_design'
+    | 'situational'
+    | 'subject_specific'
+    | 'college_admission'
+    | 'communication'
+    | 'career_exploration'
+    | 'aptitude_reasoning';
   contextOrHints?: string;
   candidateAnswer?: string;
   timeTakenSeconds?: number;
@@ -195,6 +240,85 @@ export interface ResumeAnalysis {
   actionableImprovements: string[];
   tailoredInterviewQuestions: string[];
   createdAt: string;
+
+  // Stage 6 Multi-Stream Additions
+  educationLevel?: string;
+  academicStream?: string;
+  intermediateGroup?: string;
+  evaluationCriteria?: string[];
+  isStudent?: boolean;
+}
+
+export type ResumeType =
+  | 'student_intermediate'
+  | 'diploma_polytechnic'
+  | 'undergraduate'
+  | 'postgraduate'
+  | 'professional'
+  | 'iti_trade'
+  | 'corporate_experienced';
+
+export type ResumeTemplateStyle = 'classic' | 'modern' | 'minimal' | 'technical';
+
+export interface EducationEntry {
+  id: string;
+  institution: string;
+  degreeOrGroup: string; // e.g. "Intermediate (MPC)", "B.Com General", "Diploma Mechanical"
+  boardOrUniversity?: string;
+  yearOfCompletion: string;
+  scoreOrGrade: string; // e.g. "88%", "8.5 CGPA"
+  location?: string;
+}
+
+export interface ProjectEntry {
+  id: string;
+  title: string;
+  role?: string;
+  toolsOrTech?: string; // e.g. "Python, SQL", "Lab equipment, Dial gauge", "Tally, Excel"
+  description: string;
+  outcomeMetric?: string; // e.g. "Science Fair 2nd Place", "Audited 120 sample transactions"
+  link?: string;
+}
+
+export interface ExperienceEntry {
+  id: string;
+  organization: string;
+  roleTitle: string; // e.g. "Accounts Intern", "Technician Apprentice", "Staff Nurse (Trainee)"
+  startDate: string;
+  endDate: string; // or "Present"
+  location?: string;
+  keyResponsibilities: string[];
+}
+
+export interface ResumeBuilderData {
+  id: string;
+  userId: string;
+  resumeType: ResumeType;
+  templateStyle: ResumeTemplateStyle;
+  
+  // Contact & Personal
+  fullName: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedinOrPortfolio?: string;
+  githubUrl?: string;
+
+  // Core Sections
+  summaryOrObjective: string;
+  education: EducationEntry[];
+  subjects: string[]; // Core coursework subjects
+  skills: string[]; // Technical / domain / trade skills
+  projects: ProjectEntry[];
+  experience: ExperienceEntry[]; // Optional: articleship / clinical postings / apprenticeships / jobs
+  certifications: string[];
+  achievements: string[];
+  extracurricular: string[];
+
+  // Customization & Ordering
+  hiddenSections: string[];
+  customSectionTitles?: Record<string, string>;
+  updatedAt: string;
 }
 
 export interface UsageQuota {

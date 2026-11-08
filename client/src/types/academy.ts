@@ -9,7 +9,36 @@ export type AcademyCategory =
   | 'Foundation' 
   | 'Presence & Delivery' 
   | 'Core Answers' 
-  | 'Placement Mastery';
+  | 'Placement Mastery'
+  | 'Intermediate Prep'
+  | 'Applied Engineering'
+  | 'Campus & Degree'
+  | 'Research & Defense'
+  | 'Clinical & Legal'
+  | 'Trade & Vocational'
+  | 'Corporate & System Design';
+
+export type AcademyPathwayId =
+  | 'foundation'
+  | 'intermediate'
+  | 'diploma'
+  | 'undergraduate'
+  | 'postgraduate'
+  | 'professional_degree'
+  | 'iti_vocational'
+  | 'corporate_tech';
+
+export interface AcademyPathway {
+  id: AcademyPathwayId;
+  title: string;
+  subtitle: string;
+  description: string;
+  iconName: string;
+  badge: string;
+  targetEducationLevels: string[];
+  targetStreams?: string[];
+  moduleIds: string[];
+}
 
 export interface QuizOption {
   id: string; // 'a' | 'b' | 'c' | 'd'
@@ -69,6 +98,7 @@ export interface PracticalExercise {
 export interface AcademyLesson {
   id: string;
   moduleId: string;
+  pathwayId?: AcademyPathwayId;
   number: number;
   title: string;
   subtitle: string;
@@ -79,16 +109,20 @@ export interface AcademyLesson {
   exercise: PracticalExercise;
   quiz: QuizQuestion[];
   tags: string[];
+  intermediateGroup?: string;
+  academicStream?: string;
 }
 
 export interface AcademyModule {
   id: string;
   order: number;
+  pathwayId?: AcademyPathwayId;
   title: string;
   subtitle: string;
   description: string;
   iconName: string; // Lucide icon name (e.g. 'Compass', 'DoorOpen', 'Sparkles', 'Users')
   category: AcademyCategory;
+  targetAudience?: string;
   lessons: AcademyLesson[];
 }
 
