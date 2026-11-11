@@ -270,6 +270,7 @@ export const UNIVERSAL_QUESTION_BANKS: UniversalQuestion[] = [
     questionText: 'You are applying for a prestigious 5-year Integrated Management Program right after 12th standard. What makes you ready for business management at this early age?',
     category: 'college_admission',
     targetEducationLevels: ['intermediate'],
+    intermediateGroup: 'mec',
     difficulty: 'advanced',
     hints: 'Highlight leadership in school fests, interest in business news, analytical math foundations, and long-term organizational vision.',
     whatInterviewerLooksFor: 'Executive presence, business awareness, maturity beyond typical 17-year-old standards, communication poise.',
@@ -280,6 +281,7 @@ export const UNIVERSAL_QUESTION_BANKS: UniversalQuestion[] = [
     questionText: 'Why do you wish to pursue a 5-Year Integrated B.A LL.B degree? Can you discuss one recent constitutional or legal issue that caught your attention?',
     category: 'college_admission',
     targetEducationLevels: ['intermediate'],
+    intermediateGroup: 'cec',
     difficulty: 'advanced',
     hints: 'Mention topics like freedom of speech, data privacy, environmental PILs, or judicial reforms. Focus on legal reasoning rather than political bias.',
     whatInterviewerLooksFor: 'Legal awareness, objective argumentation, respect for constitutional values, analytical reasoning.',
@@ -290,6 +292,7 @@ export const UNIVERSAL_QUESTION_BANKS: UniversalQuestion[] = [
     questionText: 'Medical training demands immense stamina, empathy, and emotional fortitude through long emergency duties. What convinced you that healthcare is your true calling?',
     category: 'college_admission',
     targetEducationLevels: ['intermediate'],
+    intermediateGroup: 'bipc',
     difficulty: 'intermediate',
     hints: 'Share an authentic personal experience or observation of healthcare caregiving. Avoid clichéd lines like "I want to help poor people" unless backed by real intent.',
     whatInterviewerLooksFor: 'True humanitarian compassion, realistic understanding of clinical hardship, emotional stability.',
@@ -300,6 +303,7 @@ export const UNIVERSAL_QUESTION_BANKS: UniversalQuestion[] = [
     questionText: 'What inspired you to consider the Armed Forces through the National Defence Academy right after 12th standard, and how do you maintain physical and mental fitness?',
     category: 'college_admission',
     targetEducationLevels: ['intermediate'],
+    intermediateGroup: 'mpc',
     difficulty: 'advanced',
     hints: 'Focus on officer-like qualities (OLQs): physical discipline, team leadership, patriotism through service, and decisive courage.',
     whatInterviewerLooksFor: 'Officer Like Qualities (OLQ), stamina, mental grit, truthfulness, teamwork under physical stress.',
@@ -460,6 +464,54 @@ export const UNIVERSAL_QUESTION_BANKS: UniversalQuestion[] = [
     hints: 'Non-Cooperation (1920-22) focused on boycotting British titles, schools, courts, and cloth. Civil Disobedience (1930 - Dandi Salt March) actively broke colonial laws (e.g., salt tax, forest laws).',
     whatInterviewerLooksFor: 'Historical chronology, strategic mass movements, nuanced analysis of Indian freedom struggle.',
     subDomainTag: 'Modern Indian History'
+  },
+
+  // --- Intermediate: MBiPC (Math, Biology, Physics, Chemistry) ---
+  {
+    id: 'subj-mbipc-01',
+    questionText: 'How are mathematical differential equations and exponential growth models used in Biology to predict bacterial colony population dynamics and virus transmission rates?',
+    category: 'subject_specific',
+    targetEducationLevels: ['intermediate'],
+    intermediateGroup: 'mbipc',
+    difficulty: 'intermediate',
+    hints: 'dN/dt = rN (logistic vs exponential growth). Carrying capacity K limits growth in reality. Mention how calculus formalizes biology rates.',
+    whatInterviewerLooksFor: 'Interdisciplinary synthesis between Mathematics and Biology.',
+    subDomainTag: 'Mathematical Biology & Population Dynamics'
+  },
+  {
+    id: 'subj-mbipc-02',
+    questionText: 'How does the thermodynamic principle of free energy (Gibbs Free Energy Delta G) govern whether biochemical metabolic reactions like ATP hydrolysis occur spontaneously in living cells?',
+    category: 'subject_specific',
+    targetEducationLevels: ['intermediate'],
+    intermediateGroup: 'mbipc',
+    difficulty: 'advanced',
+    hints: 'Delta G = Delta H - T * Delta S. Negative Delta G signifies an exergonic reaction. Coupling of endergonic reactions with ATP hydrolysis drives cellular metabolism.',
+    whatInterviewerLooksFor: 'Biochemistry and physics thermodynamics crossover.',
+    subDomainTag: 'Biophysics & Bioenergetics'
+  },
+
+  // --- Intermediate: Vocational (Applied Trades & Skills) ---
+  {
+    id: 'subj-voc-01',
+    questionText: 'In practical laboratory or workshop environments, why is adherence to Standard Operating Procedures (SOPs) and personal protective equipment (PPE) mandatory before operating testing instruments?',
+    category: 'subject_specific',
+    targetEducationLevels: ['intermediate'],
+    intermediateGroup: 'vocational_inter',
+    difficulty: 'beginner',
+    hints: 'Prevent hazardous chemical exposure, equipment calibration drift, electrical short circuits, and personal injury.',
+    whatInterviewerLooksFor: 'Applied vocational discipline, workplace safety compliance, practical readiness.',
+    subDomainTag: 'Vocational Workshop Safety'
+  },
+  {
+    id: 'subj-voc-02',
+    questionText: 'Describe a hands-on practical assignment or trade project you completed during your vocational curriculum. What tools did you use and how did you verify the final outcome?',
+    category: 'subject_specific',
+    targetEducationLevels: ['intermediate'],
+    intermediateGroup: 'vocational_inter',
+    difficulty: 'intermediate',
+    hints: 'Explain problem statement, step-by-step assembly or testing procedure, tools handled, and verification criteria.',
+    whatInterviewerLooksFor: 'Authentic practical experience, familiarity with real trade tools.',
+    subDomainTag: 'Practical Trade Project'
   },
 
   // --- Stream 1: Commerce & Accounting ---
@@ -820,10 +872,17 @@ export function getQuestionsByEducationLevel(levelId: EducationLevelId): Univers
 }
 
 export function getQuestionsByIntermediateGroup(groupId: IntermediateGroupId): UniversalQuestion[] {
-  return UNIVERSAL_QUESTION_BANKS.filter(q =>
-    q.intermediateGroup === groupId ||
-    (q.targetEducationLevels.includes('intermediate') && !q.intermediateGroup)
-  );
+  const normGrp = String(groupId || '').toLowerCase();
+  return UNIVERSAL_QUESTION_BANKS.filter(q => {
+    if (q.intermediateGroup === normGrp) return true;
+    if (normGrp === 'mbipc') {
+      // MBiPC draws questions from dedicated pool as well as MPC & BiPC science questions
+      if (q.intermediateGroup === 'mpc' || q.intermediateGroup === 'bipc') return true;
+    }
+    if ((normGrp === 'vocational' || normGrp === 'vocational_inter') && q.intermediateGroup === 'vocational_inter') return true;
+    if (q.targetEducationLevels.includes('intermediate') && !q.intermediateGroup) return true;
+    return false;
+  });
 }
 
 export function getQuestionsByStream(streamId: AcademicStreamId, levelId?: EducationLevelId): UniversalQuestion[] {

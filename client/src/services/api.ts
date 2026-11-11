@@ -351,9 +351,15 @@ export const api = {
         }
       }
 
-      // If still need more questions, pull from general universal banks
+      // If still need more questions, pull from general universal banks matching this education level or non-technical general pools
       if (questions.length < config.questionCount) {
-        const extraBank = shuffle(UNIVERSAL_QUESTION_BANKS);
+        const extraBank = shuffle(UNIVERSAL_QUESTION_BANKS).filter(item => {
+          if (eduLevel === 'intermediate') {
+            if (item.targetStreams?.includes('engineering_technology')) return false;
+            return item.targetEducationLevels.includes('intermediate') || item.category === 'hr_general' || item.category === 'communication';
+          }
+          return true;
+        });
         for (const item of extraBank) {
           if (questions.length >= config.questionCount) break;
           if (!isClientDuplicate(item.questionText, trackingList)) {
@@ -470,13 +476,13 @@ export const api = {
       res = await fetch(`${API_BASE}/ai/questions`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ ...config, previousQuestions })
+        body: JSON.stringify({ config, ...config, previousQuestions })
       });
       if (res.status === 404) {
         res = await fetch(`${API_BASE}/ai-questions`, {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ ...config, previousQuestions })
+          body: JSON.stringify({ config, ...config, previousQuestions })
         });
       }
     } catch (netErr: any) {

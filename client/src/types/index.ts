@@ -4,7 +4,7 @@ export type ExperienceLevel = 'student' | 'fresher' | 'junior' | 'mid' | 'senior
 
 export type InterviewType = 'technical' | 'behavioral' | 'hr' | 'system_design' | 'managerial' | 'mixed';
 
-export type CompanyCategory = 'Service Giant' | 'Product Unicorn' | 'FAANG / MNC' | 'Startup' | 'Fintech';
+export type CompanyCategory = 'Service Giant' | 'Product Unicorn' | 'FAANG / MNC' | 'Startup' | 'Fintech' | 'Academic Preparation';
 
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
 

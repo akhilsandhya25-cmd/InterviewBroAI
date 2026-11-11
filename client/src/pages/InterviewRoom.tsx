@@ -29,6 +29,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useInterview } from '../context/InterviewContext';
+import { useAuth } from '../context/AuthContext';
+import { checkInterviewEligibility } from '../services/interviewEligibility';
 import { createSpeechRecognition, tts } from '../services/speech';
 import { AudioVisualizer } from '../components/AudioVisualizer';
 import { VoiceInterviewerOrb, OrbState } from '../components/VoiceInterviewerOrb';
@@ -556,6 +558,25 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     const s = seconds % 60;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
+
+  const { user } = useAuth();
+  const eligibility = checkInterviewEligibility(user || activeSession?.config);
+
+  if (!eligibility.isEligible) {
+    return (
+      <div className="max-w-2xl mx-auto py-20 text-center space-y-4">
+        <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto" />
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Mock Interview Restricted</h2>
+        <p className="text-sm text-slate-500 max-w-md mx-auto">{eligibility.reason}</p>
+        <button
+          onClick={onExit}
+          className="px-6 py-2.5 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all cursor-pointer"
+        >
+          Exit to Setup
+        </button>
+      </div>
+    );
+  }
 
   if (!activeSession || !currentQuestion) {
     return (

@@ -12,7 +12,8 @@ import {
   Calendar,
   AlertTriangle,
   Target,
-  Clock
+  Clock,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useInterview } from '../context/InterviewContext';
@@ -20,6 +21,7 @@ import { storage } from '../services/storage';
 import { COMPANY_PRESETS } from '../data/presets';
 import { InterviewSession, FeedbackReport } from '../types';
 import { CompanyBadge } from '../components/CompanyBadge';
+import { checkInterviewEligibility } from '../services/interviewEligibility';
 
 interface DashboardProps {
   onNavigate: (route: string) => void;
@@ -30,6 +32,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
   const { user, quota } = useAuth();
   const { loadReport, activeSession } = useInterview();
   const [sessions, setSessions] = useState<InterviewSession[]>(() => storage.getSessions(user?.id));
+  const eligibility = checkInterviewEligibility(user);
 
   useEffect(() => {
     const refresh = () => setSessions(storage.getSessions(user?.id));
@@ -125,13 +128,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
 
           {/* Action CTAs */}
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
-            <button
-              onClick={() => onNavigate('setup')}
-              className="btn-primary text-xs py-2.5 px-4 shadow-md shadow-[#C5F36B]/15"
-            >
-              <Video className="w-4 h-4" />
-              <span>New Mock Interview</span>
-            </button>
+            {eligibility.isEligible ? (
+              <button
+                onClick={() => onNavigate('setup')}
+                className="btn-primary text-xs py-2.5 px-4 shadow-md shadow-[#C5F36B]/15"
+              >
+                <Video className="w-4 h-4" />
+                <span>New Mock Interview</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => onNavigate('academy')}
+                className="btn-primary text-xs py-2.5 px-4 shadow-md shadow-[#C5F36B]/15"
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span>Explore Academy</span>
+              </button>
+            )}
 
             <button
               onClick={() => onNavigate('resume')}
@@ -143,6 +156,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
           </div>
         </div>
       </div>
+
+      {/* Eligibility Policy Notice Banner */}
+      {!eligibility.isEligible && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-xs sm:text-sm font-bold text-[#F5F7FA]">AI Mock Interview Access Notice</h3>
+              <p className="text-[11px] sm:text-xs text-[#9AA4B2] mt-0.5 max-w-2xl leading-relaxed">
+                {eligibility.reason}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => onNavigate('academy')}
+              className="btn-primary text-xs py-2 px-3.5"
+            >
+              Explore Academy
+            </button>
+            <button
+              onClick={() => onNavigate('profile')}
+              className="btn-secondary text-xs py-2 px-3.5"
+            >
+              Update Profile
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2. Onboarding Action Required Banner */}
       {(!user?.profile_completed || !user?.role_target) && (
@@ -374,10 +418,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
           </div>
 
           <button
-            onClick={() => onNavigate('setup')}
+            onClick={() => onNavigate(eligibility.isEligible ? 'setup' : 'academy')}
             className="w-full mt-6 btn-primary text-xs py-2.5"
           >
-            <span>Launch Practice Session</span>
+            <span>{eligibility.isEligible ? 'Launch Practice Session' : 'Explore Interview Academy'}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -403,7 +447,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
           {COMPANY_PRESETS.slice(0, 6).map((preset) => (
             <button
               key={preset.id}
-              onClick={() => onStartPreset(preset.id)}
+              onClick={() => eligibility.isEligible ? onStartPreset(preset.id) : onNavigate('setup')}
               className="p-3.5 rounded-xl bg-[#121826] border border-white/[0.08] hover:border-[#C5F36B]/40 transition-all text-left group flex flex-col justify-between"
             >
               <div>
@@ -446,10 +490,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
               </p>
             </div>
             <button
-              onClick={() => onNavigate('setup')}
+              onClick={() => onNavigate(eligibility.isEligible ? 'setup' : 'academy')}
               className="btn-primary text-xs py-2 px-4 mt-2"
             >
-              Start First Mock Interview
+              {eligibility.isEligible ? 'Start First Mock Interview' : 'Explore Interview Academy'}
             </button>
           </div>
         ) : (

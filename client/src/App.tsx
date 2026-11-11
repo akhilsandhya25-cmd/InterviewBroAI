@@ -20,7 +20,8 @@ import { LegalCenterPage } from './pages/LegalCenterPage';
 import { PrivacyCenterPage } from './pages/PrivacyCenterPage';
 import { InterviewAcademy } from './pages/InterviewAcademy';
 import { IntroSplashAnimation } from './components/IntroSplashAnimation';
-import { Shield, Lock, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
+import { Shield, Lock, ArrowRight, Sparkles, Loader2, GraduationCap, Info, BookOpen, FileText, Users } from 'lucide-react';
+import { checkInterviewEligibility } from './services/interviewEligibility';
 import { BrandIcon } from './components/brand/BrandIcon';
 import { DevelopmentNoticeBanner } from './components/DevelopmentNoticeBanner';
 import { storage } from './services/storage';
@@ -301,11 +302,121 @@ const AppContent: React.FC = () => {
     );
   };
 
+  // Render Interview Eligibility Barrier for non-degree or unverified users
+  const renderInterviewEligibilityBarrier = (eligibility: any) => {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-12">
+        <div className="p-8 sm:p-10 rounded-3xl bg-[#121826] border border-white/[0.12] shadow-2xl text-center space-y-6">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-[#C5F36B]/10 border border-[#C5F36B]/30 flex items-center justify-center text-[#C5F36B]">
+            <GraduationCap className="w-8 h-8 text-[#C5F36B]" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-[#9AA4B2]">
+              <Info className="w-3.5 h-3.5 text-[#C5F36B]" />
+              <span>Mock Interview Policy</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA]">
+              {eligibility.status === 'incomplete' ? 'Candidate Details Verification' : 'AI Mock Interview Access'}
+            </h2>
+            <p className="text-xs sm:text-sm text-[#9AA4B2] max-w-xl mx-auto leading-relaxed">
+              {eligibility.reason}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto pt-2 text-left">
+            <button
+              type="button"
+              onClick={() => navigateTo('academy')}
+              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-[#C5F36B]/40 hover:bg-[#C5F36B]/5 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-[#C5F36B]/15 text-[#C5F36B] shrink-0">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-[#C5F36B]">Interview Academy</div>
+                  <div className="text-[10px] text-[#9AA4B2]">Interactive masterclasses & quizzes</div>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigateTo('builder')}
+              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-emerald-400/40 hover:bg-emerald-400/5 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-emerald-400">Resume Builder</div>
+                  <div className="text-[10px] text-[#9AA4B2]">Stream-tailored resume creator</div>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigateTo('resume')}
+              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-cyan-400/40 hover:bg-cyan-400/5 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-cyan-500/15 text-cyan-400 shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-cyan-400">Resume Analyzer</div>
+                  <div className="text-[10px] text-[#9AA4B2]">ATS scan & rubric score</div>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigateTo('profile')}
+              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-amber-400/40 hover:bg-amber-400/5 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400 shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-amber-400">Profile Settings</div>
+                  <div className="text-[10px] text-[#9AA4B2]">Update your degree and education</div>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div className="pt-4 border-t border-white/[0.06] flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => navigateTo('dashboard')}
+              className="text-xs text-[#9AA4B2] hover:text-[#F5F7FA] transition-colors cursor-pointer"
+            >
+              ← Return to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render current view
   const renderPage = () => {
     // If route is protected and user is not authenticated, show protected barrier
     if (PROTECTED_ROUTES.has(currentRoute) && !isAuthenticated) {
       return renderProtectedBarrier();
+    }
+
+    // If attempting to access mock interview setup or room, verify degree student eligibility
+    if ((currentRoute === 'setup' || currentRoute === 'interview') && user) {
+      const eligibility = checkInterviewEligibility(user);
+      if (!eligibility.isEligible) {
+        return renderInterviewEligibilityBarrier(eligibility);
+      }
     }
 
     switch (currentRoute) {

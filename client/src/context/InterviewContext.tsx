@@ -6,6 +6,7 @@ import { useAuth } from './AuthContext';
 import confetti from 'canvas-confetti';
 import { releaseMediaStream, parseMicrophoneError, MicrophoneErrorInfo } from '../services/microphoneService';
 import { analyticsService } from '../services/analytics';
+import { checkInterviewEligibility } from '../services/interviewEligibility';
 
 interface InterviewContextType {
   activeSession: InterviewSession | null;
@@ -165,6 +166,14 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const startNewSession = async (config: InterviewConfig): Promise<boolean> => {
+    // Enforce interview eligibility (B.Tech & recognised degree students only)
+    const eligibility = checkInterviewEligibility(config.isAcademic ? config : (user || config));
+    if (!eligibility.isEligible) {
+      const err: any = new Error(eligibility.reason);
+      err.code = 'INELIGIBLE_STUDENT_CATEGORY';
+      throw err;
+    }
+
     setIsGeneratingQuestions(true);
     setMediaError(null);
     try {

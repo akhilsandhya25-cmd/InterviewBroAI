@@ -21,7 +21,9 @@ import {
   Sparkles,
   FileText,
   Info,
-  ListOrdered
+  ListOrdered,
+  GraduationCap,
+  Atom
 } from 'lucide-react';
 import { CompanyBadge } from '../components/CompanyBadge';
 import { getCompanyTrack } from '../data/companyTracks';
@@ -31,6 +33,17 @@ import {
   EXPERIENCE_LEVELS,
   INTERVIEW_TYPES
 } from '../data/presets';
+import {
+  ACADEMIC_STREAMS,
+  ELIGIBLE_INTERVIEW_LEVEL_OPTIONS,
+  DEGREE_PREPARATION_PURPOSES,
+  getSuggestedSubjectsForProfile
+} from '../data/studentStreams';
+import {
+  checkInterviewEligibility,
+  INELIGIBILITY_EXPLANATION,
+  INCOMPLETE_PROFILE_EXPLANATION
+} from '../services/interviewEligibility';
 import {
   InterviewConfig,
   ExperienceLevel,
@@ -71,10 +84,56 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
   const [role, setRole] = useState<string>(() => user?.role_target || 'Full Stack Developer (React + Node)');
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>(() => user?.experience_level || 'fresher');
 
+  // Academic & Degree State
+  const userEduLevel = user?.educationLevel || user?.education_level || '';
+  const userStream = user?.academicStream || user?.academic_stream || '';
+  const userDegree = user?.degreeCourse || user?.degree_course || '';
+  const userSpec = user?.specialisation || '';
+  const userYear = user?.yearOfStudy || user?.year_of_study || '';
+  const userCareerGoal = user?.careerGoal || user?.career_goals || '';
+
+  const initialDegreeLevelId = userDegree && (userDegree.toLowerCase().includes('b.tech') || userDegree.toLowerCase().includes('b.e') || userDegree.toLowerCase().includes('btech'))
+    ? 'btech_be'
+    : (userEduLevel === 'postgraduate' ? 'postgraduate' : userEduLevel === 'professional_degree' ? 'professional_degree' : (userDegree ? 'undergraduate' : 'btech_be'));
+
+  const [setupMode, setSetupMode] = useState<'academic' | 'corporate'>('academic');
+  const [selectedDegreeLevelId, setSelectedDegreeLevelId] = useState<string>(initialDegreeLevelId);
+  const [educationLevel, setEducationLevel] = useState<string>(() => (userEduLevel === 'postgraduate' || userEduLevel === 'professional_degree') ? userEduLevel : 'undergraduate');
+  const [academicStream, setAcademicStream] = useState<string>(() => userStream || 'engineering_technology');
+  const [degreeCourse, setDegreeCourse] = useState<string>(() => userDegree || 'B.Tech');
+  const [specialisation, setSpecialisation] = useState<string>(() => userSpec);
+  const [yearOfStudy, setYearOfStudy] = useState<string>(() => userYear || '3rd Year');
+  const [careerGoal, setCareerGoal] = useState<string>(() => userCareerGoal);
+  const [preparationMode, setPreparationMode] = useState<string>('subject_viva');
+  const [subject, setSubject] = useState<string>('');
+  const [customInstitution, setCustomInstitution] = useState<string>('');
+
   useEffect(() => {
     if (user?.role_target) setRole(user.role_target);
     if (user?.experience_level) setExperienceLevel(user.experience_level);
-  }, [user?.role_target, user?.experience_level]);
+    if (user?.educationLevel || user?.education_level) {
+      const lvl = user.educationLevel || user.education_level;
+      if (lvl === 'postgraduate' || lvl === 'professional_degree') {
+        setEducationLevel(lvl);
+        setSelectedDegreeLevelId(lvl);
+      } else {
+        setEducationLevel('undergraduate');
+      }
+    }
+    if (user?.degreeCourse || user?.degree_course) {
+      const deg = (user.degreeCourse || user.degree_course || '').trim();
+      setDegreeCourse(deg);
+      if (deg && (deg.toLowerCase().includes('b.tech') || deg.toLowerCase().includes('b.e') || deg.toLowerCase().includes('btech'))) {
+        setSelectedDegreeLevelId('btech_be');
+      }
+    }
+    if (user?.academicStream || user?.academic_stream) {
+      setAcademicStream(user.academicStream || user.academic_stream || 'engineering_technology');
+    }
+    if (user?.specialisation) setSpecialisation(user.specialisation);
+    if (user?.yearOfStudy || user?.year_of_study) setYearOfStudy(user.yearOfStudy || user.year_of_study || '');
+    if (user?.careerGoal || user?.career_goals) setCareerGoal(user.careerGoal || user.career_goals || '');
+  }, [user]);
 
   const [interviewType, setInterviewType] = useState<InterviewType>('mixed');
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
@@ -170,23 +229,46 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
     }
   };
 
+  // Corporate Track Derived Data
   const selectedPreset = COMPANY_PRESETS.find(p => p.id === selectedPresetId);
   const matchedTrack = getCompanyTrack(customCompany.trim() || selectedPresetId || selectedPreset?.name);
   const companyName = customCompany.trim() || matchedTrack?.companyName || selectedPreset?.name || 'Top Tech Employer';
   const companyCategory: CompanyCategory = (matchedTrack?.category as CompanyCategory) || selectedPreset?.category || 'Product Unicorn';
 
+  // Academic Track Derived Data
+  const prepModes = DEGREE_PREPARATION_PURPOSES;
+  const suggestedSubjects = getSuggestedSubjectsForProfile(
+    educationLevel,
+    null,
+    academicStream,
+    degreeCourse
+  );
+
+  const selectedPrepModeObj = DEGREE_PREPARATION_PURPOSES.find(m => m.id === preparationMode) || DEGREE_PREPARATION_PURPOSES[0];
+  const isAcademic = setupMode === 'academic';
+
+  const resolvedRole = isAcademic
+    ? (degreeCourse ? `${degreeCourse} Candidate` : (role || 'Degree Candidate'))
+    : role;
+
+  const resolvedCompany = isAcademic
+    ? (customInstitution.trim() || selectedPrepModeObj.defaultInstitution)
+    : companyName;
+
+  const resolvedInterviewType = isAcademic
+    ? (selectedPrepModeObj?.interviewType || 'technical')
+    : interviewType;
+
   const handleStartInterview = async () => {
     stopMicTest();
     setStartError(null);
 
-    // Quota limits temporarily lifted
-
     const config: InterviewConfig = {
-      role,
+      role: resolvedRole,
       experienceLevel,
-      interviewType,
-      companyName,
-      companyCategory,
+      interviewType: resolvedInterviewType,
+      companyName: resolvedCompany,
+      companyCategory: isAcademic ? 'Academic Preparation' : companyCategory,
       difficulty,
       durationMinutes,
       questionCount,
@@ -194,13 +276,30 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       mode,
       jobDescription: jobDescription.trim() || undefined,
       resumeText: resumeText.trim() || undefined,
-      companyTrack: matchedTrack || undefined
+      companyTrack: isAcademic ? undefined : (matchedTrack || undefined),
+
+      // Academic Degree Universal Expansion Configuration
+      isAcademic,
+      educationLevel: isAcademic ? educationLevel : undefined,
+      academicStream: isAcademic ? academicStream : undefined,
+      degreeCourse: isAcademic ? degreeCourse : undefined,
+      specialisation: isAcademic ? specialisation : undefined,
+      yearOfStudy: isAcademic ? yearOfStudy : undefined,
+      careerGoal: isAcademic ? careerGoal : undefined,
+      preparationMode: isAcademic ? (selectedPrepModeObj?.id || preparationMode) : undefined,
+      subject: isAcademic ? (subject.trim() || undefined) : undefined,
     };
+
+    // Client-side eligibility guard
+    const eligibility = checkInterviewEligibility(config);
+    if (!eligibility.isEligible) {
+      setStartError(eligibility.reason);
+      return;
+    }
 
     setIsStartingSession(true);
     try {
       await startNewSession(config);
-      // Clean up cached resume text once safely stored in session config
       try {
         sessionStorage.removeItem('interviewbro_active_resume_text');
       } catch {
@@ -215,6 +314,8 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
         setStartError(err.message || 'Rate limit reached. Please wait a moment before trying again.');
       } else if (err.code === 'UNAUTHORIZED' || err.status === 401) {
         setStartError('Please sign in to start your AI mock interview session.');
+      } else if (err.code === 'INELIGIBLE_STUDENT_CATEGORY' || err.status === 403) {
+        setStartError(err.message || INELIGIBILITY_EXPLANATION);
       } else {
         setStartError(err.message || 'Failed to start interview session. Please check your network connection.');
       }
@@ -222,6 +323,109 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       setIsStartingSession(false);
     }
   };
+
+  // Ineligible / Incomplete candidate eligibility barrier
+  const userEligibility = checkInterviewEligibility(user);
+  if (!userEligibility.isEligible) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-12">
+        <div className="p-8 sm:p-10 rounded-3xl bg-[#121826] border border-white/[0.12] shadow-2xl text-center space-y-6">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-[#C5F36B]/10 border border-[#C5F36B]/30 flex items-center justify-center text-[#C5F36B]">
+            <GraduationCap className="w-8 h-8 text-[#C5F36B]" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-[#9AA4B2]">
+              <Info className="w-3.5 h-3.5 text-[#C5F36B]" />
+              <span>Mock Interview Policy</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA]">
+              {userEligibility.status === 'incomplete' ? 'Candidate Details Verification' : 'AI Mock Interview Access'}
+            </h2>
+            <p className="text-xs sm:text-sm text-[#9AA4B2] max-w-xl mx-auto leading-relaxed">
+              {userEligibility.reason}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto pt-2 text-left">
+            <button
+              type="button"
+              onClick={() => onNavigate('academy')}
+              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-[#C5F36B]/40 hover:bg-[#C5F36B]/5 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-[#C5F36B]/15 text-[#C5F36B] shrink-0">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-[#C5F36B]">Interview Academy</div>
+                  <div className="text-[10px] text-[#9AA4B2]">Interactive masterclasses & quizzes</div>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('builder')}
+              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-emerald-400/40 hover:bg-emerald-400/5 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-emerald-400">Resume Builder</div>
+                  <div className="text-[10px] text-[#9AA4B2]">Stream-tailored resume creator</div>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('resume')}
+              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-cyan-400/40 hover:bg-cyan-400/5 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-cyan-500/15 text-cyan-400 shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-cyan-400">Resume Analyzer</div>
+                  <div className="text-[10px] text-[#9AA4B2]">ATS scan & rubric score</div>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('profile')}
+              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-amber-400/40 hover:bg-amber-400/5 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400 shrink-0">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-amber-400">Profile Settings</div>
+                  <div className="text-[10px] text-[#9AA4B2]">Update your degree and education</div>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div className="pt-4 border-t border-white/[0.06] flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => onNavigate('dashboard')}
+              className="text-xs text-[#9AA4B2] hover:text-[#F5F7FA] transition-colors cursor-pointer"
+            >
+              ← Return to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
@@ -250,7 +454,278 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
         </div>
       </div>
 
-      {/* 1. Target Company Selection */}
+      {/* Mode Selector: Academic & Degree vs Corporate & Industry */}
+      <div className="p-1.5 rounded-2xl bg-[#0B0F17] border border-white/[0.08] grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setSetupMode('academic')}
+          className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            setupMode === 'academic'
+              ? 'bg-[#C5F36B] text-[#080B11] shadow-lg shadow-[#C5F36B]/15'
+              : 'text-[#9AA4B2] hover:text-[#F5F7FA] hover:bg-white/[0.03]'
+          }`}
+        >
+          <GraduationCap className="w-4 h-4 shrink-0" />
+          <span>Academic & Degree Tracks</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+            setupMode === 'academic' ? 'bg-[#080B11]/20 text-[#080B11]' : 'bg-[#C5F36B]/10 text-[#C5F36B]'
+          }`}>
+            Degree
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSetupMode('corporate')}
+          className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            setupMode === 'corporate'
+              ? 'bg-[#C5F36B] text-[#080B11] shadow-lg shadow-[#C5F36B]/15'
+              : 'text-[#9AA4B2] hover:text-[#F5F7FA] hover:bg-white/[0.03]'
+          }`}
+        >
+          <Briefcase className="w-4 h-4 shrink-0" />
+          <span>Corporate & Industry Tracks</span>
+        </button>
+      </div>
+
+      {setupMode === 'academic' ? (
+        <div className="space-y-6">
+          {/* Step 1: Degree Level (Strictly Degree Students) */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-[#C5F36B]" />
+                <span>1. Select Degree Level</span>
+              </label>
+              <span className="text-xs text-[#9AA4B2]">Exclusively for B.Tech & recognised degree programmes</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {ELIGIBLE_INTERVIEW_LEVEL_OPTIONS.map((lvl) => {
+                const isSelected = selectedDegreeLevelId === lvl.id;
+                return (
+                  <button
+                    key={lvl.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDegreeLevelId(lvl.id);
+                      setEducationLevel(lvl.educationLevel);
+                      if (lvl.id === 'btech_be') {
+                        setAcademicStream('engineering_technology');
+                        if (!degreeCourse || degreeCourse === 'Degree Programme' || degreeCourse.toLowerCase().includes('inter')) {
+                          setDegreeCourse('B.Tech');
+                        }
+                      } else if (lvl.id === 'professional_degree') {
+                        if (!degreeCourse || degreeCourse === 'B.Tech') {
+                          setDegreeCourse('MBBS / LL.B / B.Pharm');
+                        }
+                      }
+                      setSubject('');
+                    }}
+                    className={`p-3.5 rounded-xl text-left border transition-all flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-[#C5F36B]/10 border-[#C5F36B] shadow-sm ring-1 ring-[#C5F36B]'
+                        : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#C5F36B] bg-[#C5F36B]/10 px-2 py-0.5 rounded">
+                          {lvl.badge}
+                        </span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-[#C5F36B]" />}
+                      </div>
+                      <div className="text-xs font-bold text-[#F5F7FA] leading-tight line-clamp-1">
+                        {lvl.shortName}
+                      </div>
+                      <div className="text-[11px] text-[#9AA4B2] mt-1 line-clamp-2">
+                        {lvl.description}
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-[#CBD5E1] mt-2 pt-2 border-t border-white/[0.06] truncate">
+                      {lvl.examples}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Step 2: Academic Stream & Degree Program */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
+                <Atom className="w-4 h-4 text-cyan-400" />
+                <span>2. Academic Stream & Degree Program</span>
+              </label>
+              <span className="text-xs text-[#9AA4B2]">Customized to your degree syllabus</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              {ACADEMIC_STREAMS.map((s) => {
+                const isSelected = academicStream === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      setAcademicStream(s.id);
+                      setSubject('');
+                    }}
+                    className={`p-3 rounded-xl text-left border transition-all ${
+                      isSelected
+                        ? 'bg-[#C5F36B]/10 border-[#C5F36B] shadow-sm'
+                        : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold text-[#C5F36B] uppercase">{s.categoryBadge.split('&')[0]}</span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-[#C5F36B]" />}
+                    </div>
+                    <div className="text-xs font-bold text-[#F5F7FA] truncate">{s.name}</div>
+                    <div className="text-[10px] text-[#9AA4B2] mt-0.5 truncate">{s.tagline}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div>
+                <label className="block text-xs text-[#9AA4B2] mb-1 font-medium">Degree / Course Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. B.Tech Computer Science, B.Com (Hons), B.Sc Nursing, MBBS, BBA, MCA, LL.B..."
+                  value={degreeCourse}
+                  onChange={(e) => setDegreeCourse(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-[#9AA4B2] mb-1 font-medium">Specialisation / Focus Area</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Artificial Intelligence, Data Science, Taxation, Pediatric Care, Corporate Law..."
+                  value={specialisation}
+                  onChange={(e) => setSpecialisation(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
+                />
+              </div>
+            </div>
+
+            {/* Year of Study */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-xs text-[#9AA4B2] mr-2">Year of Study:</span>
+              {['1st Year', '2nd Year', '3rd Year', '4th Year / Final Year', 'Postgraduate / Graduated'].map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => setYearOfStudy(y)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    yearOfStudy === y
+                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold'
+                      : 'bg-[#121826] border-white/[0.08] text-[#9AA4B2] hover:text-[#F5F7FA]'
+                  }`}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Step 3: Interview & Preparation Purpose */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[#C5F36B]" />
+                <span>3. Interview & Preparation Purpose</span>
+              </label>
+              <span className="text-xs text-[#9AA4B2]">Aligns question types and evaluation rubric</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {prepModes.map((m) => {
+                const isSelected = preparationMode === m.id;
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => setPreparationMode(m.id)}
+                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-[#C5F36B]/10 border-[#C5F36B] shadow-sm ring-1 ring-[#C5F36B]'
+                        : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/[0.06] text-[#C5F36B] border border-white/[0.08]">
+                        {m.categoryPill}
+                      </span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-[#C5F36B]" />}
+                    </div>
+                    <h4 className="text-xs font-bold text-[#F5F7FA]">{m.title}</h4>
+                    <p className="text-[11px] text-[#9AA4B2] mt-1 leading-snug line-clamp-2">{m.shortDesc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Step 4: Subject / Chapter Focus */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
+                <ListOrdered className="w-4 h-4 text-[#C5F36B]" />
+                <span>4. Subject & Topic Focus (Optional)</span>
+              </label>
+              <span className="text-xs text-[#9AA4B2]">Target specific syllabus topics or core domains</span>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {suggestedSubjects.map((s) => {
+                const isSelected = subject === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSubject(isSelected ? '' : s)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                      isSelected
+                        ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold'
+                        : 'bg-[#121826] border-white/[0.08] text-[#9AA4B2] hover:text-[#F5F7FA] hover:border-white/[0.16]'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+
+            <input
+              type="text"
+              placeholder="Or type custom chapter/topic (e.g. Operating Systems, Data Structures, Auditing, Pharmacology, Corporate Law)..."
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
+            />
+          </section>
+
+          {/* Step 5: Target Institution / Board (Optional for Vivas) */}
+          <section className="space-y-2">
+            <label className="text-xs font-semibold text-[#9AA4B2] flex items-center gap-2">
+              <Building2 className="w-3.5 h-3.5 text-[#C5F36B]" />
+              <span>Target University, Board or Employer (Optional for Academic Vivas)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. University Examination Board, AIIMS Admissions Panel, IIT Postgraduate Admissions, TCS Digital..."
+              value={customInstitution}
+              onChange={(e) => setCustomInstitution(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
+            />
+          </section>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* 1. Target Company Selection */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
@@ -432,6 +907,9 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
           className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
         />
       </section>
+
+        </div>
+      )}
 
       {/* 3. Experience Level & Interview Type */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -963,12 +1441,12 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
         <div>
           <div className="text-xs text-[#9AA4B2] font-medium">Session Blueprint</div>
           <div className="text-base font-bold text-[#F5F7FA] mt-0.5">
-            {companyName} • {role}
+            {isAcademic ? resolvedCompany : companyName} • {isAcademic ? resolvedRole : role}
           </div>
           <div className="text-xs text-[#9AA4B2] mt-1 flex items-center gap-2">
             <span>{questionCount} Questions</span>
             <span>•</span>
-            <span className="capitalize">{interviewType} Round</span>
+            <span className="capitalize">{isAcademic ? (selectedPrepModeObj?.title || 'Academic Viva') : `${interviewType} Round`}</span>
             <span>•</span>
             <span className="capitalize">{mode === 'text_only' ? 'Text-Based' : mode === 'voice_only' ? 'Voice-Only' : 'Video'} Mode</span>
             <span>•</span>

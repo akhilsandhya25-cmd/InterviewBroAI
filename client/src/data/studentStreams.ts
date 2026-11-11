@@ -1685,3 +1685,135 @@ export function getSuggestedSubjectsForProfile(
 
   return ['Core Subject Theory', 'Problem Solving Logic', 'Practical Application', 'Communication & Articulation'];
 }
+
+// ============================================================================
+// 8. ELIGIBLE DEGREE INTERVIEW TAXONOMY
+// ============================================================================
+
+export interface EligibleInterviewLevelOption {
+  id: 'btech_be' | 'undergraduate' | 'postgraduate' | 'professional_degree';
+  name: string;
+  shortName: string;
+  badge: string;
+  description: string;
+  examples: string;
+  educationLevel: 'undergraduate' | 'postgraduate' | 'professional_degree';
+  defaultDegree?: string;
+}
+
+export const ELIGIBLE_INTERVIEW_LEVEL_OPTIONS: EligibleInterviewLevelOption[] = [
+  {
+    id: 'btech_be',
+    name: 'B.Tech / B.E. Engineering',
+    shortName: 'B.Tech / B.E.',
+    badge: 'Popular',
+    description: 'Engineering and technical degrees across all branches (CSE, ECE, EEE, Mech, Civil, IT, AI/DS).',
+    examples: 'B.Tech CSE, B.E. Mechanical, B.Tech AI & Data Science',
+    educationLevel: 'undergraduate',
+    defaultDegree: 'B.Tech'
+  },
+  {
+    id: 'undergraduate',
+    name: 'Other Undergraduate Degrees',
+    shortName: 'Other Bachelor’s (UG)',
+    badge: 'UG Degree',
+    description: 'Recognised undergraduate degrees across Commerce, Science, Arts, Management, and Computing.',
+    examples: 'B.Com, BBA, BCA, B.Sc, B.A, B.Sc Nursing, B.Sc Agriculture',
+    educationLevel: 'undergraduate'
+  },
+  {
+    id: 'postgraduate',
+    name: 'Postgraduate Degrees',
+    shortName: 'Master’s & PG',
+    badge: 'PG Degree',
+    description: 'Master’s and doctoral programmes for specialized research, advanced technology, or management.',
+    examples: 'M.Tech, MBA, MCA, M.Sc, M.Com, M.A, Ph.D',
+    educationLevel: 'postgraduate'
+  },
+  {
+    id: 'professional_degree',
+    name: 'Professional Degrees & Licensures',
+    shortName: 'Professional Degree',
+    badge: 'Statutory',
+    description: 'Statutory and professional disciplines with regulated clinical or legal qualifications.',
+    examples: 'MBBS, BDS, LL.B, LL.M, B.Pharm, M.Pharm, B.Arch, CA/CMA/CS',
+    educationLevel: 'professional_degree'
+  }
+];
+
+export interface DegreePreparationPurpose {
+  id: string;
+  title: string;
+  shortDesc: string;
+  interviewType: 'technical' | 'behavioral' | 'mixed' | 'system_design' | 'hr';
+  categoryPill: string;
+  requiresCompany: boolean;
+  defaultInstitution: string;
+}
+
+export const DEGREE_PREPARATION_PURPOSES: DegreePreparationPurpose[] = [
+  {
+    id: 'subject_viva',
+    title: 'Subject Knowledge / Academic Viva',
+    shortDesc: 'Course viva voce, semester laboratory exams, core concept defense, and theoretical oral examination.',
+    interviewType: 'technical',
+    categoryPill: 'Academic Viva',
+    requiresCompany: false,
+    defaultInstitution: 'University Academic Viva Examination Board'
+  },
+  {
+    id: 'university_admission',
+    title: 'College / University Admission',
+    shortDesc: 'Master’s, MBA, postgraduate, or research program selection interviews and personal statement defense.',
+    interviewType: 'mixed',
+    categoryPill: 'University Admissions',
+    requiresCompany: false,
+    defaultInstitution: 'Postgraduate & University Admissions Panel'
+  },
+  {
+    id: 'internship',
+    title: 'Internship Interview',
+    shortDesc: 'Summer internships, industrial training, research fellowship, and clinical clerkship preparation.',
+    interviewType: 'mixed',
+    categoryPill: 'Internship',
+    requiresCompany: true,
+    defaultInstitution: 'Internship Selection Committee'
+  },
+  {
+    id: 'job_interview',
+    title: 'Job Interview (Off-Campus / Direct)',
+    shortDesc: 'Entry-level fresher, specialist, or corporate roles across private and public sectors.',
+    interviewType: 'technical',
+    categoryPill: 'Corporate Job',
+    requiresCompany: true,
+    defaultInstitution: 'Hiring Committee'
+  },
+  {
+    id: 'campus_placement',
+    title: 'Campus Placement Round',
+    shortDesc: 'On-campus placement drives, bulk recruiter rounds, aptitude-linked tech discussions, and HR rounds.',
+    interviewType: 'mixed',
+    categoryPill: 'Campus Drive',
+    requiresCompany: true,
+    defaultInstitution: 'Campus Placement Recruitment Cell'
+  },
+  {
+    id: 'career_specific',
+    title: 'Career-Specific Mock Interview',
+    shortDesc: 'Domain-targeted interviews (e.g. Clinical Rounds, Moot Court, Financial Audit, Cloud Engineering).',
+    interviewType: 'technical',
+    categoryPill: 'Domain Mock',
+    requiresCompany: true,
+    defaultInstitution: 'Professional Practice Panel'
+  },
+  {
+    id: 'communication_practice',
+    title: 'Communication Practice',
+    shortDesc: 'Spoken English, articulation, self-introduction, confidence building, and fluency in formal interviews.',
+    interviewType: 'behavioral',
+    categoryPill: 'Communication',
+    requiresCompany: false,
+    defaultInstitution: 'Professional Communication & Soft Skills Panel'
+  }
+];
+

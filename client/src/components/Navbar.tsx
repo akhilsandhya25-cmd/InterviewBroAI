@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Video, Menu, X, LogOut, Settings as SettingsIcon, History, UserCheck, ChevronDown, GraduationCap } from 'lucide-react';
 import { BrandLogo } from './brand/BrandLogo';
 import { ThemeToggle } from './ThemeToggle';
+import { checkInterviewEligibility } from '../services/interviewEligibility';
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -94,14 +95,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           {user ? (
             <>
               {/* Primary Action Button */}
-              <button
-                onClick={() => onNavigate('setup')}
-                className="btn-primary text-xs py-2 px-2.5 sm:px-3.5"
-                title="Start Mock Interview"
-              >
-                <Video className="w-4 h-4" />
-                <span className="hidden sm:inline">Start Mock</span>
-              </button>
+              {checkInterviewEligibility(user).isEligible ? (
+                <button
+                  onClick={() => onNavigate('setup')}
+                  className="btn-primary text-xs py-2 px-2.5 sm:px-3.5"
+                  title="Start Mock Interview"
+                >
+                  <Video className="w-4 h-4" />
+                  <span className="hidden sm:inline">Start Mock</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => onNavigate('academy')}
+                  className="btn-primary text-xs py-2 px-2.5 sm:px-3.5"
+                  title="Explore Interview Academy"
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  <span className="hidden sm:inline">Academy</span>
+                </button>
+              )}
 
               {/* Authenticated User Menu */}
               <div className="relative" ref={userMenuRef}>

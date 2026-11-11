@@ -12,6 +12,10 @@ import {
   validateResumeFile,
   verifyUserQuotaAvailable
 } from './security.js';
+import {
+  verifyBackendEligibility,
+  INELIGIBILITY_EXPLANATION
+} from './eligibility.js';
 
 export function validateRequiredEnvironment() {
   const missingRequired = [];
@@ -786,13 +790,32 @@ export default async function handler(req, res) {
     }
 
     const body = await parseBody(req);
-    const { previousQuestions, adaptiveContext, ...config } = body || {};
+    const rawConfig = (body && typeof body.config === 'object' && body.config !== null)
+      ? { ...body.config, ...body }
+      : (body || {});
+    delete rawConfig.config;
+
+    // 4. Degree Student Interview Eligibility Enforcement (HTTP 403)
+    const userMetadata = auth.user?.user_metadata || {};
+    const eligibilityCheck = verifyBackendEligibility(userMetadata, rawConfig);
+    if (!eligibilityCheck.allowed) {
+      return res.status(403).json({
+        error: eligibilityCheck.error || 'INELIGIBLE_STUDENT_CATEGORY',
+        message: eligibilityCheck.message || INELIGIBILITY_EXPLANATION,
+        details: eligibilityCheck.details
+      });
+    }
+
+    const previousQuestions = Array.isArray(body?.previousQuestions)
+      ? body.previousQuestions
+      : (Array.isArray(rawConfig?.previousQuestions) ? rawConfig.previousQuestions : []);
+    const adaptiveContext = body?.adaptiveContext || rawConfig?.adaptiveContext;
 
     // Cap question count between 1 and 10
-    config.questionCount = Math.min(10, Math.max(1, Number(config.questionCount) || 5));
+    rawConfig.questionCount = Math.min(10, Math.max(1, Number(rawConfig.questionCount) || 5));
 
     try {
-      const mergedConfig = { ...config, adaptiveContext };
+      const mergedConfig = { ...rawConfig, adaptiveContext };
       const questions = await geminiService.generateInterviewQuestions(mergedConfig, previousQuestions || []);
       return res.status(200).json({ success: true, questions, source: 'gemini', quota: { used: quotaCheck.used, remaining: quotaCheck.remaining, limit: quotaCheck.limit } });
     } catch (err) {
@@ -850,6 +873,17 @@ export default async function handler(req, res) {
 
     if (!question || !answer) {
       return res.status(400).json({ error: 'Missing question or answer' });
+    }
+
+    // Degree Student Interview Eligibility Enforcement (HTTP 403)
+    const userMetadata = auth.user?.user_metadata || {};
+    const eligibilityCheck = verifyBackendEligibility(userMetadata, config || {});
+    if (!eligibilityCheck.allowed) {
+      return res.status(403).json({
+        error: eligibilityCheck.error || 'INELIGIBLE_STUDENT_CATEGORY',
+        message: eligibilityCheck.message || INELIGIBILITY_EXPLANATION,
+        details: eligibilityCheck.details
+      });
     }
 
     // Cap answer length
@@ -916,6 +950,17 @@ export default async function handler(req, res) {
 
     if (!question || !answer) {
       return res.status(400).json({ error: 'Missing question or answer' });
+    }
+
+    // Degree Student Interview Eligibility Enforcement (HTTP 403)
+    const userMetadata = auth.user?.user_metadata || {};
+    const eligibilityCheck = verifyBackendEligibility(userMetadata, config || {});
+    if (!eligibilityCheck.allowed) {
+      return res.status(403).json({
+        error: eligibilityCheck.error || 'INELIGIBLE_STUDENT_CATEGORY',
+        message: eligibilityCheck.message || INELIGIBILITY_EXPLANATION,
+        details: eligibilityCheck.details
+      });
     }
 
     const safeAnswer = String(answer).slice(0, 4000);
