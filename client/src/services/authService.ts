@@ -874,11 +874,9 @@ export const authService = {
           'experience_level', 'college', 'graduation_year', 'skills',
           'career_goals', 'interviews_remaining', 'total_interviews_taken',
           'profile_completed', 'updated_at',
-          'city_state', 'preferred_interview_language', 'current_status',
-          'target_roles', 'primary_target_role', 'target_industry',
-          'interview_type_focus', 'company_type_preference', 'preparation_timeline',
-          'self_reported_comfort', 'communication_baseline', 'preferences',
-          'readiness_scores', 'weak_areas', 'strength_areas'
+          'current_status', 'education_level', 'degree_stream', 'target_role',
+          'city', 'preferred_language', 'interview_mode',
+          'readiness_score', 'readiness_breakdown', 'strengths', 'weak_areas'
         ]);
         const dbUpdates: Record<string, any> = {};
         for (const [k, v] of Object.entries(updates)) {

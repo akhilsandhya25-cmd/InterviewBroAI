@@ -197,25 +197,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCandidateProfile(profile);
     if (user) {
       await authService.updateProfile({
-        city_state: profile.cityState,
-        preferred_interview_language: profile.preferredInterviewLanguage,
         current_status: profile.currentStatus,
-        target_roles: profile.careerTarget.targetRoles,
-        primary_target_role: profile.careerTarget.primaryTargetRole,
-        target_industry: profile.careerTarget.targetIndustry,
-        interview_type_focus: profile.careerTarget.interviewTypeFocus,
-        company_type_preference: profile.careerTarget.companyTypePreference,
-        preparation_timeline: profile.careerTarget.timeline,
-        self_reported_comfort: profile.selfReportedComfort,
-        communication_baseline: profile.communicationBaseline,
-        preferences: profile.preferences,
-        readiness_scores: profile.readinessScores,
+        education_level: profile.educationLevel,
+        degree_stream: profile.degreeStream,
+        target_role: profile.targetRole,
+        role_target: profile.targetRole,
+        college: profile.college,
+        graduation_year: profile.graduationYear,
+        city: profile.city,
+        preferred_language: profile.preferredLanguage,
+        interview_mode: profile.interviewMode,
+        skills: profile.skills,
+        readiness_score: profile.readinessScore,
+        readiness_breakdown: profile.readinessBreakdown,
+        strengths: profile.strengths,
         weak_areas: profile.weakAreas,
-        strength_areas: profile.strengthAreas,
-        role_target: profile.careerTarget.primaryTargetRole,
-        skills: profile.skills.map(s => s.name),
-        college: profile.education[0]?.institution,
-        graduation_year: profile.education[0]?.graduationYear,
         profile_completed: profile.profileCompleted
       }).catch((e) => console.warn('Supabase profile sync deferred:', e));
     }

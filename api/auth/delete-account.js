@@ -136,7 +136,7 @@ export default async function handler(req, res) {
 
   try {
     // 3. Delete all candidate database rows across application tables using service role key
-    const tables = ['candidate_feedback_scores', 'candidate_resumes', 'candidate_skills', 'candidate_experience', 'candidate_education', 'feedback_reports', 'interview_sessions', 'resume_analyses', 'profiles'];
+    const tables = ['skills', 'feedback_reports', 'interview_sessions', 'resume_analyses', 'profiles'];
     for (const table of tables) {
       const idCol = table === 'profiles' ? 'id' : 'user_id';
       try {

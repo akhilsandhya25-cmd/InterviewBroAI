@@ -1,162 +1,57 @@
 /**
- * InterviewBro AI - Normalized Candidate Profile Types
- * Stream-agnostic, relational, progressive candidate profile system.
+ * InterviewBro AI - Simple Candidate Profile Types
+ * 
+ * Minimal, low-friction candidate profile:
+ * - 4 core fields at signup (Status, Education, Stream/Degree, Target Role)
+ * - Optional extras (Resume, Skills, College, Year, City, Preferences)
+ * - Auto-generated practice stats (Readiness, Strengths, Weaknesses)
  */
 
 export type CurrentStatus = 'Student' | 'Fresher' | 'Job seeker' | 'Working professional';
 
-export type EducationLevelType = 'diploma' | 'undergraduate' | 'postgraduate' | 'professional';
+export type EducationLevelType = 'Diploma' | 'UG' | 'PG' | 'Professional';
 
-export type ExperienceCategory =
-  | 'project'
-  | 'internship'
-  | 'work_experience'
-  | 'certification'
-  | 'achievement'
-  | 'leadership';
+export type InterviewDeliveryMode = 'video' | 'voice_only' | 'text_only' | 'voice' | 'text';
 
-export type SkillCategory = 'Technical' | 'Domain' | 'Communication' | 'Analytical' | 'Management';
-
-export type SkillProficiency = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
-
-export type InterviewTypeFocus = 'HR' | 'Technical' | 'Domain' | 'Group discussion' | 'Mixed';
-
-export type CompanyTypePreference = 'Startup' | 'MNC' | 'PSU-Government' | 'Not sure';
-
-export type PreparationTimeline = '1 week' | '1 month' | 'exploring';
-
-export interface CandidateEducation {
-  id: string;
-  userId: string;
-  level: EducationLevelType;
-  degree: string;
-  stream: string;
-  specialization?: string;
-  institution: string;
-  yearOfStudy?: string;
-  graduationYear?: string;
-  scoreCgpaPercentage?: string;
-  keySubjects: string[];
-  isPrimary: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface CandidateSkill {
-  id: string;
-  userId: string;
-  name: string;
-  category: SkillCategory;
-  selfRating: SkillProficiency;
-  verified?: boolean;
-  createdAt?: string;
-}
-
-export interface CandidateExperience {
-  id: string;
-  userId: string;
-  category: ExperienceCategory;
-  title: string;
-  organization?: string;
-  startDate?: string;
-  endDate?: string;
-  isCurrent?: boolean;
-  description: string;
-  techTools?: string[];
-  outcomeMetric?: string;
-  link?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface CandidateResume {
-  id: string;
-  userId: string;
-  fileName: string;
-  fileSize: number;
-  storagePath?: string;
-  targetRole: string;
-  resumeScore: number;
-  strengths: string[];
-  gaps: string[];
-  suggestedFixes: string[];
-  parsedData?: Record<string, any>;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
-}
-
-export interface CommunicationBaseline {
-  confidence: number; // 0 - 100
-  clarity: number; // 0 - 100
-  pace: 'slow' | 'moderate' | 'fast';
-  fillerWordsPerMin: number;
-  answerStructureStar: number; // 0 - 100
-  evaluatedFromSessionsCount: number;
-}
-
-export interface SelfReportedComfort {
-  nervous: boolean;
-  englishFluency: 'struggling' | 'comfortable' | 'fluent';
-  freezesOnTechnical: boolean;
-}
-
-export interface CandidatePreferences {
-  deliveryMode: 'voice' | 'text';
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  sessionLengthMinutes: number;
-  remindersEnabled: boolean;
-  accessibilityNeeds?: string;
-  languageMix: string;
-}
-
-export interface ReadinessScores {
-  overall: number; // 0 - 100
-  hr: number;
-  technical: number;
-  communication: number;
-  resume: number;
-}
-
-export interface CareerTarget {
-  targetRoles: string[];
-  primaryTargetRole: string;
-  targetIndustry: string;
-  interviewTypeFocus: InterviewTypeFocus;
-  companyTypePreference: CompanyTypePreference;
-  timeline: PreparationTimeline;
-}
-
-export interface CandidateProfile {
+export interface SimpleCandidateProfile {
   id: string;
   email: string;
   fullName: string;
   avatarUrl?: string;
-  cityState?: string;
-  preferredInterviewLanguage: string;
+
+  // The 4 Core Questions (Signup / Onboarding)
   currentStatus: CurrentStatus;
+  educationLevel: EducationLevelType;
+  degreeStream: string; // e.g. B.Tech Computer Science, B.Com, MBA, BCA, Mechanical
+  targetRole: string;   // e.g. Software Engineer, Financial Analyst, HR Executive
 
-  // Career Target
-  careerTarget: CareerTarget;
+  // Optional (Fill later or auto-fill from resume)
+  college?: string;
+  graduationYear?: string;
+  city?: string;
+  preferredLanguage: string; // e.g. English, Hindi, Hinglish, Telugu
+  interviewMode: InterviewDeliveryMode;
+  skills: string[];
+  resumeFileName?: string;
+  resumeText?: string;
 
-  // Satellite normalized collections
-  education: CandidateEducation[];
-  skills: CandidateSkill[];
-  experience: CandidateExperience[];
-  resumes: CandidateResume[];
-
-  // Practice & AI auto-generated sections
-  communicationBaseline: CommunicationBaseline;
-  selfReportedComfort: SelfReportedComfort;
-  preferences: CandidatePreferences;
-  readinessScores: ReadinessScores;
+  // Auto-Generated (Derived from practice sessions & AI feedback)
+  readinessScore: number; // 0 - 100
+  readinessBreakdown: {
+    hr: number;
+    technical: number;
+    communication: number;
+  };
+  strengths: string[];
   weakAreas: string[];
-  strengthAreas: string[];
 
-  // Quota & completion
+  // Quota & Tracking
   interviewsRemaining: number;
   totalInterviewsTaken: number;
   profileCompleted: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+// Alias for existing imports
+export type CandidateProfile = SimpleCandidateProfile;

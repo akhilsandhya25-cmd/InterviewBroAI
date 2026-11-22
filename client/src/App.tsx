@@ -129,8 +129,8 @@ const AppContent: React.FC = () => {
   const isProfileComplete = (u: UserProfile | null): boolean => {
     if (!u) return false;
     if (u.profile_completed === true) return true;
-    const targetRole = u.role_target || u.primary_target_role;
-    const skillsList = u.skills || u.candidateSkills;
+    const targetRole = u.target_role || u.role_target || (u as any).primary_target_role;
+    const skillsList = u.skills || (u as any).candidateSkills;
     return Boolean(targetRole && targetRole.trim().length > 0 && skillsList && skillsList.length > 0);
   };
 
@@ -138,12 +138,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!isLoading) {
       if (isAuthenticated) {
-        // If logged in but candidate profile is not complete, direct them to profile setup
-        if (!isProfileComplete(user)) {
-          if (currentRoute !== 'profile') {
-            setCurrentRoute('profile');
-          }
-        } else if (currentRoute === 'landing') {
+        if (currentRoute === 'landing') {
           setCurrentRoute('dashboard');
         }
       } else {
@@ -175,23 +170,11 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    // Gate interview practice: candidate must complete profile before starting mock interview practice
-    if (isAuthenticated && !isProfileComplete(user) && (route === 'setup' || route === 'interview')) {
-      setCurrentRoute('profile');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
     setCurrentRoute(route);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-
   const handleStartPreset = (_presetId: string) => {
-    if (isAuthenticated && !isProfileComplete(user)) {
-      navigateTo('profile');
-      return;
-    }
     navigateTo('setup');
   };
 
@@ -200,8 +183,6 @@ const AppContent: React.FC = () => {
       setPendingRoute('setup');
       setAuthModalMode('signup');
       setIsAuthModalOpen(true);
-    } else if (!isProfileComplete(user)) {
-      navigateTo('profile');
     } else {
       navigateTo('setup');
     }
@@ -215,12 +196,6 @@ const AppContent: React.FC = () => {
 
   const handleAuthSuccess = () => {
     setIsAuthModalOpen(false);
-    const currentUser = storage.getUser();
-    if (!isProfileComplete(currentUser)) {
-      setCurrentRoute('profile');
-      setPendingRoute(null);
-      return;
-    }
     if (pendingRoute) {
       setCurrentRoute(pendingRoute);
       setPendingRoute(null);

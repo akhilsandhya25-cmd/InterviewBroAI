@@ -1,19 +1,10 @@
 import type { EducationLevelId, AcademicStreamId, IntermediateGroupId } from '../data/studentStreams';
 import type {
   CandidateProfile,
-  CandidateEducation,
-  CandidateSkill,
-  CandidateExperience,
-  CandidateResume,
-  CommunicationBaseline,
-  SelfReportedComfort,
-  CandidatePreferences,
-  ReadinessScores,
-  CareerTarget,
+  SimpleCandidateProfile,
   CurrentStatus,
-  InterviewTypeFocus,
-  CompanyTypePreference,
-  PreparationTimeline
+  EducationLevelType,
+  InterviewDeliveryMode
 } from './candidateProfile';
 
 export * from './candidateProfile';
@@ -45,34 +36,43 @@ export interface UserProfile {
   created_at: string;
   updated_at: string;
 
-  // Normalized Candidate Profile Extensions
+  // Simple Candidate Profile Fields
+  current_status?: CurrentStatus;
+  education_level?: EducationLevelType | string;
+  degree_stream?: string;
+  target_role?: string;
+  city?: string;
+  preferred_language?: string;
+  interview_mode?: InterviewDeliveryMode;
+  readiness_score?: number;
+  readiness_breakdown?: {
+    hr: number;
+    technical: number;
+    communication: number;
+  };
+  strengths?: string[];
+  weak_areas?: string[];
+  candidateSkills?: any;
+  resume_file_name?: string;
+  resume_text?: string;
+  resumeFileName?: string;
+  resumeText?: string;
+
+  // Legacy Compatibility Aliases
   city_state?: string;
   preferred_interview_language?: string;
-  current_status?: CurrentStatus;
-  target_roles?: string[];
   primary_target_role?: string;
+  target_roles?: string[];
   target_industry?: string;
-  interview_type_focus?: InterviewTypeFocus;
-  company_type_preference?: CompanyTypePreference;
-  preparation_timeline?: PreparationTimeline;
-  candidateEducation?: CandidateEducation[];
-  candidateSkills?: CandidateSkill[];
-  candidateExperience?: CandidateExperience[];
-  candidateResumes?: CandidateResume[];
-  communicationBaseline?: CommunicationBaseline;
-  selfReportedComfort?: SelfReportedComfort;
-  candidatePreferences?: CandidatePreferences;
-  readinessScores?: ReadinessScores;
+  interview_type_focus?: string;
+  company_type_preference?: string;
+  preparation_timeline?: string;
   weakAreas?: string[];
   strengthAreas?: string[];
-
-  // Snake_case aliases for database syncing
-  self_reported_comfort?: SelfReportedComfort;
-  communication_baseline?: CommunicationBaseline;
-  preferences?: CandidatePreferences;
-  readiness_scores?: ReadinessScores;
-  weak_areas?: string[];
-  strength_areas?: string[];
+  readinessScores?: any;
+  preferences?: any;
+  communicationBaseline?: any;
+  selfReportedComfort?: any;
 
   // Adaptive Profile Extensions
   phone?: string;
@@ -110,7 +110,6 @@ export interface UserProfile {
   careerGoal?: string;
 
   // Database / Snake-case compatibility aliases
-  education_level?: EducationLevelId | string;
   academic_stream?: AcademicStreamId | string;
   degree_course?: string;
   intermediate_group?: IntermediateGroupId | string;
@@ -135,8 +134,6 @@ export interface CompanyPreset {
   status?: string;
   todoReviewNote?: string;
 }
-
-export type InterviewDeliveryMode = 'video' | 'voice_only' | 'text_only';
 
 export interface InterviewConfig {
   role: string;
