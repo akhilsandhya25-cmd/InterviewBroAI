@@ -1,49 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Building2,
-  Briefcase,
-  BookOpen,
-  Sliders,
+  Sparkles,
+  Mic,
+  FileText,
+  Terminal,
+  Users,
+  GraduationCap,
   ArrowRight,
   Check,
-  Video,
-  Mic,
-  Headphones,
   AlertCircle,
   CheckCircle2,
   Volume2,
-  Layers,
-  Terminal,
-  Users,
-  UserCheck,
-  Cpu,
-  Compass,
-  Sparkles,
-  FileText,
-  Info,
-  ListOrdered,
-  GraduationCap,
-  Atom
+  Briefcase,
+  Building2,
+  Sliders,
+  ChevronDown,
+  ChevronUp,
+  Layers
 } from 'lucide-react';
-import { CompanyBadge } from '../components/CompanyBadge';
 import { getCompanyTrack } from '../data/companyTracks';
-import {
-  COMPANY_PRESETS,
-  POPULAR_ROLES,
-  EXPERIENCE_LEVELS,
-  INTERVIEW_TYPES
-} from '../data/presets';
-import {
-  ACADEMIC_STREAMS,
-  ELIGIBLE_INTERVIEW_LEVEL_OPTIONS,
-  DEGREE_PREPARATION_PURPOSES,
-  getSuggestedSubjectsForProfile
-} from '../data/studentStreams';
-import {
-  checkInterviewEligibility,
-  INELIGIBILITY_EXPLANATION,
-  INCOMPLETE_PROFILE_EXPLANATION
-} from '../services/interviewEligibility';
 import {
   InterviewConfig,
   ExperienceLevel,
@@ -70,6 +45,68 @@ interface InterviewSetupProps {
   onNavigate: (route: string) => void;
 }
 
+const POPULAR_ROLE_SUGGESTIONS = [
+  'Software Engineer',
+  'Frontend Developer (React)',
+  'Backend Developer (Python/Node)',
+  'Data Analyst',
+  'Financial Analyst',
+  'Business Analyst',
+  'Marketing Specialist',
+  'HR Executive',
+  'Academic Viva / Project'
+];
+
+const POPULAR_COMPANY_SUGGESTIONS = [
+  'Google',
+  'Amazon',
+  'TCS / Infosys',
+  'Tech Startup',
+  'Deloitte / Consulting',
+  'University Examination Board'
+];
+
+type RoundFocusKey = 'mixed' | 'technical' | 'hr' | 'academic';
+
+interface RoundFocusOption {
+  id: RoundFocusKey;
+  label: string;
+  badge: string;
+  desc: string;
+  icon: React.ReactNode;
+}
+
+const ROUND_OPTIONS: RoundFocusOption[] = [
+  {
+    id: 'mixed',
+    label: 'All-Round Comprehensive',
+    badge: 'Recommended',
+    desc: 'Balanced mix of technical knowledge, situational judgment, and communication',
+    icon: <Sparkles className="w-4 h-4 text-[#C5F36B]" />
+  },
+  {
+    id: 'technical',
+    label: 'Technical & Domain Deep-Dive',
+    badge: 'Core Skills',
+    desc: 'Domain problem solving, system architecture, core concepts & real-world tasks',
+    icon: <Terminal className="w-4 h-4 text-cyan-400" />
+  },
+  {
+    id: 'hr',
+    label: 'HR & Behavioral',
+    badge: 'STAR Method',
+    desc: 'Situational experiences, teamwork, cultural fit, strengths and career vision',
+    icon: <Users className="w-4 h-4 text-amber-400" />
+  },
+  {
+    id: 'academic',
+    label: 'Academic Viva & Projects',
+    badge: 'College / Degree',
+    desc: 'Degree syllabus topics, final-year project defense, and theoretical fundamentals',
+    icon: <GraduationCap className="w-4 h-4 text-emerald-400" />
+  }
+];
+
 export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavigate }) => {
   const { user, quota, candidateProfile } = useAuth();
   const { startNewSession } = useInterview();
@@ -78,112 +115,46 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
     tts.warmup();
   }, []);
 
-  // State
-  const [selectedPresetId, setSelectedPresetId] = useState<string>('flipkart');
-  const [customCompany, setCustomCompany] = useState<string>('');
-  const [role, setRole] = useState<string>(() => user?.role_target || 'Full Stack Developer (React + Node)');
-  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>(() => user?.experience_level || 'fresher');
+  // Target Role & Company
+  const defaultRole = candidateProfile?.targetRole || user?.target_role || user?.role_target || 'Software Engineer';
+  const [role, setRole] = useState<string>(defaultRole);
+  const [company, setCompany] = useState<string>('Google');
 
-  // Academic & Degree State
-  const userEduLevel = user?.educationLevel || user?.education_level || '';
-  const userStream = user?.academicStream || user?.academic_stream || '';
-  const userDegree = user?.degreeCourse || user?.degree_course || '';
-  const userSpec = user?.specialisation || '';
-  const userYear = user?.yearOfStudy || user?.year_of_study || '';
-  const userCareerGoal = user?.careerGoal || user?.career_goals || '';
+  // Round Focus & Format
+  const [roundFocus, setRoundFocus] = useState<RoundFocusKey>('mixed');
+  const [mode, setMode] = useState<InterviewDeliveryMode>('voice_only');
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>(
+    () => user?.experience_level || (candidateProfile?.currentStatus === 'Student' ? 'student' : 'fresher')
+  );
 
-  const initialDegreeLevelId = userDegree && (userDegree.toLowerCase().includes('b.tech') || userDegree.toLowerCase().includes('b.e') || userDegree.toLowerCase().includes('btech'))
-    ? 'btech_be'
-    : (userEduLevel === 'postgraduate' ? 'postgraduate' : userEduLevel === 'professional_degree' ? 'professional_degree' : (userDegree ? 'undergraduate' : 'btech_be'));
-
-  const [setupMode, setSetupMode] = useState<'academic' | 'corporate'>('academic');
-  const [selectedDegreeLevelId, setSelectedDegreeLevelId] = useState<string>(initialDegreeLevelId);
-  const [educationLevel, setEducationLevel] = useState<string>(() => (userEduLevel === 'postgraduate' || userEduLevel === 'professional_degree') ? userEduLevel : 'undergraduate');
-  const [academicStream, setAcademicStream] = useState<string>(() => userStream || 'engineering_technology');
-  const [degreeCourse, setDegreeCourse] = useState<string>(() => userDegree || 'B.Tech');
-  const [specialisation, setSpecialisation] = useState<string>(() => userSpec);
-  const [yearOfStudy, setYearOfStudy] = useState<string>(() => userYear || '3rd Year');
-  const [careerGoal, setCareerGoal] = useState<string>(() => userCareerGoal);
-  const [preparationMode, setPreparationMode] = useState<string>('subject_viva');
-  const [subject, setSubject] = useState<string>('');
-  const [customInstitution, setCustomInstitution] = useState<string>('');
-
-  useEffect(() => {
-    if (user?.role_target) setRole(user.role_target);
-    if (user?.experience_level) setExperienceLevel(user.experience_level);
-    if (user?.educationLevel || user?.education_level) {
-      const lvl = user.educationLevel || user.education_level;
-      if (lvl === 'postgraduate' || lvl === 'professional_degree') {
-        setEducationLevel(lvl);
-        setSelectedDegreeLevelId(lvl);
-      } else {
-        setEducationLevel('undergraduate');
-      }
-    }
-    if (user?.degreeCourse || user?.degree_course) {
-      const deg = (user.degreeCourse || user.degree_course || '').trim();
-      setDegreeCourse(deg);
-      if (deg && (deg.toLowerCase().includes('b.tech') || deg.toLowerCase().includes('b.e') || deg.toLowerCase().includes('btech'))) {
-        setSelectedDegreeLevelId('btech_be');
-      }
-    }
-    if (user?.academicStream || user?.academic_stream) {
-      setAcademicStream(user.academicStream || user.academic_stream || 'engineering_technology');
-    }
-    if (user?.specialisation) setSpecialisation(user.specialisation);
-    if (user?.yearOfStudy || user?.year_of_study) setYearOfStudy(user.yearOfStudy || user.year_of_study || '');
-    if (user?.careerGoal || user?.career_goals) setCareerGoal(user.careerGoal || user.career_goals || '');
-  }, [user]);
-
-  const [interviewType, setInterviewType] = useState<InterviewType>('mixed');
+  // Settings
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
   const [questionCount, setQuestionCount] = useState<number>(3);
-  const [durationMinutes, setDurationMinutes] = useState<number>(20);
-  const [language, setLanguage] = useState<string>('English');
-  const [mode, setMode] = useState<InterviewDeliveryMode>('voice_only');
+  const [durationMinutes, setDurationMinutes] = useState<number>(15);
+  const [language, setLanguage] = useState<string>(candidateProfile?.preferredLanguage || 'English');
+
+  // Optional Context
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [jobDescription, setJobDescription] = useState<string>('');
   const [resumeText, setResumeText] = useState<string>(() => {
     try {
-      return sessionStorage.getItem('interviewbro_active_resume_text') || '';
+      return sessionStorage.getItem('interviewbro_active_resume_text') || candidateProfile?.resumeText || '';
     } catch {
-      return '';
+      return candidateProfile?.resumeText || '';
     }
   });
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(() => {
-    try {
-      return Boolean(sessionStorage.getItem('interviewbro_active_resume_text'));
-    } catch {
-      return false;
-    }
-  });
+
+  // State & Loading
   const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [showQuotaModal, setShowQuotaModal] = useState<boolean>(false);
 
-  const handleResumeTextChange = (val: string) => {
-    setResumeText(val);
-    try {
-      if (!val.trim()) {
-        sessionStorage.removeItem('interviewbro_active_resume_text');
-      } else {
-        sessionStorage.setItem('interviewbro_active_resume_text', val);
-      }
-    } catch {
-      // Ignore storage errors in restricted browser contexts
-    }
-  };
-
-  // Pre-interview Mic Readiness
+  // Pre-interview Microphone Test
   const [voiceCapabilities] = useState<BrowserVoiceCapabilities>(() => getBrowserVoiceCapabilities());
-  const isUnsupportedBrowserForVoice =
-    voiceCapabilities.browserName === 'Safari' ||
-    voiceCapabilities.browserName === 'Firefox' ||
-    !voiceCapabilities.hasSpeechRecognition;
   const [isTestingMic, setIsTestingMic] = useState<boolean>(false);
   const [testAudioLevel, setTestAudioLevel] = useState<number>(0);
-  const [testDeviceLabel, setTestDeviceLabel] = useState<string>('');
-  const [testMicError, setTestMicError] = useState<MicrophoneErrorInfo | null>(null);
   const [testMicPassed, setTestMicPassed] = useState<boolean>(false);
+  const [testMicError, setTestMicError] = useState<MicrophoneErrorInfo | null>(null);
   const testStreamRef = useRef<MediaStream | null>(null);
   const testMeterRef = useRef<{ stop: () => void } | null>(null);
 
@@ -216,9 +187,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
     const result = await testMicrophoneAccess();
     if (result.success && result.stream) {
       testStreamRef.current = result.stream;
-      setTestDeviceLabel(result.deviceLabel || 'Default Microphone');
       setTestMicPassed(true);
-
       const meter = createAudioMeter(result.stream, (volume) => {
         setTestAudioLevel(volume);
       });
@@ -229,45 +198,26 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
     }
   };
 
-  // Corporate Track Derived Data
-  const selectedPreset = COMPANY_PRESETS.find(p => p.id === selectedPresetId);
-  const matchedTrack = getCompanyTrack(customCompany.trim() || selectedPresetId || selectedPreset?.name);
-  const companyName = customCompany.trim() || matchedTrack?.companyName || selectedPreset?.name || 'Top Tech Employer';
-  const companyCategory: CompanyCategory = (matchedTrack?.category as CompanyCategory) || selectedPreset?.category || 'Product Unicorn';
-
-  // Academic Track Derived Data
-  const prepModes = DEGREE_PREPARATION_PURPOSES;
-  const suggestedSubjects = getSuggestedSubjectsForProfile(
-    educationLevel,
-    null,
-    academicStream,
-    degreeCourse
-  );
-
-  const selectedPrepModeObj = DEGREE_PREPARATION_PURPOSES.find(m => m.id === preparationMode) || DEGREE_PREPARATION_PURPOSES[0];
-  const isAcademic = setupMode === 'academic';
-
-  const resolvedRole = isAcademic
-    ? (degreeCourse ? `${degreeCourse} Candidate` : (role || 'Degree Candidate'))
-    : role;
-
-  const resolvedCompany = isAcademic
-    ? (customInstitution.trim() || selectedPrepModeObj.defaultInstitution)
-    : companyName;
-
-  const resolvedInterviewType = isAcademic
-    ? (selectedPrepModeObj?.interviewType || 'technical')
-    : interviewType;
+  // Matched company track if available
+  const matchedTrack = getCompanyTrack(company.trim());
+  const companyCategory: CompanyCategory = (matchedTrack?.category as CompanyCategory) || 'Product Unicorn';
 
   const handleStartInterview = async () => {
     stopMicTest();
     setStartError(null);
 
+    const isAcademic = roundFocus === 'academic';
+    const effectiveInterviewType: InterviewType =
+      roundFocus === 'academic' ? 'technical' : (roundFocus === 'hr' ? 'hr' : (roundFocus === 'technical' ? 'technical' : 'mixed'));
+
+    const effectiveRole = role.trim() || 'Software Engineer';
+    const effectiveCompany = company.trim() || 'Top Tech Employer';
+
     const config: InterviewConfig = {
-      role: resolvedRole,
+      role: effectiveRole,
       experienceLevel,
-      interviewType: resolvedInterviewType,
-      companyName: resolvedCompany,
+      interviewType: effectiveInterviewType,
+      companyName: effectiveCompany,
       companyCategory: isAcademic ? 'Academic Preparation' : companyCategory,
       difficulty,
       durationMinutes,
@@ -275,28 +225,17 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       language,
       mode,
       jobDescription: jobDescription.trim() || undefined,
-      resumeText: resumeText.trim() || undefined,
+      resumeText: resumeText.trim() || candidateProfile?.resumeText || (user as any)?.resume_text || undefined,
+      resumeFileName: candidateProfile?.resumeFileName || (user as any)?.resume_file_name || undefined,
       companyTrack: isAcademic ? undefined : (matchedTrack || undefined),
 
-      // Academic Degree Universal Expansion Configuration
+      // Profile context & stream metadata
       isAcademic,
-      educationLevel: isAcademic ? educationLevel : undefined,
-      academicStream: isAcademic ? academicStream : undefined,
-      degreeCourse: isAcademic ? degreeCourse : undefined,
-      specialisation: isAcademic ? specialisation : undefined,
-      yearOfStudy: isAcademic ? yearOfStudy : undefined,
-      careerGoal: isAcademic ? careerGoal : undefined,
-      preparationMode: isAcademic ? (selectedPrepModeObj?.id || preparationMode) : undefined,
-      subject: isAcademic ? (subject.trim() || undefined) : undefined,
+      educationLevel: candidateProfile?.educationLevel || (user as any)?.education_level || 'UG',
+      academicStream: candidateProfile?.degreeStream || (user as any)?.degree_stream || undefined,
+      degreeCourse: candidateProfile?.degreeStream || (user as any)?.degree_stream || effectiveRole,
       candidateProfile: candidateProfile || undefined
     };
-
-    // Client-side eligibility guard
-    const eligibility = checkInterviewEligibility(config);
-    if (!eligibility.isEligible) {
-      setStartError(eligibility.reason);
-      return;
-    }
 
     setIsStartingSession(true);
     try {
@@ -315,8 +254,6 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
         setStartError(err.message || 'Rate limit reached. Please wait a moment before trying again.');
       } else if (err.code === 'UNAUTHORIZED' || err.status === 401) {
         setStartError('Please sign in to start your AI mock interview session.');
-      } else if (err.code === 'INELIGIBLE_STUDENT_CATEGORY' || err.status === 403) {
-        setStartError(err.message || INELIGIBILITY_EXPLANATION);
       } else {
         setStartError(err.message || 'Failed to start interview session. Please check your network connection.');
       }
@@ -325,986 +262,347 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
     }
   };
 
-  // Ineligible / Incomplete candidate eligibility barrier
-  const userEligibility = checkInterviewEligibility(user);
-  if (!userEligibility.isEligible) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <div className="p-8 sm:p-10 rounded-3xl bg-[#121826] border border-white/[0.12] shadow-2xl text-center space-y-6">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-[#C5F36B]/10 border border-[#C5F36B]/30 flex items-center justify-center text-[#C5F36B]">
-            <GraduationCap className="w-8 h-8 text-[#C5F36B]" />
-          </div>
-
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-[#9AA4B2]">
-              <Info className="w-3.5 h-3.5 text-[#C5F36B]" />
-              <span>Mock Interview Policy</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA]">
-              {userEligibility.status === 'incomplete' ? 'Candidate Details Verification' : 'AI Mock Interview Access'}
-            </h2>
-            <p className="text-xs sm:text-sm text-[#9AA4B2] max-w-xl mx-auto leading-relaxed">
-              {userEligibility.reason}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto pt-2 text-left">
-            <button
-              type="button"
-              onClick={() => onNavigate('academy')}
-              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-[#C5F36B]/40 hover:bg-[#C5F36B]/5 transition-all group cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-[#C5F36B]/15 text-[#C5F36B] shrink-0">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-[#C5F36B]">Interview Academy</div>
-                  <div className="text-[10px] text-[#9AA4B2]">Interactive masterclasses & quizzes</div>
-                </div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onNavigate('builder')}
-              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-emerald-400/40 hover:bg-emerald-400/5 transition-all group cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-emerald-400">Resume Builder</div>
-                  <div className="text-[10px] text-[#9AA4B2]">Stream-tailored resume creator</div>
-                </div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onNavigate('resume')}
-              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-cyan-400/40 hover:bg-cyan-400/5 transition-all group cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-cyan-500/15 text-cyan-400 shrink-0">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-cyan-400">Resume Analyzer</div>
-                  <div className="text-[10px] text-[#9AA4B2]">ATS scan & rubric score</div>
-                </div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onNavigate('profile')}
-              className="p-4 rounded-2xl bg-[#0B0F17] border border-white/[0.08] hover:border-amber-400/40 hover:bg-amber-400/5 transition-all group cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400 shrink-0">
-                  <UserCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-[#F5F7FA] group-hover:text-amber-400">Profile Settings</div>
-                  <div className="text-[10px] text-[#9AA4B2]">Update your degree and education</div>
-                </div>
-              </div>
-            </button>
-          </div>
-
-          <div className="pt-4 border-t border-white/[0.06] flex items-center justify-center gap-4">
-            <button
-              type="button"
-              onClick={() => onNavigate('dashboard')}
-              className="text-xs text-[#9AA4B2] hover:text-[#F5F7FA] transition-colors cursor-pointer"
-            >
-              ← Return to Dashboard
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
+    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/[0.08]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-white/[0.08]">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#C5F36B]/15 text-[#C5F36B] border border-[#C5F36B]/30">
-              Interactive Setup
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#C5F36B]/15 text-[#C5F36B] border border-[#C5F36B]/30 flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3" />
+              <span>AI Interview Studio</span>
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA] tracking-tight">
             Configure Your Mock Interview
           </h1>
-          <p className="text-xs sm:text-sm text-[#9AA4B2] mt-1">
-            Tailor questions to your target company, job description, and role.
+          <p className="text-xs sm:text-sm text-[#9AA4B2] mt-0.5">
+            Select your target role and company. Practice begins in seconds.
           </p>
         </div>
 
-        {/* Quota Badge */}
-        <div className="self-start sm:self-auto flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#121826] border border-white/[0.08] text-xs font-medium text-[#9AA4B2]">
-          <Sparkles className="w-4 h-4 text-[#C5F36B]" />
+        <div className="self-start sm:self-auto flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#0B0F19] border border-white/[0.08] text-xs font-medium text-[#9AA4B2]">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span>
             Allowance: <strong className="text-[#C5F36B] font-bold">Unlimited Practice</strong>
           </span>
         </div>
       </div>
 
-      {/* Mode Selector: Academic & Degree vs Corporate & Industry */}
-      <div className="p-1.5 rounded-2xl bg-[#0B0F17] border border-white/[0.08] grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setSetupMode('academic')}
-          className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            setupMode === 'academic'
-              ? 'bg-[#C5F36B] text-[#080B11] shadow-lg shadow-[#C5F36B]/15'
-              : 'text-[#9AA4B2] hover:text-[#F5F7FA] hover:bg-white/[0.03]'
-          }`}
-        >
-          <GraduationCap className="w-4 h-4 shrink-0" />
-          <span>Academic & Degree Tracks</span>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-            setupMode === 'academic' ? 'bg-[#080B11]/20 text-[#080B11]' : 'bg-[#C5F36B]/10 text-[#C5F36B]'
-          }`}>
-            Degree
-          </span>
-        </button>
+      {/* CARD 1: ROLE & COMPANY (Primary Target) */}
+      <div className="p-6 rounded-3xl bg-[#0B0F19] border border-white/[0.08] space-y-5">
+        {/* Target Role */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#9AA4B2] flex items-center gap-2">
+              <Briefcase className="w-3.5 h-3.5 text-[#C5F36B]" />
+              <span>1. Target Job Role or Domain</span>
+            </label>
+            {candidateProfile?.degreeStream && (
+              <span className="text-[11px] text-[#9AA4B2]">
+                Aligned with <strong className="text-white">{candidateProfile.degreeStream}</strong>
+              </span>
+            )}
+          </div>
 
-        <button
-          type="button"
-          onClick={() => setSetupMode('corporate')}
-          className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            setupMode === 'corporate'
-              ? 'bg-[#C5F36B] text-[#080B11] shadow-lg shadow-[#C5F36B]/15'
-              : 'text-[#9AA4B2] hover:text-[#F5F7FA] hover:bg-white/[0.03]'
-          }`}
-        >
-          <Briefcase className="w-4 h-4 shrink-0" />
-          <span>Corporate & Industry Tracks</span>
-        </button>
-      </div>
-
-      {setupMode === 'academic' ? (
-        <div className="space-y-6">
-          {/* Step 1: Degree Level (Strictly Degree Students) */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-[#C5F36B]" />
-                <span>1. Select Degree Level</span>
-              </label>
-              <span className="text-xs text-[#9AA4B2]">Exclusively for B.Tech & recognised degree programmes</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {ELIGIBLE_INTERVIEW_LEVEL_OPTIONS.map((lvl) => {
-                const isSelected = selectedDegreeLevelId === lvl.id;
-                return (
-                  <button
-                    key={lvl.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedDegreeLevelId(lvl.id);
-                      setEducationLevel(lvl.educationLevel);
-                      if (lvl.id === 'btech_be') {
-                        setAcademicStream('engineering_technology');
-                        if (!degreeCourse || degreeCourse === 'Degree Programme' || degreeCourse.toLowerCase().includes('inter')) {
-                          setDegreeCourse('B.Tech');
-                        }
-                      } else if (lvl.id === 'professional_degree') {
-                        if (!degreeCourse || degreeCourse === 'B.Tech') {
-                          setDegreeCourse('MBBS / LL.B / B.Pharm');
-                        }
-                      }
-                      setSubject('');
-                    }}
-                    className={`p-3.5 rounded-xl text-left border transition-all flex flex-col justify-between ${
-                      isSelected
-                        ? 'bg-[#C5F36B]/10 border-[#C5F36B] shadow-sm ring-1 ring-[#C5F36B]'
-                        : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#C5F36B] bg-[#C5F36B]/10 px-2 py-0.5 rounded">
-                          {lvl.badge}
-                        </span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-[#C5F36B]" />}
-                      </div>
-                      <div className="text-xs font-bold text-[#F5F7FA] leading-tight line-clamp-1">
-                        {lvl.shortName}
-                      </div>
-                      <div className="text-[11px] text-[#9AA4B2] mt-1 line-clamp-2">
-                        {lvl.description}
-                      </div>
-                    </div>
-                    <div className="text-[10px] text-[#CBD5E1] mt-2 pt-2 border-t border-white/[0.06] truncate">
-                      {lvl.examples}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Step 2: Academic Stream & Degree Program */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
-                <Atom className="w-4 h-4 text-cyan-400" />
-                <span>2. Academic Stream & Degree Program</span>
-              </label>
-              <span className="text-xs text-[#9AA4B2]">Customized to your degree syllabus</span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-              {ACADEMIC_STREAMS.map((s) => {
-                const isSelected = academicStream === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => {
-                      setAcademicStream(s.id);
-                      setSubject('');
-                    }}
-                    className={`p-3 rounded-xl text-left border transition-all ${
-                      isSelected
-                        ? 'bg-[#C5F36B]/10 border-[#C5F36B] shadow-sm'
-                        : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-bold text-[#C5F36B] uppercase">{s.categoryBadge.split('&')[0]}</span>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-[#C5F36B]" />}
-                    </div>
-                    <div className="text-xs font-bold text-[#F5F7FA] truncate">{s.name}</div>
-                    <div className="text-[10px] text-[#9AA4B2] mt-0.5 truncate">{s.tagline}</div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <div>
-                <label className="block text-xs text-[#9AA4B2] mb-1 font-medium">Degree / Course Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. B.Tech Computer Science, B.Com (Hons), B.Sc Nursing, MBBS, BBA, MCA, LL.B..."
-                  value={degreeCourse}
-                  onChange={(e) => setDegreeCourse(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-[#9AA4B2] mb-1 font-medium">Specialisation / Focus Area</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Artificial Intelligence, Data Science, Taxation, Pediatric Care, Corporate Law..."
-                  value={specialisation}
-                  onChange={(e) => setSpecialisation(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
-                />
-              </div>
-            </div>
-
-            {/* Year of Study */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-xs text-[#9AA4B2] mr-2">Year of Study:</span>
-              {['1st Year', '2nd Year', '3rd Year', '4th Year / Final Year', 'Postgraduate / Graduated'].map((y) => (
+          <div className="flex flex-wrap gap-1.5">
+            {POPULAR_ROLE_SUGGESTIONS.map((r) => {
+              const isSelected = role.toLowerCase() === r.toLowerCase();
+              return (
                 <button
-                  key={y}
+                  key={r}
                   type="button"
-                  onClick={() => setYearOfStudy(y)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                    yearOfStudy === y
-                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold'
-                      : 'bg-[#121826] border-white/[0.08] text-[#9AA4B2] hover:text-[#F5F7FA]'
+                  onClick={() => setRole(r)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                    isSelected
+                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold shadow-md shadow-[#C5F36B]/15'
+                      : 'bg-[#121826] border-white/[0.06] text-[#9AA4B2] hover:text-white hover:border-white/[0.15]'
                   }`}
                 >
-                  {y}
+                  {r}
                 </button>
-              ))}
-            </div>
-          </section>
+              );
+            })}
+          </div>
 
-          {/* Step 3: Interview & Preparation Purpose */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-[#C5F36B]" />
-                <span>3. Interview & Preparation Purpose</span>
-              </label>
-              <span className="text-xs text-[#9AA4B2]">Aligns question types and evaluation rubric</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {prepModes.map((m) => {
-                const isSelected = preparationMode === m.id;
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => setPreparationMode(m.id)}
-                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-[#C5F36B]/10 border-[#C5F36B] shadow-sm ring-1 ring-[#C5F36B]'
-                        : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/[0.06] text-[#C5F36B] border border-white/[0.08]">
-                        {m.categoryPill}
-                      </span>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-[#C5F36B]" />}
-                    </div>
-                    <h4 className="text-xs font-bold text-[#F5F7FA]">{m.title}</h4>
-                    <p className="text-[11px] text-[#9AA4B2] mt-1 leading-snug line-clamp-2">{m.shortDesc}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Step 4: Subject / Chapter Focus */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
-                <ListOrdered className="w-4 h-4 text-[#C5F36B]" />
-                <span>4. Subject & Topic Focus (Optional)</span>
-              </label>
-              <span className="text-xs text-[#9AA4B2]">Target specific syllabus topics or core domains</span>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {suggestedSubjects.map((s) => {
-                const isSelected = subject === s;
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSubject(isSelected ? '' : s)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      isSelected
-                        ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold'
-                        : 'bg-[#121826] border-white/[0.08] text-[#9AA4B2] hover:text-[#F5F7FA] hover:border-white/[0.16]'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
-
-            <input
-              type="text"
-              placeholder="Or type custom chapter/topic (e.g. Operating Systems, Data Structures, Auditing, Pharmacology, Corporate Law)..."
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
-            />
-          </section>
-
-          {/* Step 5: Target Institution / Board (Optional for Vivas) */}
-          <section className="space-y-2">
-            <label className="text-xs font-semibold text-[#9AA4B2] flex items-center gap-2">
-              <Building2 className="w-3.5 h-3.5 text-[#C5F36B]" />
-              <span>Target University, Board or Employer (Optional for Academic Vivas)</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. University Examination Board, AIIMS Admissions Panel, IIT Postgraduate Admissions, TCS Digital..."
-              value={customInstitution}
-              onChange={(e) => setCustomInstitution(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
-            />
-          </section>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* 1. Target Company Selection */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-[#C5F36B]" />
-            <span>Select Target Employer or Company Pattern</span>
-          </label>
-          <span className="text-xs text-[#9AA4B2]">Tuned to company-specific interview patterns</span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {COMPANY_PRESETS.map((preset) => {
-            const isSelected = selectedPresetId === preset.id && !customCompany;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => {
-                  setSelectedPresetId(preset.id);
-                  setCustomCompany('');
-                }}
-                className={`p-3.5 rounded-xl text-left border transition-all ${
-                  isSelected
-                    ? 'bg-[#C5F36B]/10 border-[#C5F36B] shadow-sm'
-                    : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <CompanyBadge name={preset.name} code={preset.code} companyId={preset.id} size="sm" showCategory={false} />
-                  {isSelected && <Check className="w-3.5 h-3.5 text-[#C5F36B]" />}
-                </div>
-                <div className="font-semibold text-xs text-[#F5F7FA] truncate">{preset.name.split('(')[0]}</div>
-                <div className="text-[10px] text-[#9AA4B2] mt-0.5 truncate">{preset.category}</div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Custom Company Input */}
-        <div>
           <input
             type="text"
-            placeholder="Or type custom company name (e.g. Cred, Razorpay, Oracle, TCS Ninja)..."
-            value={customCompany}
-            onChange={(e) => setCustomCompany(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B] transition-colors"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            placeholder="Or type custom role (e.g. Flutter Developer, Cloud Engineer, Tax Associate, Medical Intern)..."
+            className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-white placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
           />
         </div>
 
-        {/* Selected Company Interview Track & Round Structure */}
-        {(matchedTrack || (selectedPreset && selectedPreset.interviewStructure)) && (
-          <div className="mt-3 p-4 rounded-xl bg-[#121826] border border-white/[0.08] space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/[0.06]">
-              <div className="flex items-center gap-3">
-                <CompanyBadge
-                  name={matchedTrack?.companyName || selectedPreset?.name}
-                  code={matchedTrack?.id ? (matchedTrack.id === 'google' ? 'GOOG' : matchedTrack.id === 'microsoft' ? 'MSFT' : matchedTrack.id === 'accenture' ? 'ACN' : matchedTrack.id.toUpperCase().slice(0, 3)) : selectedPreset?.code}
-                  companyId={matchedTrack?.id || selectedPreset?.id}
-                  size="sm"
-                />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-semibold text-[#F5F7FA]">
-                      {matchedTrack?.companyName || selectedPreset?.name} Interview Track
-                    </h4>
-                    <span className="px-1.5 py-0.5 text-[9px] font-medium rounded bg-[#C5F36B]/15 text-[#C5F36B] border border-[#C5F36B]/30">
-                      {matchedTrack?.category || selectedPreset?.category}
-                    </span>
+        {/* Target Company or Exam Board */}
+        <div className="space-y-2.5 pt-2 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#9AA4B2] flex items-center gap-2">
+              <Building2 className="w-3.5 h-3.5 text-cyan-400" />
+              <span>2. Target Company or Pattern</span>
+            </label>
+            <span className="text-[11px] text-[#9AA4B2]">Adapts question difficulty & style</span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {POPULAR_COMPANY_SUGGESTIONS.map((c) => {
+              const isSelected = company.toLowerCase() === c.toLowerCase();
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCompany(c)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                    isSelected
+                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold shadow-md shadow-[#C5F36B]/15'
+                      : 'bg-[#121826] border-white/[0.06] text-[#9AA4B2] hover:text-white hover:border-white/[0.15]'
+                  }`}
+                >
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+
+          <input
+            type="text"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            placeholder="Or enter specific employer (e.g. Microsoft, Flipkart, Swiggy, TCS Ninja, AIIMS, Bar Council)..."
+            className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-white placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
+          />
+        </div>
+      </div>
+
+      {/* CARD 2: ROUND FOCUS & DELIVERY MODE */}
+      <div className="p-6 rounded-3xl bg-[#0B0F19] border border-white/[0.08] space-y-5">
+        {/* Round Focus Options */}
+        <div className="space-y-3">
+          <label className="text-xs font-bold uppercase tracking-wider text-[#9AA4B2] flex items-center gap-2">
+            <Layers className="w-3.5 h-3.5 text-amber-400" />
+            <span>3. Interview Round Focus</span>
+          </label>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {ROUND_OPTIONS.map((opt) => {
+              const isSelected = roundFocus === opt.id;
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => setRoundFocus(opt.id)}
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
+                    isSelected
+                      ? 'bg-[#C5F36B]/10 border-[#C5F36B] shadow-sm ring-1 ring-[#C5F36B]'
+                      : 'bg-[#121826] border-white/[0.06] hover:border-white/[0.15]'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        {opt.icon}
+                        <span className="text-xs font-bold text-white">{opt.label}</span>
+                      </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                        isSelected ? 'bg-[#C5F36B] text-[#080B11]' : 'bg-white/[0.05] text-[#9AA4B2]'
+                      }`}>
+                        {opt.badge}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#9AA4B2] leading-snug">{opt.desc}</p>
                   </div>
-                  <p className="text-[11px] text-[#9AA4B2] mt-0.5">
-                    {matchedTrack?.tagline || selectedPreset?.tagline}
-                  </p>
+                  {isSelected && (
+                    <div className="mt-2 pt-2 border-t border-[#C5F36B]/20 flex items-center justify-end gap-1 text-[11px] text-[#C5F36B] font-semibold">
+                      <Check className="w-3 h-3" />
+                      <span>Active Selection</span>
+                    </div>
+                  )}
                 </div>
-              </div>
+              );
+            })}
+          </div>
+        </div>
 
-              {/* General patterns disclaimer */}
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] self-start sm:self-auto">
-                <Info className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-                <span>General patterns, to be verified against real candidate experiences</span>
-              </div>
-            </div>
+        {/* Practice Mode (Voice vs Text) */}
+        <div className="space-y-3 pt-3 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#9AA4B2] flex items-center gap-2">
+              <Mic className="w-3.5 h-3.5 text-rose-400" />
+              <span>4. Practice Delivery Format</span>
+            </label>
+            <span className="text-[11px] text-[#9AA4B2]">Interactive verbal or silent keyboard</span>
+          </div>
 
-            {/* Typical Round Structure */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[#F5F7FA] uppercase tracking-wider flex items-center gap-1.5">
-                  <ListOrdered className="w-3.5 h-3.5 text-[#C5F36B]" />
-                  Typical Round Structure
-                </span>
-                <span className="text-[10px] text-[#9AA4B2]">
-                  {(matchedTrack?.typicalRoundStructure || selectedPreset?.interviewStructure || []).length} sequential stages
-                </span>
-              </div>
-              <div className="grid grid-cols-1 gap-2 pt-1">
-                {(matchedTrack?.typicalRoundStructure || selectedPreset?.interviewStructure || []).map((round, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-2.5 p-2.5 rounded-lg bg-[#0B0F17] border border-white/[0.04]"
-                  >
-                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#C5F36B]/15 text-[#C5F36B] font-mono text-[10px] font-bold shrink-0 mt-0.5">
-                      {idx + 1}
-                    </span>
-                    <span className="text-xs text-[#E2E8F0] leading-snug">
-                      {round}
-                    </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Interactive Voice Mode */}
+            <div
+              onClick={() => {
+                setMode('voice_only');
+                setTestMicError(null);
+              }}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                mode === 'voice_only'
+                  ? 'bg-[#C5F36B]/10 border-[#C5F36B] ring-1 ring-[#C5F36B]'
+                  : 'bg-[#121826] border-white/[0.06] hover:border-white/[0.15]'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-rose-500/15 text-rose-400">
+                    <Mic className="w-4 h-4" />
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Assessment Focus Topics & Style Note */}
-            <div className="pt-2 border-t border-white/[0.06] grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Focus Topics */}
-              <div>
-                <span className="text-[10px] font-semibold text-[#9AA4B2] uppercase tracking-wider block mb-1.5">
-                  Common Topic Areas
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {(matchedTrack?.commonTopicAreas || selectedPreset?.focusAreas || []).slice(0, 5).map((topic, i) => (
-                    <span
-                      key={i}
-                      className="px-2 py-0.5 rounded-md bg-white/[0.04] text-[10px] text-[#CBD5E1] border border-white/[0.06]"
-                    >
-                      {topic.length > 45 ? topic.slice(0, 45) + '...' : topic}
-                    </span>
-                  ))}
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <span>Interactive Voice</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-400 font-bold">
+                        Popular
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[#9AA4B2]">Spoken Q&A with live transcription</div>
+                  </div>
                 </div>
+                {mode === 'voice_only' && <Check className="w-4 h-4 text-[#C5F36B]" />}
               </div>
+              <p className="text-[11px] text-[#9AA4B2] mt-2 leading-relaxed">
+                Interviewer reads questions aloud. You speak naturally to simulate realistic verbal interviews.
+              </p>
 
-              {/* Difficulty & Style */}
-              {(matchedTrack?.difficultyEmphasis || matchedTrack?.interviewStyle) && (
-                <div>
-                  <span className="text-[10px] font-semibold text-[#9AA4B2] uppercase tracking-wider block mb-1.5">
-                    Hiring Bar & Interview Style
-                  </span>
-                  <p className="text-[11px] text-[#94A3B8] leading-relaxed line-clamp-3">
-                    {matchedTrack.difficultyEmphasis}
-                  </p>
+              {/* Inline Quick Mic Test */}
+              {mode === 'voice_only' && (
+                <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2">
+                  {isTestingMic ? (
+                    <div className="flex items-center gap-2 w-full">
+                      <div className="flex-1 h-2 rounded-full bg-black/40 overflow-hidden border border-white/[0.06]">
+                        <div
+                          className="h-full bg-[#C5F36B] transition-all duration-75"
+                          style={{ width: `${Math.max(testAudioLevel, 8)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono text-[#C5F36B]">{testAudioLevel}%</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          stopMicTest();
+                        }}
+                        className="text-[10px] text-rose-300 font-semibold px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-[10px] text-[#9AA4B2] flex items-center gap-1">
+                        {testMicPassed ? (
+                          <span className="text-emerald-400 font-medium flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Mic Verified
+                          </span>
+                        ) : (
+                          'Microphone ready'
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startMicTest();
+                        }}
+                        className="text-[10px] font-bold text-white px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] flex items-center gap-1 transition-colors"
+                      >
+                        <Volume2 className="w-3 h-3 text-[#C5F36B]" />
+                        <span>Quick Mic Test</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
-          </div>
-        )}
-      </section>
 
-      {/* 2. Target Job Role */}
-      <section className="space-y-4">
-        <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
-          <Briefcase className="w-4 h-4 text-[#C5F36B]" />
-          <span>Target Job Role</span>
-        </label>
-
-        {/* Preset Chips */}
-        <div className="flex flex-wrap gap-2">
-          {POPULAR_ROLES.map((r) => {
-            const isSelected = role === r;
-            return (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRole(r)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  isSelected
-                    ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold'
-                    : 'bg-[#121826] border-white/[0.08] text-[#9AA4B2] hover:text-[#F5F7FA] hover:border-white/[0.16]'
-                }`}
-              >
-                {r}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Custom Role Input */}
-        <input
-          type="text"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          placeholder="Custom role (e.g. SDE-1 Frontend, Cloud Support Associate, Data Analyst)..."
-          className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
-        />
-      </section>
-
-        </div>
-      )}
-
-      {/* 3. Experience Level & Interview Type */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Experience Level */}
-        <section className="space-y-3">
-          <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
-            <Layers className="w-4 h-4 text-cyan-400" />
-            <span>Candidate Experience Level</span>
-          </label>
-          <div className="space-y-2">
-            {EXPERIENCE_LEVELS.map((lvl) => {
-              const isSelected = experienceLevel === lvl.id;
-              return (
-                <div
-                  key={lvl.id}
-                  onClick={() => setExperienceLevel(lvl.id)}
-                  className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'bg-[#C5F36B]/10 border-[#C5F36B]'
-                      : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#F5F7FA]">{lvl.label}</span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-[#C5F36B]" />}
+            {/* Text Mode */}
+            <div
+              onClick={() => {
+                setMode('text_only');
+                stopMicTest();
+                setTestMicError(null);
+              }}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                mode === 'text_only'
+                  ? 'bg-[#C5F36B]/10 border-[#C5F36B] ring-1 ring-[#C5F36B]'
+                  : 'bg-[#121826] border-white/[0.06] hover:border-white/[0.15]'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-cyan-500/15 text-cyan-400">
+                    <FileText className="w-4 h-4" />
                   </div>
-                  <p className="text-[11px] text-[#9AA4B2] mt-1 leading-snug">{lvl.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Interview Round Type */}
-        <section className="space-y-3">
-          <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-amber-400" />
-            <span>Interview Round Focus</span>
-          </label>
-          <div className="space-y-2">
-            {INTERVIEW_TYPES.map((type) => {
-              const isSelected = interviewType === type.id;
-              return (
-                <div
-                  key={type.id}
-                  onClick={() => setInterviewType(type.id)}
-                  className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'bg-[#C5F36B]/10 border-[#C5F36B]'
-                      : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {type.id === 'technical' ? (
-                        <Terminal className="w-4 h-4 text-cyan-400 shrink-0" />
-                      ) : type.id === 'behavioral' ? (
-                        <Users className="w-4 h-4 text-emerald-400 shrink-0" />
-                      ) : type.id === 'hr' ? (
-                        <UserCheck className="w-4 h-4 text-amber-400 shrink-0" />
-                      ) : type.id === 'system_design' ? (
-                        <Cpu className="w-4 h-4 text-indigo-400 shrink-0" />
-                      ) : type.id === 'managerial' ? (
-                        <Compass className="w-4 h-4 text-rose-400 shrink-0" />
-                      ) : (
-                        <Layers className="w-4 h-4 text-[#C5F36B] shrink-0" />
-                      )}
-                      <span className="text-xs font-bold text-[#F5F7FA]">{type.label}</span>
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <span>Text-Based Mode</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-400 font-bold">
+                        Silent
+                      </span>
                     </div>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-[#C5F36B]" />}
+                    <div className="text-[11px] text-[#9AA4B2]">No mic required • Type answers</div>
                   </div>
-                  <p className="text-[11px] text-[#9AA4B2] mt-1 pl-6 leading-snug">{type.desc}</p>
                 </div>
-              );
-            })}
+                {mode === 'text_only' && <Check className="w-4 h-4 text-[#C5F36B]" />}
+              </div>
+              <p className="text-[11px] text-[#9AA4B2] mt-2 leading-relaxed">
+                Read questions on-screen and type answers. Ideal for libraries, quiet rooms, or non-mic devices.
+              </p>
+            </div>
           </div>
-        </section>
+
+          {testMicError && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{testMicError.message || 'Microphone access denied.'}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMode('text_only')}
+                className="text-[11px] font-bold text-emerald-400 hover:underline shrink-0"
+              >
+                Use Text Mode Instead
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 4. Interview Delivery Format Selector */}
-      <section className="space-y-4">
+      {/* CARD 3: QUICK PARAMETERS & OPTIONAL RESUME/JD */}
+      <div className="p-6 rounded-3xl bg-[#0B0F19] border border-white/[0.08] space-y-5">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
-            <Headphones className="w-4 h-4 text-[#C5F36B]" />
-            <span>Select Interview Delivery Format</span>
+          <label className="text-xs font-bold uppercase tracking-wider text-[#9AA4B2] flex items-center gap-2">
+            <Sliders className="w-3.5 h-3.5 text-[#C5F36B]" />
+            <span>5. Session Parameters</span>
           </label>
-          <span className="text-xs text-[#9AA4B2]">Choose your practice mode</span>
-        </div>
 
-        {/* Unsupported Browser Notice (Safari / Firefox) with Smooth Text Mode Fallback */}
-        {isUnsupportedBrowserForVoice && (
-          <div className="p-3 sm:p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-sm">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-amber-300">
-                  Voice recognition is not fully supported in {voiceCapabilities.browserName || 'this browser'}.
-                </span>
-                <p className="text-[11px] text-amber-200/80 mt-0.5">
-                  For the best voice experience, please <strong>use Chrome or type your answer</strong> using Text-Based Mode.
-                </p>
-              </div>
-            </div>
-            {mode !== 'text_only' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('text_only');
-                  stopMicTest();
-                  setTestMicError(null);
-                }}
-                className="w-full sm:w-auto px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0 flex items-center justify-center gap-1.5 shadow transition-colors"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Switch to Text Mode</span>
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Voice-Only Mode */}
-          <div
-            onClick={() => {
-              setMode('voice_only');
-              setTestMicError(null);
-            }}
-            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-              mode === 'voice_only'
-                ? 'bg-[#C5F36B]/10 border-[#C5F36B]'
-                : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-white/[0.04] text-[#C5F36B]">
-                  <Mic className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-[#F5F7FA] flex items-center gap-1.5">
-                    <span>Voice-Only Mode</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                      Top Pick
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-[#9AA4B2]">Spoken dialogue & live waveform</div>
-                </div>
-              </div>
-              {mode === 'voice_only' && <Check className="w-4 h-4 text-[#C5F36B]" />}
-            </div>
-            <p className="text-[11px] text-[#9AA4B2] leading-relaxed pl-11">
-              The AI interviewer speaks every question aloud. You respond verbally via your microphone with real-time speech transcription to simulate phone and tech rounds.
-            </p>
-          </div>
-
-          {/* Video Mode */}
-          <div
-            onClick={() => {
-              setMode('video');
-              setTestMicError(null);
-            }}
-            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-              mode === 'video'
-                ? 'bg-[#C5F36B]/10 border-[#C5F36B]'
-                : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-white/[0.04] text-cyan-400">
-                  <Video className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-[#F5F7FA]">Video Mode</div>
-                  <div className="text-[11px] text-[#9AA4B2]">Webcam visual feed + audio</div>
-                </div>
-              </div>
-              {mode === 'video' && <Check className="w-4 h-4 text-[#C5F36B]" />}
-            </div>
-            <p className="text-[11px] text-[#9AA4B2] leading-relaxed pl-11">
-              Full webcam simulation for formal virtual placement rounds. Practice maintaining camera posture and eye contact with optional answer editor refinements.
-            </p>
-          </div>
-
-          {/* Text-Based Mode */}
-          <div
-            onClick={() => {
-              setMode('text_only');
-              stopMicTest();
-              setTestMicError(null);
-            }}
-            className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-              mode === 'text_only'
-                ? 'bg-[#C5F36B]/10 border-[#C5F36B]'
-                : 'bg-[#121826] border-white/[0.08] hover:border-white/[0.16]'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-white/[0.04] text-[#F5F7FA]">
-                  <FileText className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-[#F5F7FA] flex items-center gap-1.5">
-                    <span>Text-Based Mode</span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-                      Mic-Free
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-[#9AA4B2]">Silent practice • No mic needed</div>
-                </div>
-              </div>
-              {mode === 'text_only' && <Check className="w-4 h-4 text-[#C5F36B]" />}
-            </div>
-            <p className="text-[11px] text-[#9AA4B2] leading-relaxed pl-11">
-              Read questions on screen (with optional audio replay) and type your technical answers. Ideal for quiet spaces or when your microphone is unavailable. Full STAR evaluations preserved.
-            </p>
-          </div>
-        </div>
-
-        {/* Microphone Readiness & Diagnostics */}
-        {mode !== 'text_only' ? (
-          <div className="p-4 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#F5F7FA]">
-                <Mic className="w-4 h-4 text-[#C5F36B]" />
-                <span>Microphone & Audio Readiness Check</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#080B11] text-[#9AA4B2] border border-white/[0.06] font-normal">
-                  {voiceCapabilities.browserName} on {voiceCapabilities.osName}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {isTestingMic ? (
-                  <button
-                    type="button"
-                    onClick={stopMicTest}
-                    className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30 transition-colors"
-                  >
-                    Stop Test
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={startMicTest}
-                    className="btn-secondary text-xs py-1.5 px-3"
-                  >
-                    <Volume2 className="w-3.5 h-3.5 text-[#C5F36B]" />
-                    <span>Test Microphone</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Unsupported Browser Warning inside readiness */}
-            {isUnsupportedBrowserForVoice && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Speech-to-text is limited in {voiceCapabilities.browserName}. Please use Chrome or type your answer.</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('text_only');
-                    stopMicTest();
-                    setTestMicError(null);
-                  }}
-                  className="text-xs text-emerald-400 hover:underline font-semibold shrink-0 text-left sm:text-right"
-                >
-                  Switch to Text Mode
-                </button>
-              </div>
-            )}
-
-            {/* Active Test Display */}
-            {isTestingMic && (
-              <div className="p-3.5 rounded-xl bg-[#080B11] border border-white/[0.08] space-y-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-[#9AA4B2] flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Device: <strong className="text-[#F5F7FA]">{testDeviceLabel}</strong></span>
-                  </span>
-                  <span className="text-[#C5F36B] font-mono text-[11px] font-semibold">
-                    Volume: {testAudioLevel}%
-                  </span>
-                </div>
-
-                {/* Level Meter Bar */}
-                <div className="w-full h-2.5 rounded-full bg-[#121826] border border-white/[0.06] overflow-hidden">
-                  <div
-                    className="h-full bg-[#C5F36B] transition-all duration-75 rounded-full"
-                    style={{ width: `${Math.max(testAudioLevel, 4)}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-[#9AA4B2]">
-                  <span>Speak into your microphone. If the bar moves, your input is working.</span>
-                  {testMicPassed && (
-                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Input Detected</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Error Banner */}
-            {testMicError && (
-              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs space-y-2">
-                <div className="flex items-start gap-2.5 text-rose-300">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="block text-white font-bold">{testMicError.title}</strong>
-                    <p className="mt-0.5 text-rose-200">{testMicError.message}</p>
-                    <p className="mt-1 text-[11px] text-[#9AA4B2]">
-                      <strong>Fix:</strong> {testMicError.actionHint}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-2 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={startMicTest}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600/30 hover:bg-rose-600/40 text-rose-200 border border-rose-500/40 transition-colors"
-                  >
-                    Retry Microphone Check
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('text_only');
-                      setTestMicError(null);
-                      stopMicTest();
-                    }}
-                    className="btn-primary text-xs py-1.5 px-3"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Switch to Text-Based Mode (No Mic Needed)</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-3.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#9AA4B2] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Text-Based Mode Selected: Microphone and webcam access are completely disabled.</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMode('voice_only')}
-              className="text-xs text-[#C5F36B] hover:underline font-semibold shrink-0"
-            >
-              Switch back to Voice
-            </button>
-          </div>
-        )}
-      </section>
-
-      {/* 5. Session Length & Difficulty */}
-      <section className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] space-y-5">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-[#F5F7FA] flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-[#C5F36B]" />
-            <span>Interview Parameters</span>
-          </span>
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="text-xs text-[#C5F36B] hover:underline font-medium"
+            className="text-xs text-[#C5F36B] hover:underline font-semibold flex items-center gap-1"
           >
-            {showAdvanced ? 'Hide Custom Inputs' : '+ Add Job Description & Resume'}
+            <span>{showAdvanced ? 'Hide Custom Inputs' : '+ Add Job Description or Resume'}</span>
+            {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Difficulty */}
           <div>
-            <label className="block text-xs text-[#9AA4B2] mb-1.5 font-medium">Difficulty Level</label>
-            <div className="grid grid-cols-3 gap-1.5">
+            <label className="block text-[11px] text-[#9AA4B2] mb-1 font-medium">Difficulty</label>
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#121826] border border-white/[0.06]">
               {(['beginner', 'intermediate', 'advanced'] as DifficultyLevel[]).map((d) => (
                 <button
                   key={d}
                   type="button"
                   onClick={() => setDifficulty(d)}
-                  className={`py-2 text-[11px] font-semibold rounded-lg capitalize border ${
+                  className={`py-1.5 text-[11px] font-semibold rounded-lg capitalize transition-all ${
                     difficulty === d
-                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold'
-                      : 'bg-[#080B11] border-white/[0.08] text-[#9AA4B2] hover:text-[#F5F7FA]'
+                      ? 'bg-[#C5F36B] text-[#080B11] font-bold shadow-sm'
+                      : 'text-[#9AA4B2] hover:text-white'
                   }`}
                 >
                   {d}
@@ -1315,98 +613,103 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
 
           {/* Question Count */}
           <div>
-            <label className="block text-xs text-[#9AA4B2] mb-1.5 font-medium">Number of Questions</label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {[3, 5, 8, 10].map((count) => (
+            <label className="block text-[11px] text-[#9AA4B2] mb-1 font-medium">Questions</label>
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#121826] border border-white/[0.06]">
+              {[
+                { count: 3, label: '3 Qs (10m)' },
+                { count: 5, label: '5 Qs (20m)' },
+                { count: 8, label: '8 Qs (30m)' }
+              ].map(({ count, label }) => (
                 <button
                   key={count}
                   type="button"
-                  onClick={() => setQuestionCount(count)}
-                  className={`py-2 text-[11px] font-semibold rounded-lg border ${
+                  onClick={() => {
+                    setQuestionCount(count);
+                    setDurationMinutes(count === 3 ? 10 : count === 5 ? 20 : 30);
+                  }}
+                  className={`py-1.5 text-[11px] font-semibold rounded-lg transition-all ${
                     questionCount === count
-                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold'
-                      : 'bg-[#080B11] border-white/[0.08] text-[#9AA4B2] hover:text-[#F5F7FA]'
+                      ? 'bg-[#C5F36B] text-[#080B11] font-bold shadow-sm'
+                      : 'text-[#9AA4B2] hover:text-white'
                   }`}
                 >
-                  {count} Qs
+                  {label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Duration */}
+          {/* Language */}
           <div>
-            <label className="block text-xs text-[#9AA4B2] mb-1.5 font-medium">Estimated Time</label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {[15, 20, 30].map((dur) => (
-                <button
-                  key={dur}
-                  type="button"
-                  onClick={() => setDurationMinutes(dur)}
-                  className={`py-2 text-[11px] font-semibold rounded-lg border ${
-                    durationMinutes === dur
-                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold'
-                      : 'bg-[#080B11] border-white/[0.08] text-[#9AA4B2] hover:text-[#F5F7FA]'
-                  }`}
-                >
-                  {dur} mins
-                </button>
-              ))}
-            </div>
+            <label className="block text-[11px] text-[#9AA4B2] mb-1 font-medium">Language</label>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-[#121826] border border-white/[0.06] text-xs text-white focus:outline-none focus:border-[#C5F36B]"
+            >
+              <option value="English">English</option>
+              <option value="Hindi">Hindi</option>
+              <option value="Hinglish">Hinglish</option>
+              <option value="Telugu">Telugu</option>
+              <option value="Tamil">Tamil</option>
+            </select>
           </div>
         </div>
 
-        {/* Optional Collapsible JD and Resume Input */}
+        {/* Collapsible JD and Resume Context */}
         {showAdvanced && (
-          <div className="pt-4 border-t border-white/[0.08] space-y-4">
+          <div className="pt-4 border-t border-white/[0.06] space-y-4">
             <div>
-              <label className="block text-xs text-[#F5F7FA] mb-1 font-medium">
-                Paste Target Job Description (Optional)
+              <label className="block text-xs font-semibold text-white mb-1">
+                Target Job Description (Optional)
               </label>
               <textarea
                 rows={3}
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
-                placeholder="Paste requirements, required skills, or job posting details to generate laser-targeted questions..."
-                className="w-full p-3 rounded-xl bg-[#080B11] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
+                placeholder="Paste the key responsibilities or skills from a job posting to generate exact interview questions..."
+                className="w-full p-3 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-white placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs text-[#F5F7FA] font-medium">
-                  Paste Resume Project Summary (Optional)
+                <label className="block text-xs font-semibold text-white">
+                  Resume Summary / Key Projects (Optional)
                 </label>
                 {resumeText && (
                   <button
                     type="button"
-                    onClick={() => handleResumeTextChange('')}
-                    className="text-[11px] text-rose-400 hover:text-rose-300 font-medium transition-colors"
+                    onClick={() => setResumeText('')}
+                    className="text-[11px] text-rose-400 hover:text-rose-300 font-medium"
                   >
-                    Remove Resume
+                    Clear
                   </button>
                 )}
               </div>
               <textarea
                 rows={3}
                 value={resumeText}
-                onChange={(e) => handleResumeTextChange(e.target.value)}
-                placeholder="Paste key projects, technologies used, or achievements from your resume so the AI interviewer can ask you direct project questions..."
-                className="w-full p-3 rounded-xl bg-[#080B11] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
+                onChange={(e) => setResumeText(e.target.value)}
+                placeholder="Paste your key projects, tech stack, or achievements so the AI can ask you direct resume questions..."
+                className="w-full p-3 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-white placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
               />
-              {resumeText && (
-                <p className="mt-1 text-[11px] text-[#9AA4B2]">
-                  {resumeText.length} characters attached. This context will be used for your mock interview questions.
-                </p>
-              )}
             </div>
           </div>
         )}
-      </section>
 
-      {/* Error & Quota Banners */}
+        {/* Sync Indicator */}
+        <div className="pt-2 flex items-center gap-2 text-[11px] text-[#9AA4B2]">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span>
+            Candidate profile & skills automatically personalized for this interview.
+          </span>
+        </div>
+      </div>
+
+      {/* Error Banner */}
       {startError && (
-        <div role="alert" className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center justify-between gap-3 shadow-lg">
+        <div role="alert" className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center justify-between gap-3 shadow-lg">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <span>{startError}</span>
@@ -1421,37 +724,23 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
         </div>
       )}
 
-      {quota.interviewsRemaining <= 0 && (
-        <div role="alert" className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-center justify-between gap-3 shadow-lg">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
-            <span>You have completed all 5 of your free mock interview sessions. Upgrade to continue practicing.</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('pricing')}
-            className="px-3.5 py-1.5 rounded-lg bg-[#C5F36B] text-[#080B11] font-bold text-xs shrink-0 hover:bg-[#b2e257] transition-colors"
-          >
-            Upgrade Plan
-          </button>
-        </div>
-      )}
-
-      {/* 6. Launch Action Bar */}
-      <div className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
+      {/* LAUNCH ACTION BAR */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-[#0B0F19] border border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
         <div>
-          <div className="text-xs text-[#9AA4B2] font-medium">Session Blueprint</div>
-          <div className="text-base font-bold text-[#F5F7FA] mt-0.5">
-            {isAcademic ? resolvedCompany : companyName} • {isAcademic ? resolvedRole : role}
+          <div className="text-[11px] uppercase tracking-wider text-[#9AA4B2] font-semibold">
+            Session Configuration
           </div>
-          <div className="text-xs text-[#9AA4B2] mt-1 flex items-center gap-2">
+          <div className="text-base font-extrabold text-white mt-0.5">
+            {company} • {role}
+          </div>
+          <div className="text-xs text-[#9AA4B2] mt-0.5 flex flex-wrap items-center gap-2">
+            <span className="capitalize">{roundFocus} Round</span>
+            <span>•</span>
+            <span>{mode === 'voice_only' ? 'Voice Mode' : 'Text Mode'}</span>
+            <span>•</span>
             <span>{questionCount} Questions</span>
             <span>•</span>
-            <span className="capitalize">{isAcademic ? (selectedPrepModeObj?.title || 'Academic Viva') : `${interviewType} Round`}</span>
-            <span>•</span>
-            <span className="capitalize">{mode === 'text_only' ? 'Text-Based' : mode === 'voice_only' ? 'Voice-Only' : 'Video'} Mode</span>
-            <span>•</span>
-            <span className="capitalize">{difficulty} Level</span>
+            <span className="capitalize">{difficulty}</span>
           </div>
         </div>
 
@@ -1459,92 +748,56 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
           type="button"
           disabled={isStartingSession}
           onClick={handleStartInterview}
-          className="w-full sm:w-auto btn-primary text-sm py-3.5 px-8 shadow-lg shadow-[#C5F36B]/20 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#C5F36B] hover:bg-[#b5e65b] text-[#080B11] font-extrabold text-sm shadow-lg shadow-[#C5F36B]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
         >
           {isStartingSession ? (
             <>
               <div className="w-4 h-4 border-2 border-[#080B11] border-t-transparent rounded-full animate-spin" />
-              <span>Preparing AI Session...</span>
-            </>
-          ) : quota.interviewsRemaining <= 0 ? (
-            <>
-              <span>Upgrade Plan to Practice</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>Preparing AI Interviewer...</span>
             </>
           ) : (
             <>
-              <span>
-                {mode === 'text_only'
-                  ? 'Enter Text Interview Room'
-                  : mode === 'voice_only'
-                  ? 'Enter Voice Interview Room'
-                  : 'Enter Video Interview Room'}
-              </span>
+              <span>Start Mock Interview</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>
       </div>
 
-      {/* Free Quota Exceeded Modal */}
+      {/* Quota Modal */}
       {showQuotaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md p-6 rounded-2xl bg-[#121826] border border-white/[0.12] shadow-2xl space-y-5 text-left">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-[#0B0F19] border border-white/[0.12] space-y-4 text-left shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
                 <Sparkles className="w-5 h-5 text-[#C5F36B]" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[#F5F7FA]">Free Plan Limit Reached</h3>
-                <p className="text-xs text-[#9AA4B2]">5 of 5 free mock sessions used</p>
+                <h3 className="text-base font-bold text-white">Free Practice Limit Reached</h3>
+                <p className="text-xs text-[#9AA4B2]">Upgrade for unlimited practice sessions</p>
               </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-[#9AA4B2] leading-relaxed">
-              You have completed all 5 of your free mock interview sessions. Upgrade to <strong className="text-[#F5F7FA]">Placement Unlimited</strong> to unlock unrestricted voice sessions, deep ATS resume scans, and priority AI evaluation.
+            <p className="text-xs text-[#9AA4B2] leading-relaxed">
+              You have completed all 5 of your free mock interview sessions. Upgrade to unlimited practice to continue interview preparation without limits.
             </p>
 
-            <div className="p-3.5 rounded-xl bg-[#080B11] border border-white/[0.06] text-xs space-y-2 text-[#9AA4B2]">
-              <div className="flex items-center gap-2 text-[#F5F7FA] font-medium">
-                <Check className="w-3.5 h-3.5 text-[#C5F36B]" />
-                <span>Unlimited simulated mock interviews</span>
-              </div>
-              <div className="flex items-center gap-2 text-[#F5F7FA] font-medium">
-                <Check className="w-3.5 h-3.5 text-[#C5F36B]" />
-                <span>Adaptive follow-ups & granular rubrics</span>
-              </div>
-              <div className="flex items-center gap-2 text-[#F5F7FA] font-medium">
-                <Check className="w-3.5 h-3.5 text-[#C5F36B]" />
-                <span>Personalized 7-day preparation plans</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <div className="flex gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => {
                   setShowQuotaModal(false);
                   onNavigate('pricing');
                 }}
-                className="flex-1 btn-primary text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl bg-[#C5F36B] text-[#080B11] font-bold text-xs flex items-center justify-center gap-2"
               >
-                <span>Explore Unlimited Plan</span>
+                <span>Upgrade Plan</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setShowQuotaModal(false);
-                  onNavigate('history');
-                }}
-                className="px-4 py-2.5 rounded-xl bg-[#080B11] border border-white/[0.08] text-xs text-[#9AA4B2] hover:text-[#F5F7FA] transition-colors"
-              >
-                Past Sessions
-              </button>
-              <button
-                type="button"
                 onClick={() => setShowQuotaModal(false)}
-                className="px-3 py-2.5 rounded-xl text-xs text-[#9AA4B2] hover:text-[#F5F7FA]"
+                className="px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#9AA4B2] hover:text-white"
               >
                 Dismiss
               </button>
@@ -1555,3 +808,5 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
     </div>
   );
 };
+
+export default InterviewSetup;

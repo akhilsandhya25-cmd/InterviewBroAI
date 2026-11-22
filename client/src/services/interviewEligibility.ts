@@ -134,6 +134,8 @@ export function checkInterviewEligibility(profile?: Partial<UserProfile> | Parti
   const rawDegree = String(
     profile.degreeCourse ||
     (profile as any).degree_course ||
+    (profile as any).degree_stream ||
+    (profile as any).degreeStream ||
     (profile as any).degree ||
     ''
   ).trim();
@@ -212,6 +214,9 @@ export function checkInterviewEligibility(profile?: Partial<UserProfile> | Parti
     rawEduLevel === 'diploma_polytechnic' ||
     rawEduLevel === 'diploma' ||
     rawEduLevel === 'polytechnic' ||
+    rawEduLevel === 'ug' ||
+    rawEduLevel === 'pg' ||
+    rawEduLevel === 'professional' ||
     rawEduLevel === 'general'
   );
 
@@ -222,6 +227,27 @@ export function checkInterviewEligibility(profile?: Partial<UserProfile> | Parti
       reason: 'Eligible degree candidate.',
       educationLevel: rawEduLevel,
       degreeCourse: rawDegree || 'Degree Programme'
+    };
+  }
+
+  // 6. If candidate has valid target role or degree stream and is not blocked, allow practice
+  const hasValidPracticeIntent = Boolean(
+    (profile as any).role ||
+    (profile as any).target_role ||
+    (profile as any).targetRole ||
+    (profile as any).degree_stream ||
+    (profile as any).degreeStream ||
+    (profile as any).current_status ||
+    (profile as any).currentStatus
+  );
+
+  if (hasValidPracticeIntent && !BLOCKED_LEVELS.has(rawEduLevel)) {
+    return {
+      isEligible: true,
+      status: 'eligible',
+      reason: 'Eligible candidate.',
+      educationLevel: rawEduLevel || 'ug',
+      degreeCourse: rawDegree || 'Professional Practice'
     };
   }
 
