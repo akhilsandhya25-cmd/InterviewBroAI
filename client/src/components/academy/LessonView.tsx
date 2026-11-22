@@ -14,7 +14,9 @@ import {
   FileEdit,
   Tag,
   Share2,
-  ChevronRight
+  ChevronRight,
+  Play,
+  ExternalLink
 } from 'lucide-react';
 import { AcademyLesson, AcademyModule, LessonProgress, PracticeAttempt } from '../../types/academy';
 import { QuizEngine } from './QuizEngine';
@@ -36,6 +38,15 @@ interface LessonViewProps {
   onPracticeCompleted: (attempt: PracticeAttempt) => void;
   practiceAttempts?: PracticeAttempt[];
   onNavigateToMock?: () => void;
+}
+
+function getYoutubeEmbedUrl(url: string | undefined): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  const videoId = (match && match[2].length === 11) ? match[2] : null;
+  if (!videoId) return url;
+  return `https://www.youtube.com/embed/${videoId}?rel=0`;
 }
 
 export const LessonView: React.FC<LessonViewProps> = ({
@@ -141,6 +152,12 @@ export const LessonView: React.FC<LessonViewProps> = ({
               <span>Completed</span>
             </span>
           )}
+          {lesson.videoUrl && (
+            <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-red-500/15 text-red-300 border border-red-500/30 flex items-center gap-1.5">
+              <Play className="w-2.5 h-2.5 fill-current" />
+              <span>Video Masterclass</span>
+            </span>
+          )}
         </div>
 
         <div>
@@ -234,6 +251,46 @@ export const LessonView: React.FC<LessonViewProps> = ({
       {/* ========================================================================= */}
       {activeTab === 'content' && (
         <div className="space-y-6">
+          {/* Video Lecture / Masterclass Player */}
+          {lesson.videoUrl && (
+            <div className="p-6 sm:p-8 rounded-3xl bg-[#0B0F19] border border-white/[0.08] shadow-xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-red-600/20 text-red-400 flex items-center justify-center shrink-0">
+                    <Play className="w-4 h-4 fill-current ml-0.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#F5F7FA]">
+                      {lesson.videoTitle || 'Lesson Video Guide'}
+                    </h3>
+                    <p className="text-[11px] text-[#9AA4B2]">
+                      Watch the complete video masterclass before diving into the practical exercises
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={lesson.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-400 hover:text-red-300 hover:underline transition-colors shrink-0"
+                >
+                  <span>Open on YouTube</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+
+              <div className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl border border-white/[0.08] bg-black">
+                <iframe
+                  src={getYoutubeEmbedUrl(lesson.videoUrl) || ''}
+                  title={lesson.videoTitle || lesson.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Detailed Content Sections */}
           <div className="space-y-6">
             {lesson.sections.map((sec, idx) => (

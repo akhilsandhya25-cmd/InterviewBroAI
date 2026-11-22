@@ -104,6 +104,8 @@ export interface AcademyLesson {
   subtitle: string;
   estimatedMinutes: number;
   objective: string;
+  videoUrl?: string;
+  videoTitle?: string;
   sections: LessonSection[];
   examples: LessonExample[];
   exercise: PracticalExercise;

@@ -442,6 +442,13 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
                         <span>{lesson.estimatedMinutes}m</span>
                       </span>
 
+                      {lesson.videoUrl && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-500/15 text-red-300 border border-red-500/30 flex items-center gap-1">
+                          <Play className="w-2.5 h-2.5 fill-current" />
+                          <span>Video</span>
+                        </span>
+                      )}
+
                       {isLessonDone ? (
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" />

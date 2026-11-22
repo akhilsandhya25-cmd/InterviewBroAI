@@ -30,6 +30,8 @@ const FOUNDATION_MODULES: AcademyModule[] = [
         title: 'Preparing for an Interview',
         subtitle: 'Foundations of Pre-Interview Research, Tech Checks & Grooming',
         estimatedMinutes: 8,
+        videoUrl: 'https://youtu.be/Q5_etqoAE94',
+        videoTitle: 'Video Masterclass: Preparing for an Interview',
         tags: ['Preparation', 'Company Research', 'Placement Drives', 'Tech Setup'],
         objective: 'Master pre-interview research, job description decoding, virtual/offline tech setups, and professional grooming so you enter any round 100% prepared.',
         sections: [
