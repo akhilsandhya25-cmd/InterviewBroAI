@@ -11,25 +11,20 @@ import {
   Video,
   GraduationCap,
   BookOpen,
-  Compass,
   Briefcase,
   Layers,
   Award,
-  ChevronDown,
   Check
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ExperienceLevel } from '../types';
 import {
   EDUCATION_LEVELS,
-  INTERMEDIATE_GROUPS,
   ACADEMIC_STREAMS,
   EducationLevelId,
   AcademicStreamId,
-  IntermediateGroupId,
   getEducationLevel,
   getAcademicStream,
-  getIntermediateGroup,
   getDegreesByStreamAndLevel,
   getTargetRolesForStream
 } from '../data/studentStreams';
@@ -38,17 +33,6 @@ interface ProfilePageProps {
   onNavigate?: (route: string) => void;
   isOnboarding?: boolean;
 }
-
-// Intermediate preparation goals
-const INTERMEDIATE_GOAL_OPTIONS = [
-  { id: 'college_admission', label: 'College & University Admission Preparation', desc: 'Personal interviews, university viva voce, and admission screening (CUET, etc.)' },
-  { id: 'entrance_exam', label: 'Entrance Examination Preparation (JEE / NEET / CUET / CLAT / NDA)', desc: 'Confidence building for national & state competitive tests and personality boards' },
-  { id: 'career_exploration', label: 'Career Stream Exploration & Subject Clarity', desc: 'Discovering post-12th degree pathways and future options' },
-  { id: 'communication', label: 'Communication & Spoken English Confidence', desc: 'Overcoming stage fear, articulation, and public speaking confidence' },
-  { id: 'subject_knowledge', label: 'Subject Knowledge & Conceptual Viva Preparation', desc: 'Mastering core syllabus concepts through oral Q&A' },
-  { id: 'internship', label: 'Early Internship & Apprenticeship Preparation', desc: 'Vocational training, hands-on craft skills, and foundation projects' },
-  { id: 'entry_level_employment', label: 'Entry-Level Employment / Government Job Exams', desc: 'Clerical, defense (NDA / Airmen), railway, or private trade entry' }
-];
 
 // Higher Education / Degree preparation goals
 const HIGHER_ED_GOAL_OPTIONS = [
@@ -77,7 +61,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
   const isProfileComplete = Boolean(
     user?.profile_completed ||
     (user?.role_target && user.role_target.trim().length > 0 && user?.skills && user.skills.length > 0) ||
-    (user?.educationLevel && (user?.intermediateGroup || user?.academicStream))
+    (user?.educationLevel && user?.academicStream)
   );
   const isOnboardingMode = isOnboarding ?? !isProfileComplete;
 
@@ -88,15 +72,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
   const [careerGoals, setCareerGoals] = useState<string>(user?.career_goals || '');
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>(user?.experience_level || 'fresher');
 
-  // Academic Profile State
+  // Academic Profile State - Starts directly with degree for tech students
   const [educationLevel, setEducationLevel] = useState<string>(() => {
-    return (user?.educationLevel || user?.education_level || '') as string;
-  });
-  const [intermediateGroup, setIntermediateGroup] = useState<string>(() => {
-    return (user?.intermediateGroup || user?.intermediate_group || '') as string;
+    const raw = (user?.educationLevel || user?.education_level || '') as string;
+    if (raw === 'intermediate' || !raw) return 'undergraduate';
+    return raw;
   });
   const [academicStream, setAcademicStream] = useState<string>(() => {
-    return (user?.academicStream || user?.academic_stream || '') as string;
+    const raw = (user?.academicStream || user?.academic_stream || '') as string;
+    return raw || 'engineering_technology';
   });
   const [degreeCourse, setDegreeCourse] = useState<string>(() => {
     return (user?.degreeCourse || user?.degree_course || '') as string;
@@ -115,18 +99,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
   });
 
   const [careerGoal, setCareerGoal] = useState<string>(() => {
-    return (user?.careerGoal || '') as string;
+    return (user?.careerGoal || 'campus_placement') as string;
   });
 
   // Target Focus / Role
   const [roleTarget, setRoleTarget] = useState<string>(user?.role_target || '');
-  // Intermediate custom target (e.g. "IIT JEE Main", "NEET", "CUET B.Com")
-  const [targetFocus, setTargetFocus] = useState<string>(() => {
-    if (user?.educationLevel === 'intermediate') {
-      return user?.role_target || '';
-    }
-    return '';
-  });
 
   // Skills / Subjects
   const [skills, setSkills] = useState<string[]>(user?.skills || []);
@@ -147,27 +124,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
       setExperienceLevel(user.experience_level || 'fresher');
       setSkills(user.skills || []);
 
-      const edLvl = (user.educationLevel || user.education_level || '') as string;
+      const rawEd = (user.educationLevel || user.education_level || '') as string;
+      const edLvl = (rawEd === 'intermediate' || !rawEd) ? 'undergraduate' : rawEd;
       setEducationLevel(edLvl);
 
-      const intGrp = (user.intermediateGroup || user.intermediate_group || '') as string;
-      setIntermediateGroup(intGrp);
-
-      const acStrm = (user.academicStream || user.academic_stream || '') as string;
-      setAcademicStream(acStrm);
+      const rawStrm = (user.academicStream || user.academic_stream || '') as string;
+      setAcademicStream(rawStrm || 'engineering_technology');
 
       const deg = (user.degreeCourse || user.degree_course || '') as string;
       setDegreeCourse(deg);
 
       setSpecialisation(user.specialisation || '');
       setYearOfStudy((user.yearOfStudy || user.year_of_study || '') as string);
-      setCareerGoal(user.careerGoal || '');
-
-      if (edLvl === 'intermediate') {
-        setTargetFocus(user.role_target || '');
-      } else {
-        setRoleTarget(user.role_target || '');
-      }
+      setCareerGoal(user.careerGoal || 'campus_placement');
+      setRoleTarget(user.role_target || '');
     }
   }, [user]);
 
@@ -176,13 +146,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
     setEducationLevel(newLevel);
     setErrorMsg('');
 
-    if (newLevel === 'intermediate') {
-      if (!intermediateGroup) setIntermediateGroup('mpc');
-      if (!academicStream) setAcademicStream('science');
-      if (!yearOfStudy) setYearOfStudy('Class 12 / Senior Intermediate (2nd Year)');
-      if (!careerGoal) setCareerGoal('entrance_exam');
-      setExperienceLevel('student');
-    } else if (newLevel && newLevel !== 'general') {
+    if (newLevel && newLevel !== 'general') {
       if (!academicStream) {
         if (newLevel === 'diploma_polytechnic' || newLevel === 'iti_vocational') {
           setAcademicStream(newLevel === 'iti_vocational' ? 'iti_vocational' : 'engineering_technology');
@@ -190,25 +154,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
           setAcademicStream('engineering_technology');
         }
       }
-      setIntermediateGroup('');
     } else {
       // General / Experienced
-      setIntermediateGroup('');
       setAcademicStream('');
       setDegreeCourse('');
       setSpecialisation('');
-    }
-  };
-
-  // Intermediate group change
-  const handleIntermediateGroupChange = (grpId: string) => {
-    setIntermediateGroup(grpId);
-    setErrorMsg('');
-
-    // Pre-seed subjects if skills is currently empty
-    const grp = getIntermediateGroup(grpId);
-    if (grp && skills.length === 0) {
-      setSkills(grp.subjects);
     }
   };
 
@@ -226,7 +176,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
 
   // Available degrees for current stream + level
   const availableDegrees = useMemo(() => {
-    if (!academicStream || !educationLevel || educationLevel === 'intermediate') return [];
+    if (!academicStream || !educationLevel) return [];
     const stream = getAcademicStream(academicStream);
     if (!stream) return [];
 
@@ -247,20 +197,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
   // Dynamic Year of Study Options based on Education Level
   const yearOptions = useMemo(() => {
     switch (educationLevel) {
-      case 'intermediate':
-        return [
-          'Class 11 / Junior Intermediate (1st Year)',
-          'Class 12 / Senior Intermediate (2nd Year)',
-          'Class 12 Completed / Entrance Repeater (Dropper)'
-        ];
-      case 'diploma_polytechnic':
-        return [
-          '1st Year Diploma',
-          '2nd Year Diploma',
-          '3rd Year (Final Year Diploma)',
-          'Diploma Completed / Direct Lateral B.Tech Aspirant',
-          'Passed Out / Job Seeking Technician'
-        ];
       case 'undergraduate':
         return [
           '1st Year / Fresher',
@@ -275,14 +211,22 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
           '2nd Year Master’s (Final Year)',
           'Postgraduate Completed'
         ];
+      case 'diploma_polytechnic':
+        return [
+          '1st Year Diploma',
+          '2nd Year Diploma',
+          '3rd Year (Final Year Diploma)',
+          'Diploma Completed / Direct Lateral B.Tech Aspirant',
+          'Passed Out / Job Seeking Technician'
+        ];
       case 'professional_degree':
         return [
           '1st Year Professional',
           '2nd Year Professional',
           '3rd Year Professional',
           '4th Year Professional',
-          '5th Year / Clinical Intern / Articleship',
-          'Degree Completed / Licensure Holder'
+          '5th Year / Clinical Intern / Capstone Project',
+          'Degree Completed / Certified'
         ];
       case 'iti_vocational':
         return [
@@ -292,7 +236,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
         ];
       default:
         return [
-          'Student (Current)',
+          '1st Year Student',
+          '2nd Year Student',
+          '3rd Year / Pre-Final Year',
           'Final Year Student',
           'Fresh Graduate (0-1 yrs)',
           'Working Professional (1+ yrs)'
@@ -300,31 +246,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
     }
   }, [educationLevel]);
 
-  // Suggested Target Roles or Exams
+  // Suggested Target Roles based on Stream
   const suggestedRolesOrExams = useMemo(() => {
-    if (educationLevel === 'intermediate') {
-      const grp = getIntermediateGroup(intermediateGroup);
-      return grp ? grp.entranceExams : ['JEE Main', 'NEET-UG', 'CUET', 'CLAT', 'NDA SSB'];
-    }
     if (academicStream) {
       return getTargetRolesForStream(academicStream as AcademicStreamId);
     }
     return GENERAL_ROLE_SUGGESTIONS;
-  }, [educationLevel, intermediateGroup, academicStream]);
+  }, [academicStream]);
 
   // Genuine completion percentage tailored to category
   const completionPercentage = useMemo(() => {
-    if (educationLevel === 'intermediate') {
-      const checks = [
-        Boolean(fullName.trim()),
-        Boolean(intermediateGroup),
-        Boolean(yearOfStudy),
-        Boolean(careerGoal),
-        Boolean(targetFocus.trim() || careerGoals.trim()),
-        skills.length > 0
-      ];
-      return Math.round((checks.filter(Boolean).length / checks.length) * 100);
-    }
     if (educationLevel && educationLevel !== 'general') {
       const effectiveDeg = isCustomDegree ? customDegreeCourse : degreeCourse;
       const checks = [
@@ -337,7 +268,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
       ];
       return Math.round((checks.filter(Boolean).length / checks.length) * 100);
     }
-    // General
+    // General / Experienced
     const checks = [
       Boolean(fullName.trim()),
       Boolean(roleTarget.trim()),
@@ -349,11 +280,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
   }, [
     fullName,
     educationLevel,
-    intermediateGroup,
-    yearOfStudy,
-    careerGoal,
-    targetFocus,
-    careerGoals,
     skills,
     academicStream,
     isCustomDegree,
@@ -393,33 +319,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
       return;
     }
 
-    const isIntermediate = educationLevel === 'intermediate';
     const effectiveDegree = isCustomDegree ? customDegreeCourse.trim() : degreeCourse.trim();
     const effectiveSpecialisation = isCustomSpecialisation ? customSpecialisation.trim() : specialisation.trim();
+    const effectiveRoleTarget = roleTarget.trim();
 
-    // Determine effective roleTarget for downstream compatibility
-    let effectiveRoleTarget = '';
-    if (isIntermediate) {
-      const grp = getIntermediateGroup(intermediateGroup);
-      const grpCode = grp ? grp.code : 'Intermediate';
-      const goalObj = INTERMEDIATE_GOAL_OPTIONS.find(g => g.id === careerGoal);
-      const goalTitle = targetFocus.trim() || (goalObj ? goalObj.label : 'College Admission');
-      effectiveRoleTarget = `${grpCode} Student • ${goalTitle}`;
-    } else {
-      effectiveRoleTarget = roleTarget.trim();
-    }
-
-    if (!isIntermediate && !effectiveRoleTarget) {
-      setErrorMsg('Please specify your primary target job role or focus area.');
+    if (!effectiveRoleTarget) {
+      setErrorMsg('Please specify your primary target job role or focus area (e.g. Full Stack Developer, SDE-1).');
       return;
     }
 
     if (skills.length === 0) {
-      setErrorMsg(
-        isIntermediate
-          ? 'Please add at least one subject or topic of study (e.g. Physics, Calculus, Economics).'
-          : 'Please add at least one skill, tool, or subject area.'
-      );
+      setErrorMsg('Please add at least one tech skill, programming language, or tool (e.g. React, Python, Data Structures).');
       return;
     }
 
@@ -430,28 +340,26 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
       await updateProfile({
         full_name: fullName.trim() || user?.full_name || 'Candidate',
         role_target: effectiveRoleTarget,
-        experience_level: isIntermediate ? 'student' : experienceLevel,
+        experience_level: experienceLevel,
         college: college.trim(),
         graduation_year: graduationYear.trim(),
         career_goals: careerGoals.trim(),
         skills,
         profile_completed: true,
 
-        // Academic Profile Fields (Stage 2)
+        // Academic Profile Fields
         educationLevel,
-        academicStream: isIntermediate ? (getIntermediateGroup(intermediateGroup)?.subjects.includes('Biology') ? 'healthcare_medicine' : 'science') : academicStream,
-        degreeCourse: isIntermediate ? `${getIntermediateGroup(intermediateGroup)?.code || 'Intermediate'} (10+2)` : effectiveDegree,
+        academicStream: academicStream || 'engineering_technology',
+        degreeCourse: effectiveDegree,
         specialisation: effectiveSpecialisation,
-        intermediateGroup: isIntermediate ? intermediateGroup : undefined,
         yearOfStudy,
         careerGoal,
         careerInterests: skills,
 
         // Database / snake_case compatibility aliases
         education_level: educationLevel,
-        academic_stream: isIntermediate ? 'science' : academicStream,
-        degree_course: isIntermediate ? `${getIntermediateGroup(intermediateGroup)?.code || 'Intermediate'} (10+2)` : effectiveDegree,
-        intermediate_group: isIntermediate ? intermediateGroup : undefined,
+        academic_stream: academicStream || 'engineering_technology',
+        degree_course: effectiveDegree,
         year_of_study: yearOfStudy,
         career_interests: skills
       });
@@ -475,7 +383,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
     }
   };
 
-  const selectedIntermediateGroupObj = getIntermediateGroup(intermediateGroup);
   const selectedStreamObj = getAcademicStream(academicStream);
 
   return (
@@ -489,13 +396,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
             </div>
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#C5F36B]/15 text-[#C5F36B] border border-[#C5F36B]/30 mb-2">
-                Step 1: Universal Student Onboarding
+                Step 1: Degree & Tech Student Onboarding
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-[#F5F7FA] tracking-tight">
                 Welcome to InterviewBro AI, {user?.full_name || 'Candidate'}!
               </h2>
               <p className="text-xs sm:text-sm text-[#9AA4B2] mt-1.5 max-w-2xl leading-relaxed">
-                Tell us your academic background, degree, or stream. Whether you are in Intermediate preparing for college admissions, a polytechnic technician, an ITI trade apprentice, or a university graduate, our AI will calibrate its interview simulations specifically to your field.
+                Tell us your degree, program, and specialisation. Calibrated specifically for B.Tech, B.E., BCA, MCA, and technology degree students, our AI simulates authentic technical problem-solving, system design, and campus placement interviews.
               </p>
             </div>
           </div>
@@ -601,7 +508,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
                 2. Academic Level & Qualification
               </h3>
             </div>
-            <span className="text-[11px] text-[#9AA4B2]">Select your current stage</span>
+            <span className="text-[11px] text-[#9AA4B2]">Degree & Higher Education</span>
           </div>
 
           {/* Education Level Selector Cards */}
@@ -657,166 +564,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
                 )}
               </div>
               <p className="text-[11px] text-[#9AA4B2] mt-1 line-clamp-2 leading-relaxed">
-                Standard corporate job hunting, tech roles, and experienced industry interviews.
+                Standard corporate tech recruitment, lateral job transitions, and experienced developer interviews.
               </p>
             </button>
           </div>
         </div>
 
-        {/* Section C-1: INTERMEDIATE SPECIFIC EXPERIENCE */}
-        {educationLevel === 'intermediate' && (
-          <div className="space-y-6 p-5 sm:p-6 rounded-2xl bg-[#080B11] border border-[#C5F36B]/30 relative">
-            <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
-              <Compass className="w-4 h-4 text-[#C5F36B]" />
-              <h3 className="text-sm font-bold text-[#F5F7FA] uppercase tracking-wider">
-                3. Intermediate (10+2) Stream & Preparation Pathway
-              </h3>
-            </div>
-
-            {/* 7 Intermediate Groups */}
-            <div>
-              <label className="block text-xs font-semibold text-[#F5F7FA] mb-2">
-                Select Your Intermediate Group <span className="text-rose-400">*</span>
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                {INTERMEDIATE_GROUPS.map((grp) => {
-                  const isGrpSelected = intermediateGroup === grp.id;
-                  return (
-                    <button
-                      key={grp.id}
-                      type="button"
-                      onClick={() => handleIntermediateGroupChange(grp.id)}
-                      className={`p-3 rounded-xl border text-center transition-all ${
-                        isGrpSelected
-                          ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-extrabold shadow-sm'
-                          : 'bg-[#121826] hover:bg-white/[0.04] border-white/[0.08] text-[#F5F7FA]'
-                      }`}
-                    >
-                      <div className="text-sm font-black">{grp.code}</div>
-                      <div className={`text-[10px] mt-0.5 truncate ${isGrpSelected ? 'text-black/80 font-medium' : 'text-[#9AA4B2]'}`}>
-                        {grp.id === 'vocational_inter' ? 'Vocational' : grp.subjects.slice(0, 2).join(', ')}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Selected Group Informative Preview */}
-              {selectedIntermediateGroupObj && (
-                <div className="mt-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs">
-                  <div className="font-bold text-[#C5F36B]">{selectedIntermediateGroupObj.name}</div>
-                  <div className="text-[#9AA4B2] text-[11px] mt-1">{selectedIntermediateGroupObj.description}</div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] font-semibold text-[#F5F7FA]">Key Subjects:</span>
-                    {selectedIntermediateGroupObj.subjects.map(s => (
-                      <span key={s} className="px-2 py-0.5 rounded-md bg-white/[0.05] text-[10px] text-[#F5F7FA] border border-white/[0.06]">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Intermediate Year & Goal */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-[#F5F7FA] mb-1.5">
-                  Current Year of Study <span className="text-rose-400">*</span>
-                </label>
-                <select
-                  value={yearOfStudy}
-                  onChange={(e) => setYearOfStudy(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] focus-visible:outline-none focus-visible:border-[#C5F36B]"
-                >
-                  {yearOptions.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#F5F7FA] mb-1.5">
-                  Primary Preparation Goal <span className="text-rose-400">*</span>
-                </label>
-                <select
-                  value={careerGoal}
-                  onChange={(e) => setCareerGoal(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] focus-visible:outline-none focus-visible:border-[#C5F36B]"
-                >
-                  {INTERMEDIATE_GOAL_OPTIONS.map((g) => (
-                    <option key={g.id} value={g.id}>{g.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Target College, Degree, or Entrance Exam */}
-            <div>
-              <label className="block text-xs font-semibold text-[#F5F7FA] mb-1.5">
-                Target College, Degree, or Entrance Exam <span className="text-rose-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={targetFocus}
-                onChange={(e) => setTargetFocus(e.target.value)}
-                placeholder="e.g. IIT Bombay (JEE Advanced), NEET-UG, CUET (B.Com Hons), CLAT Law, NDA SSB..."
-                className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
-              />
-
-              {/* Quick suggestions based on selected group */}
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-[#9AA4B2] font-medium mr-1">Common Targets for {selectedIntermediateGroupObj?.code || 'Group'}:</span>
-                {suggestedRolesOrExams.map((exam) => (
-                  <button
-                    key={exam}
-                    type="button"
-                    onClick={() => setTargetFocus(exam)}
-                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all ${
-                      targetFocus === exam
-                        ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold'
-                        : 'bg-[#121826] hover:bg-white/[0.04] border-white/[0.08] text-[#9AA4B2] hover:text-[#F5F7FA]'
-                    }`}
-                  >
-                    {exam}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Junior College Name */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-[#F5F7FA] mb-1.5">
-                  Junior College / High School / Board
-                </label>
-                <input
-                  type="text"
-                  value={college}
-                  onChange={(e) => setCollege(e.target.value)}
-                  placeholder="e.g. Sri Chaitanya, Narayana, DPS, KV, State Board..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#F5F7FA] mb-1.5">
-                  Class 12 Completion Year
-                </label>
-                <input
-                  type="text"
-                  value={graduationYear}
-                  onChange={(e) => setGraduationYear(e.target.value)}
-                  placeholder="e.g. 2025, 2026, 2027..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Section C-2: HIGHER EDUCATION / VOCATIONAL STREAM & DEGREE */}
-        {educationLevel && educationLevel !== 'intermediate' && educationLevel !== 'general' && (
+        {/* Section C: DEGREE, STREAM & SPECIALISATION */}
+        {educationLevel && educationLevel !== 'general' && (
           <div className="space-y-6 p-5 sm:p-6 rounded-2xl bg-[#080B11] border border-white/[0.08]">
             <div className="flex items-center gap-2 pb-2 border-b border-white/[0.08]">
               <Layers className="w-4 h-4 text-[#C5F36B]" />
@@ -1130,21 +885,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
           </div>
         )}
 
-        {/* Section D: Subjects, Skills & Topics Tag Input */}
+        {/* Section D: Key Skills, Tools & Tech Stacks */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-white/[0.06]">
             <BookOpen className="w-4 h-4 text-[#C5F36B]" />
             <h3 className="text-sm font-bold text-[#F5F7FA] uppercase tracking-wider">
-              {educationLevel === 'intermediate'
-                ? '4. Key Subjects & Topics of Interest'
-                : '4. Key Skills, Tools & Subjects'} <span className="text-rose-400">*</span>
+              4. Key Skills, Tools & Tech Stacks <span className="text-rose-400">*</span>
             </h3>
           </div>
 
           <p className="text-xs text-[#9AA4B2]">
-            {educationLevel === 'intermediate'
-              ? 'Add your 11th/12th subjects (e.g. Physics, Calculus, Botany, Accountancy) so oral questions match your current syllabus.'
-              : 'Add technical tools, domain subjects, or methodologies (e.g. React, SQL, Pharmacology, GST, Vernier Caliper, CAD).'}
+            Add technical skills, programming languages, frameworks, or tools (e.g. React, Python, Data Structures, SQL, AWS, Java) so AI interview questions calibrate directly to your tech stack.
           </p>
 
           {/* Selected Tag Pills */}
@@ -1169,7 +920,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
             </div>
           ) : (
             <div className="p-3 rounded-xl bg-[#080B11] border border-white/[0.06] text-xs text-[#9AA4B2] italic mb-3">
-              No subjects or skills added yet. Use the quick tags below or type your own.
+              No tech skills added yet. Use the quick tags below or type your own.
             </div>
           )}
 
@@ -1179,11 +930,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
               type="text"
               value={newSkill}
               onChange={(e) => setNewSkill(e.target.value)}
-              placeholder={
-                educationLevel === 'intermediate'
-                  ? 'Add subject / topic (e.g. Calculus, Organic Chemistry, Indian Economy)...'
-                  : 'Add skill / subject (e.g. Python, Financial Accounting, Pharmacokinetics)...'
-              }
+              placeholder="Add skill or tech stack (e.g. React, Python, Node.js, SQL, Java)..."
               className="flex-1 px-4 py-2 rounded-xl bg-[#080B11] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B]"
             />
             <button
@@ -1198,26 +945,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
           {/* Quick Tag Recommendations */}
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] text-[#9AA4B2] font-medium mr-1">Quick Suggestions:</span>
-            {educationLevel === 'intermediate' && selectedIntermediateGroupObj ? (
-              selectedIntermediateGroupObj.subjects.map((sub) => {
-                const selected = skills.includes(sub);
-                return (
-                  <button
-                    key={sub}
-                    type="button"
-                    onClick={() => handleAddQuickTag(sub)}
-                    disabled={selected}
-                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all ${
-                      selected
-                        ? 'bg-white/[0.02] border-white/[0.04] text-[#9AA4B2]/40 cursor-default'
-                        : 'bg-[#080B11] hover:bg-white/[0.04] border-white/[0.08] text-[#9AA4B2] hover:text-[#F5F7FA]'
-                    }`}
-                  >
-                    {selected ? `✓ ${sub}` : `+ ${sub}`}
-                  </button>
-                );
-              })
-            ) : academicStream && selectedStreamObj ? (
+            {academicStream && selectedStreamObj ? (
               selectedStreamObj.coreCompetencyPillars.map((p) => {
                 const selected = skills.includes(p.label);
                 return (
@@ -1237,7 +965,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
                 );
               })
             ) : (
-              ['React', 'TypeScript', 'Node.js', 'Python', 'SQL', 'Git', 'Data Structures'].map((s) => {
+              ['React', 'TypeScript', 'Node.js', 'Python', 'SQL', 'Git', 'Data Structures', 'Java', 'C++', 'System Design'].map((s) => {
                 const selected = skills.includes(s);
                 return (
                   <button
@@ -1272,11 +1000,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate, isOnboardi
             rows={3}
             value={careerGoals}
             onChange={(e) => setCareerGoals(e.target.value)}
-            placeholder={
-              educationLevel === 'intermediate'
-                ? 'e.g. Secure a top seat in IIT/NIT through JEE Advanced, or explore biotechnology research...'
-                : 'e.g. Crack campus placement at an MNC, publish a research paper, or transition into cloud architecture...'
-            }
+            placeholder="e.g. Crack campus placement at a top product tech MNC, master Data Structures & System Design, or land an SDE internship..."
             className="w-full p-3.5 rounded-xl bg-[#080B11] border border-white/[0.08] text-xs text-[#F5F7FA] placeholder-[#9AA4B2]/60 focus-visible:outline-none focus-visible:border-[#C5F36B] leading-relaxed"
           />
         </div>

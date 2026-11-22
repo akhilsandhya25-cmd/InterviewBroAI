@@ -33,87 +33,72 @@ export interface EducationLevel {
 
 export const EDUCATION_LEVELS: EducationLevel[] = [
   {
-    id: 'intermediate',
-    name: 'Intermediate / 10+2 / Higher Secondary / Pre-University',
-    shortName: 'Intermediate (10+2)',
-    description: 'Foundational two-year junior college education preparing for university admissions, competitive entrance exams, and early career pathways.',
-    typicalDuration: '2 Years (11th & 12th / Class XI & XII)',
-    focusType: 'exploration_foundational',
+    id: 'undergraduate',
+    name: 'Undergraduate Degree (B.Tech / B.E. / BCA & Bachelor’s Degrees)',
+    shortName: 'Undergraduate Degree (B.Tech / UG)',
+    description: 'Foundational 3 to 4-year technical and university degrees preparing for tech campus placements, corporate recruitment, and software engineering roles.',
+    typicalDuration: '3 to 4 Years (B.Tech, B.E., BCA, B.Sc Computer Science / IT / Data)',
+    focusType: 'degree_career',
     primaryGoals: [
-      'College & University Admission Preparation',
-      'National & State Competitive Entrance Exams (JEE, NEET, CUET, CLAT, IPMAT, NDA)',
-      'Career Stream Exploration & Subject Clarity',
-      'Early Entry Job Options (Defense, Clerical, Government Exams, Apprenticeships)'
+      'Campus Placements & Tech Recruitment (TCS, Infosys, Wipro, Product MNCs)',
+      'Off-Campus Entry-Level Software Engineer & Technical Roles',
+      'Postgraduate Entrance Preparation (GATE, CAT, NIMCET, CUET-PG)',
+      'Technical Internships, Hackathons, and Capstone Project Work'
+    ]
+  },
+  {
+    id: 'postgraduate',
+    name: 'Postgraduate Degree (M.Tech / MCA / M.Sc & Master’s Degrees)',
+    shortName: 'Postgraduate Degree (PG)',
+    description: 'Advanced specialized degree emphasizing software engineering, artificial intelligence, research, data science, or systems architecture.',
+    typicalDuration: '2 Years (M.Tech, MCA, M.Sc CS/IT, MS, MBA Tech)',
+    focusType: 'advanced_specialized',
+    primaryGoals: [
+      'Senior Tech Campus Hiring, Specialist Roles & R&D Labs',
+      'Product Engineering, Systems Architecture & Specialized Tech',
+      'Doctoral / Ph.D Pathways & Core Domain Mastery',
+      'Advanced Technical Viva, System Design & Thesis Defense'
     ]
   },
   {
     id: 'diploma_polytechnic',
     name: 'Diploma & Polytechnic Technical Education',
     shortName: 'Diploma / Polytechnic',
-    description: 'Hands-on technical and engineering education designed for practical industry application, lateral entry into B.Tech/B.E, or direct junior engineering jobs.',
+    description: 'Hands-on technical engineering education designed for practical industry application, lateral entry into 2nd year B.Tech/B.E, or direct junior engineering roles.',
     typicalDuration: '3 Years (Post-10th) or 2 Years (Lateral Post-12th)',
     focusType: 'practical_applied',
     primaryGoals: [
-      'Junior Engineer (JE) & Technician Campus Placements',
       'Lateral Entry into Engineering Degree (2nd Year B.Tech/B.E)',
-      'Industrial Plant, Site Supervision, and Workshop Roles',
+      'Junior Engineer (JE) & Technician Campus Placements',
+      'Industrial Plant, Electronics, Site & Workshop Technical Roles',
       'Core Technical Problem Solving & Machinery Handling'
-    ]
-  },
-  {
-    id: 'undergraduate',
-    name: 'Undergraduate Degree (Bachelor’s Degrees)',
-    shortName: 'Undergraduate (UG)',
-    description: 'Foundational three or four-year university degree across arts, science, commerce, management, agriculture, nursing, and technology.',
-    typicalDuration: '3 to 4 Years (B.A, B.Com, B.Sc, BBA, B.Tech, B.Sc Nursing, B.Sc Agri)',
-    focusType: 'degree_career',
-    primaryGoals: [
-      'Campus Placements & Corporate Recruitment',
-      'Off-Campus Entry-Level Fresher Jobs',
-      'Postgraduate Entrance Exam Preparation (CAT, GATE, JAM, CUET-PG)',
-      'Professional Internships and Real-World Project Work'
-    ]
-  },
-  {
-    id: 'postgraduate',
-    name: 'Postgraduate Degree (Master’s & Doctoral Degrees)',
-    shortName: 'Postgraduate (PG)',
-    description: 'Advanced specialized degree emphasizing research, strategic business administration, advanced clinical practice, or specialized domain mastery.',
-    typicalDuration: '2 Years (M.A, M.Com, M.Sc, MBA, MCA, M.Tech, M.Pharm, LL.M)',
-    focusType: 'advanced_specialized',
-    primaryGoals: [
-      'Senior Corporate Campus Hiring & Management Trainee Programs',
-      'Research & Development (R&D), Teaching, and Ph.D Pathways',
-      'Consulting, Strategic Planning, and Specialized Domain Roles',
-      'Advanced Thesis Defense & Subject Matter Expertise'
     ]
   },
   {
     id: 'professional_degree',
     name: 'Professional Degrees & Licensures',
     shortName: 'Professional Degree',
-    description: 'Rigorous statutory degrees and chartered licensures requiring regulated internships, court moots, clinical rotations, or articleship.',
-    typicalDuration: '4.5 to 5.5 Years (MBBS, BDS, LL.B, CA, CMA, CS, B.Arch, Pharm.D)',
+    description: 'Rigorous 4 to 5-year statutory degrees, dual tech degrees, or specialized university programs requiring extensive practical internships or projects.',
+    typicalDuration: '4.5 to 5.5 Years (B.Arch, B.Tech + M.Tech Dual Degree, B.Pharm, Professional Licensures)',
     focusType: 'degree_career',
     primaryGoals: [
-      'Clinical Residency, Articleship, or Judicial Clerkship',
+      'High-Stakes Technical Projects, Case Studies & System Reviews',
       'Statutory Licensure and Professional Practice Registration',
-      'Corporate Legal, Financial Auditing, or Hospital Practice',
-      'High-Stakes Case Studies, Viva Voce, and Board Interviews'
+      'Corporate & Specialized Professional Practice',
+      'Technical Architecture, Design & Board Reviews'
     ]
   },
   {
     id: 'iti_vocational',
     name: 'ITI & Vocational Skill Certification',
     shortName: 'ITI & Vocational',
-    description: 'Skill-based technical craft training under NCVT/SCVT focusing on practical trade machinery, safety compliance, and direct workshop employment.',
-    typicalDuration: '1 to 2 Years (Electrician, Fitter, Welder, Machinist, COPA)',
+    description: 'Skill-based technical craft training under NCVT/SCVT focusing on practical trade machinery, electronic equipment, and workshop technical skills.',
+    typicalDuration: '1 to 2 Years (Electrician, Electronics Mechanic, COPA, Fitter)',
     focusType: 'trade_technical',
     primaryGoals: [
       'Apprenticeship in PSUs (Railways, BHEL, ONGC, State Electricity Boards)',
-      'Manufacturing Plant, Assembly Line, and Maintenance Technician Jobs',
-      'Self-Employment and Small-Scale Technical Services',
-      'Trade Viva, Practical Demonstration, and Workshop Safety Interviews'
+      'Manufacturing Plant, Hardware Assembly & Maintenance Technician Roles',
+      'Technical Trade Viva & Hands-on Workshop Safety Interviews'
     ]
   }
 ];
@@ -512,7 +497,104 @@ export interface AcademicStream {
 }
 
 export const ACADEMIC_STREAMS: AcademicStream[] = [
-  // 1. COMMERCE & ACCOUNTING
+  // 1. ENGINEERING & TECHNOLOGY (Core & Software) — Top Stream for Tech Students
+  {
+    id: 'engineering_technology',
+    name: 'Engineering & Technology (Core & Computer Sciences)',
+    tagline: 'Software Engineering, Full Stack, AI/ML, Cloud & Core Infrastructure',
+    categoryBadge: 'Engineering & Technology',
+    iconName: 'Cpu',
+    accentColor: 'from-sky-600 to-blue-800',
+    description: 'Premier stream for technology students covering software development, computer science, AI/ML, data science, electronics, and core engineering.',
+    supportedDegrees: [
+      {
+        levelId: 'undergraduate',
+        degreeName: 'Bachelor of Technology / Bachelor of Engineering',
+        abbreviation: 'B.Tech / B.E',
+        specialisations: [
+          'Computer Science & Engineering (CSE)',
+          'Information Technology (IT)',
+          'Artificial Intelligence & Machine Learning (AI/ML)',
+          'Data Science & Analytics',
+          'Cybersecurity & Network Defense',
+          'Electronics & Communication (ECE)',
+          'Electrical & Electronics (EEE)',
+          'Mechanical Engineering',
+          'Civil & Structural Engineering',
+          'Robotics & Automation'
+        ]
+      },
+      {
+        levelId: 'undergraduate',
+        degreeName: 'Bachelor of Computer Applications',
+        abbreviation: 'BCA',
+        specialisations: [
+          'Full Stack Web & Mobile Development',
+          'Cloud Computing & DevOps',
+          'Data Analytics & Database Management',
+          'Software Engineering Fundamentals'
+        ]
+      },
+      {
+        levelId: 'postgraduate',
+        degreeName: 'Master of Technology / Master of Engineering',
+        abbreviation: 'M.Tech / M.E',
+        specialisations: [
+          'Computer Science & Engineering',
+          'Artificial Intelligence & Deep Learning',
+          'VLSI Design & Embedded Systems',
+          'Software Systems Architecture',
+          'Cybersecurity & Cloud Systems',
+          'Structural Engineering',
+          'Thermal & Mechanical Systems'
+        ]
+      },
+      {
+        levelId: 'postgraduate',
+        degreeName: 'Master of Computer Applications',
+        abbreviation: 'MCA',
+        specialisations: [
+          'Enterprise Software Development',
+          'Cloud Architecture & Microservices',
+          'Data Science & Machine Learning',
+          'Application Security & Distributed Systems'
+        ]
+      },
+      {
+        levelId: 'diploma_polytechnic',
+        degreeName: 'Diploma in Engineering',
+        abbreviation: 'Polytechnic Diploma',
+        specialisations: [
+          'Computer Engineering',
+          'Electronics & Communication',
+          'Mechanical Engineering',
+          'Electrical Engineering',
+          'Civil Engineering',
+          'Automobile Engineering'
+        ]
+      }
+    ],
+    popularTargetRoles: [
+      'Software Development Engineer (SDE-1)',
+      'Frontend / React Engineer',
+      'Backend Engineer (Node / Java / Python)',
+      'Full Stack & Cloud Developer',
+      'Data Analyst / Machine Learning Engineer',
+      'Embedded & VLSI Hardware Engineer',
+      'Site / Civil Infrastructure Engineer',
+      'Design Engineer (Mechanical CAD / SolidWorks)'
+    ],
+    coreCompetencyPillars: [
+      { key: 'engineeringFundamentals', label: 'Data Structures & Algorithms / Core Fundamentals', description: 'Arrays, Trees, Graphs, Complexity, System Design, or Core Thermodynamics & Circuit Laws.' },
+      { key: 'problemSolving', label: 'Technical Troubleshooting & Coding Logic', description: 'Live coding problem solving, edge case handling, debugging, and architecture design.' },
+      { key: 'projectDelivery', label: 'Tech Stack & Production Implementation', description: 'REST APIs, React, Node.js, SQL, Git workflows, CI/CD, and robust software craftsmanship.' },
+      { key: 'communication', label: 'Technical Articulation & Behavioral Fit', description: 'Explaining engineering trade-offs, design choices, team collaboration, and HR alignment.' }
+    ],
+    commonHiringCompaniesOrSectors: ['Product Tech MNCs (Google, Amazon, Microsoft)', 'Top IT Services (TCS, Infosys, Wipro, Accenture)', 'Fintech & Unicorn Startups', 'Larsen & Toubro (L&T)', 'Bosch & Schneider Electric'],
+    typicalInterviewFormat: ['DSA / Technical Problem Solving Round', 'System Architecture & Tech Stack Viva', 'Project Deep-Dive & Code Walkthrough', 'HR & Cultural Alignment']
+  },
+
+  // 2. COMMERCE & ACCOUNTING
   {
     id: 'commerce',
     name: 'Commerce, Accounting & Taxation',
@@ -522,12 +604,6 @@ export const ACADEMIC_STREAMS: AcademicStream[] = [
     accentColor: 'from-amber-600 to-emerald-700',
     description: 'Covers financial accounting, taxation (GST & Direct Tax), auditing, commercial laws, corporate finance, and banking operations.',
     supportedDegrees: [
-      {
-        levelId: 'intermediate',
-        degreeName: 'Intermediate Commerce (MEC / CEC)',
-        abbreviation: 'MEC / CEC',
-        specialisations: ['Mathematics & Commerce', 'Economics & Accountancy', 'Civics & Commerce']
-      },
       {
         levelId: 'undergraduate',
         degreeName: 'Bachelor of Commerce',
@@ -565,7 +641,7 @@ export const ACADEMIC_STREAMS: AcademicStream[] = [
     typicalInterviewFormat: ['Technical Accounting Test (Journal & Ledger)', 'GST & Tax Technical Viva', 'Excel & Tally Practical Round', 'Managerial & Ethical Fit']
   },
 
-  // 2. ARTS & HUMANITIES
+  // 3. ARTS & HUMANITIES
   {
     id: 'arts_humanities',
     name: 'Arts, Humanities & Social Sciences',
@@ -575,12 +651,6 @@ export const ACADEMIC_STREAMS: AcademicStream[] = [
     accentColor: 'from-purple-600 to-indigo-800',
     description: 'Encompasses literature, sociology, history, political science, psychology, public relations, mass communication, and social work.',
     supportedDegrees: [
-      {
-        levelId: 'intermediate',
-        degreeName: 'Intermediate Arts (HEC / CEC)',
-        abbreviation: 'HEC',
-        specialisations: ['History, Economics, Civics', 'Sociology & Public Admin']
-      },
       {
         levelId: 'undergraduate',
         degreeName: 'Bachelor of Arts',
@@ -612,7 +682,7 @@ export const ACADEMIC_STREAMS: AcademicStream[] = [
     typicalInterviewFormat: ['Portfolio / Writing Sample Evaluation', 'Case Scenario & Social Analysis Viva', 'Extempore Spoken Speech Round', 'HR & Cultural Alignment']
   },
 
-  // 3. SCIENCE & MATHEMATICS
+  // 4. SCIENCE & MATHEMATICS
   {
     id: 'science',
     name: 'Science & Mathematics',
@@ -622,12 +692,6 @@ export const ACADEMIC_STREAMS: AcademicStream[] = [
     accentColor: 'from-blue-600 to-cyan-700',
     description: 'Encompasses physics, chemistry, mathematics, statistics, biotechnology, microbiology, and environmental sciences.',
     supportedDegrees: [
-      {
-        levelId: 'intermediate',
-        degreeName: 'Intermediate Science (MPC / BiPC)',
-        abbreviation: 'MPC / BiPC',
-        specialisations: ['Physics & Maths', 'Chemistry & Biology', 'Electronics']
-      },
       {
         levelId: 'undergraduate',
         degreeName: 'Bachelor of Science',
@@ -657,53 +721,6 @@ export const ACADEMIC_STREAMS: AcademicStream[] = [
     ],
     commonHiringCompaniesOrSectors: ['R&D Testing Labs', 'Chemical & Fertilizer Plants', 'Biotech Companies (Biocon, Serum Institute)', 'Data Analytics Consultancies', 'Academic & Research Institutions (CSIR, ICMR)'],
     typicalInterviewFormat: ['Subject Theory Viva (Organic/Physical/Calculus)', 'Lab Instrumentation & Safety Viva', 'Numerical Aptitude Assessment', 'Research Project Walkthrough']
-  },
-
-  // 4. ENGINEERING & TECHNOLOGY (Core & Software)
-  {
-    id: 'engineering_technology',
-    name: 'Engineering & Technology (Core & Computer Sciences)',
-    tagline: 'Systems Engineering, Manufacturing, Infrastructure & Software Architecture',
-    categoryBadge: 'Engineering & Technology',
-    iconName: 'Cpu',
-    accentColor: 'from-sky-600 to-blue-800',
-    description: 'Includes both traditional core engineering (Mechanical, Civil, EEE, ECE, Chemical) and software/IT computer engineering.',
-    supportedDegrees: [
-      {
-        levelId: 'diploma_polytechnic',
-        degreeName: 'Diploma in Engineering',
-        abbreviation: 'Polytechnic Diploma',
-        specialisations: ['Mechanical', 'Civil', 'Electrical & Electronics', 'Electronics & Comm', 'Automobile']
-      },
-      {
-        levelId: 'undergraduate',
-        degreeName: 'Bachelor of Technology / Bachelor of Engineering',
-        abbreviation: 'B.Tech / B.E',
-        specialisations: ['Computer Science & IT', 'Mechanical Engineering', 'Civil Engineering', 'Electronics & Communication', 'Electrical Engineering', 'Robotics & Automation']
-      },
-      {
-        levelId: 'postgraduate',
-        degreeName: 'Master of Technology',
-        abbreviation: 'M.Tech / M.E',
-        specialisations: ['VLSI Design', 'Structural Engineering', 'Thermal Engineering', 'Computer Networks & AI', 'Power Systems']
-      }
-    ],
-    popularTargetRoles: [
-      'Site Engineer (Civil Infrastructure)',
-      'Design Engineer (Mechanical CAD / SolidWorks)',
-      'Embedded & VLSI Hardware Engineer',
-      'Electrical Maintenance Engineer',
-      'Software Development Engineer (SDE-1)',
-      'Full Stack & Cloud Developer'
-    ],
-    coreCompetencyPillars: [
-      { key: 'engineeringFundamentals', label: 'Core Engineering Principles', description: 'Thermodynamics, Strength of Materials, Circuit Theory, Structural Analysis, or Data Structures.' },
-      { key: 'problemSolving', label: 'Technical Troubleshooting & Design', description: 'Root cause analysis, schematic reading, fault isolation, and practical system design.' },
-      { key: 'projectDelivery', label: 'Implementation & Safety Standards', description: 'Blueprint interpretation, IS/IEEE codes compliance, project milestones, and optimization.' },
-      { key: 'communication', label: 'Technical Articulation & Teamwork', description: 'Explaining engineering trade-offs, documentation, and cross-functional coordination.' }
-    ],
-    commonHiringCompaniesOrSectors: ['Larsen & Toubro (L&T)', 'Tata Motors / Tata Steel', 'Bosch', 'Schneider Electric', 'BHEL / NTPC', 'IT Service MNCs (TCS, Infosys)', 'Product Tech Firms'],
-    typicalInterviewFormat: ['Domain Engineering Theory Round', 'CAD / Coding / Blueprint Practical', 'Project Deep-Dive Viva', 'HR & Operational Alignment']
   },
 
   // 5. HEALTHCARE & MEDICINE
