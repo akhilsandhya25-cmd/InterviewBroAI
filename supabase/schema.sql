@@ -245,7 +245,7 @@ drop policy if exists "Users can access own resume analyses" on public.resume_an
 create policy "Users can access own resume analyses" on public.resume_analyses for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- =========================================================================
--- 7. WAITLIST TABLE
+-- 8. WAITLIST TABLE
 -- =========================================================================
 create table if not exists public.waitlist (
   id uuid default gen_random_uuid() primary key,
@@ -262,7 +262,30 @@ drop policy if exists "Anyone can join waitlist" on public.waitlist;
 create policy "Anyone can join waitlist" on public.waitlist for insert with check (true);
 
 -- =========================================================================
--- 8. PERMISSIONS & ROLE GRANTS
+-- 9. USER & FRIEND FEEDBACK TABLE
+-- =========================================================================
+create table if not exists public.user_feedback (
+  id text primary key,
+  rating integer not null default 5,
+  category text not null default 'General Feedback',
+  message text not null,
+  name text,
+  email text,
+  page_url text,
+  client_ip text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create index if not exists idx_user_feedback_created_at on public.user_feedback(created_at desc);
+
+alter table public.user_feedback enable row level security;
+drop policy if exists "Anyone can submit feedback" on public.user_feedback;
+create policy "Anyone can submit feedback" on public.user_feedback for insert with check (true);
+drop policy if exists "Anyone can read feedback" on public.user_feedback;
+create policy "Anyone can read feedback" on public.user_feedback for select using (true);
+
+-- =========================================================================
+-- 10. PERMISSIONS & ROLE GRANTS
 -- =========================================================================
 grant usage on schema public to anon, authenticated;
 
@@ -271,6 +294,7 @@ grant select, insert, update, delete on public.interview_sessions to authenticat
 grant select, insert, update, delete on public.feedback_reports to authenticated, anon;
 grant select, insert, update, delete on public.resume_analyses to authenticated, anon;
 grant insert, select on public.waitlist to authenticated, anon;
+grant insert, select on public.user_feedback to authenticated, anon, service_role;
 
 grant execute on function public.consume_interview_quota(uuid) to authenticated, anon, service_role;
 grant execute on function public.increment_interview_usage(uuid, integer) to authenticated, anon, service_role;
