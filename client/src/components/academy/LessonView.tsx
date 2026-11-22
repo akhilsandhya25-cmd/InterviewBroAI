@@ -285,6 +285,7 @@ export const LessonView: React.FC<LessonViewProps> = ({
                   title={lesson.videoTitle || lesson.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
                   className="w-full h-full border-0"
                 />
               </div>
