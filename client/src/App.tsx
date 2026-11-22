@@ -23,7 +23,6 @@ import { IntroSplashAnimation } from './components/IntroSplashAnimation';
 import { Shield, Lock, ArrowRight, Sparkles, Loader2, GraduationCap, Info, BookOpen, FileText, Users } from 'lucide-react';
 import { checkInterviewEligibility } from './services/interviewEligibility';
 import { BrandIcon } from './components/brand/BrandIcon';
-import { DevelopmentNoticeBanner } from './components/DevelopmentNoticeBanner';
 import { storage } from './services/storage';
 import { UserProfile } from './types';
 
@@ -496,9 +495,6 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans overflow-x-hidden transition-colors duration-150">
-      {/* Active Development Notice Banner */}
-      <DevelopmentNoticeBanner onLearnMore={() => navigateTo('legal:terms')} />
-
       {/* Top Navbar */}
       <Navbar
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
