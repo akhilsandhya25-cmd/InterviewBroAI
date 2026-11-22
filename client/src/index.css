@@ -303,6 +303,48 @@
   --tw-ring-color: #1D4ED8 !important;
 }
 
+/* Form controls & typography safety fallbacks in light mode */
+:root:not(.dark) input:not([type="checkbox"]):not([type="radio"]),
+:root:not(.dark) textarea,
+:root:not(.dark) select {
+  color: #0F172A !important;
+}
+:root:not(.dark) input::placeholder,
+:root:not(.dark) textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+/* Guard against legacy dark-theme text-white becoming invisible on white surfaces */
+:root:not(.dark) [class*="bg-white"] .text-white:not(button):not(a),
+:root:not(.dark) [class*="bg-slate-50"] .text-white:not(button):not(a),
+:root:not(.dark) [class*="bg-[#0B0F19]"] .text-white:not(button):not(a),
+:root:not(.dark) [class*="bg-[#080B11]"] .text-white:not(button):not(a) {
+  color: #0F172A !important;
+}
+
+:root:not(.dark) [class*="bg-white"] label.text-white,
+:root:not(.dark) [class*="bg-slate-50"] label.text-white,
+:root:not(.dark) [class*="bg-[#0B0F19]"] label.text-white,
+:root:not(.dark) [class*="bg-[#080B11]"] label.text-white,
+:root:not(.dark) label[class*="text-white"] {
+  color: #0F172A !important;
+}
+
+:root:not(.dark) [class*="bg-white"] h1.text-white,
+:root:not(.dark) [class*="bg-white"] h2.text-white,
+:root:not(.dark) [class*="bg-white"] h3.text-white,
+:root:not(.dark) [class*="bg-white"] h4.text-white,
+:root:not(.dark) [class*="bg-[#0B0F19]"] h1.text-white,
+:root:not(.dark) [class*="bg-[#0B0F19]"] h2.text-white,
+:root:not(.dark) [class*="bg-[#0B0F19]"] h3.text-white,
+:root:not(.dark) [class*="bg-[#0B0F19]"] h4.text-white,
+:root:not(.dark) h1[class*="text-white"],
+:root:not(.dark) h2[class*="text-white"],
+:root:not(.dark) h3[class*="text-white"],
+:root:not(.dark) h4[class*="text-white"] {
+  color: #0F172A !important;
+}
+
 /* Functional Motion Only (150-250ms) */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {

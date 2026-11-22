@@ -9,7 +9,7 @@ import {
   CandidateProfile,
   CurrentStatus,
   EducationLevelType
-} from '../../types';
+} from '../../types/candidateProfile';
 
 interface CandidateOnboardingModalProps {
   isOpen: boolean;
@@ -26,7 +26,7 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
   onSaveProfile,
   onStartFirstInterview
 }) => {
-  const [currentStatus, setCurrentStatus] = useState<CurrentStatus>(candidateProfile.currentStatus || 'Student');
+  const [currentStatus, setCurrentStatus] = useState<CurrentStatus>(candidateProfile.currentStatus || 'Fresher');
   const [educationLevel, setEducationLevel] = useState<EducationLevelType>(candidateProfile.educationLevel || 'UG');
   const [degreeStream, setDegreeStream] = useState<string>(candidateProfile.degreeStream || 'B.Tech Computer Science');
   const [targetRole, setTargetRole] = useState<string>(candidateProfile.targetRole || 'Software Engineer');
@@ -57,22 +57,22 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg bg-[#0B0F19] border border-white/[0.08] rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in">
+      <div className="relative w-full max-w-lg bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-900 dark:text-[#F5F7FA]">
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-white/[0.06] flex items-center justify-between">
+        <div className="px-6 pt-6 pb-4 border-b border-slate-200 dark:border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#C5F36B]/15 border border-[#C5F36B]/30 flex items-center justify-center text-[#C5F36B]">
-              <Sparkles className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-xl bg-[#C5F36B]/20 border border-emerald-500/30 dark:border-[#C5F36B]/30 flex items-center justify-center text-emerald-800 dark:text-[#C5F36B]">
+              <Sparkles className="w-4 h-4 text-emerald-700 dark:text-[#C5F36B]" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white">4 Quick Questions to Personalize Your AI Mock</h2>
-              <p className="text-[11px] text-[#9AA4B2]">Takes 15 seconds • You can start mock interviews immediately</p>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">4 Quick Questions to Personalize Your AI Mock</h2>
+              <p className="text-[11px] text-slate-600 dark:text-[#9AA4B2] font-medium">Takes 15 seconds • You can start mock interviews immediately</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-white/[0.04] text-[#9AA4B2] hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer"
+            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] text-slate-600 hover:text-slate-900 dark:text-[#9AA4B2] dark:hover:text-white dark:hover:bg-white/[0.08] transition-all cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -82,7 +82,7 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
         <div className="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
           {/* Question 1: I am a */}
           <div>
-            <label className="block text-xs font-semibold text-white mb-2">
+            <label className="block text-xs font-bold text-slate-800 dark:text-white mb-2">
               1. I am a:
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -91,14 +91,14 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
                   key={st}
                   type="button"
                   onClick={() => setCurrentStatus(st)}
-                  className={`p-2.5 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  className={`p-2.5 rounded-xl text-xs font-semibold border text-left transition-all cursor-pointer flex items-center justify-between ${
                     currentStatus === st
-                      ? 'bg-[#C5F36B]/15 border-[#C5F36B] text-white font-bold'
-                      : 'bg-white/[0.02] border-white/[0.06] text-[#9AA4B2] hover:bg-white/[0.05]'
+                      ? 'bg-[#C5F36B] dark:bg-[#C5F36B]/20 border-[#C5F36B] text-[#080B11] dark:text-[#C5F36B] font-bold shadow-sm'
+                      : 'bg-slate-100 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-[#9AA4B2] hover:bg-slate-200 dark:hover:bg-white/[0.05]'
                   }`}
                 >
                   <span>{st}</span>
-                  {currentStatus === st && <CheckCircle2 className="w-3.5 h-3.5 text-[#C5F36B]" />}
+                  {currentStatus === st && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-800 dark:text-[#C5F36B]" />}
                 </button>
               ))}
             </div>
@@ -106,7 +106,7 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
 
           {/* Question 2: Education Level */}
           <div>
-            <label className="block text-xs font-semibold text-white mb-2">
+            <label className="block text-xs font-bold text-slate-800 dark:text-white mb-2">
               2. Education Level:
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -120,10 +120,10 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
                   key={lvl.id}
                   type="button"
                   onClick={() => setEducationLevel(lvl.id as EducationLevelType)}
-                  className={`p-2.5 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer ${
+                  className={`p-2.5 rounded-xl text-xs font-semibold border text-center transition-all cursor-pointer ${
                     educationLevel === lvl.id
-                      ? 'bg-[#C5F36B]/15 border-[#C5F36B] text-white font-bold'
-                      : 'bg-white/[0.02] border-white/[0.06] text-[#9AA4B2] hover:bg-white/[0.05]'
+                      ? 'bg-[#C5F36B] dark:bg-[#C5F36B]/20 border-[#C5F36B] text-[#080B11] dark:text-[#C5F36B] font-bold shadow-sm'
+                      : 'bg-slate-100 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-[#9AA4B2] hover:bg-slate-200 dark:hover:bg-white/[0.05]'
                   }`}
                 >
                   {lvl.label}
@@ -134,7 +134,7 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
 
           {/* Question 3: Stream or Degree */}
           <div>
-            <label className="block text-xs font-semibold text-white mb-1.5">
+            <label className="block text-xs font-bold text-slate-800 dark:text-white mb-1.5">
               3. Stream or Degree:
             </label>
             <input
@@ -142,7 +142,7 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
               value={degreeStream}
               onChange={(e) => setDegreeStream(e.target.value)}
               placeholder="e.g. B.Com, B.Tech CSE, MBA, BCA, B.Sc"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-[#C5F36B]"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-300 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#C5F36B] font-medium"
             />
             <div className="flex flex-wrap gap-1.5 mt-2">
               {['B.Tech CSE', 'B.Com', 'BCA', 'BBA', 'MBA', 'B.Sc Physics', 'Mechanical Engg'].map((chip) => (
@@ -150,10 +150,10 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
                   key={chip}
                   type="button"
                   onClick={() => setDegreeStream(chip)}
-                  className={`text-[10px] px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                  className={`text-[10px] px-2 py-0.5 rounded-lg border transition-colors cursor-pointer font-semibold ${
                     degreeStream === chip
-                      ? 'bg-[#C5F36B]/20 text-[#C5F36B] border-[#C5F36B]/40 font-bold'
-                      : 'bg-white/[0.02] text-[#9AA4B2] border-white/[0.06] hover:text-white'
+                      ? 'bg-[#C5F36B] text-[#080B11] border-[#C5F36B] font-bold'
+                      : 'bg-slate-100 dark:bg-white/[0.02] text-slate-700 dark:text-[#9AA4B2] border-slate-200 dark:border-white/[0.06] hover:bg-slate-200 dark:hover:text-white'
                   }`}
                 >
                   {chip}
@@ -164,7 +164,7 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
 
           {/* Question 4: Target Role */}
           <div>
-            <label className="block text-xs font-semibold text-white mb-1.5">
+            <label className="block text-xs font-bold text-slate-800 dark:text-white mb-1.5">
               4. Target Role:
             </label>
             <input
@@ -172,7 +172,7 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
               value={targetRole}
               onChange={(e) => setTargetRole(e.target.value)}
               placeholder="e.g. Software Engineer, Financial Analyst, HR Associate"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-[#C5F36B]"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-300 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#C5F36B] font-medium"
             />
             <div className="flex flex-wrap gap-1.5 mt-2">
               {['Software Engineer', 'Data Analyst', 'Frontend Dev', 'Financial Analyst', 'HR Executive', 'Management Trainee'].map((role) => (
@@ -180,10 +180,10 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
                   key={role}
                   type="button"
                   onClick={() => setTargetRole(role)}
-                  className={`text-[10px] px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                  className={`text-[10px] px-2 py-0.5 rounded-lg border transition-colors cursor-pointer font-semibold ${
                     targetRole === role
-                      ? 'bg-[#C5F36B]/20 text-[#C5F36B] border-[#C5F36B]/40 font-bold'
-                      : 'bg-white/[0.02] text-[#9AA4B2] border-white/[0.06] hover:text-white'
+                      ? 'bg-[#C5F36B] text-[#080B11] border-[#C5F36B] font-bold'
+                      : 'bg-slate-100 dark:bg-white/[0.02] text-slate-700 dark:text-[#9AA4B2] border-slate-200 dark:border-white/[0.06] hover:bg-slate-200 dark:hover:text-white'
                   }`}
                 >
                   {role}
@@ -194,11 +194,11 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-white/[0.06] flex items-center justify-between bg-white/[0.01]">
+        <div className="p-5 border-t border-slate-200 dark:border-white/[0.06] flex items-center justify-between bg-slate-50 dark:bg-white/[0.01]">
           <button
             type="button"
             onClick={onClose}
-            className="text-xs text-[#9AA4B2] hover:text-white transition-colors cursor-pointer"
+            className="text-xs text-slate-600 hover:text-slate-900 dark:text-[#9AA4B2] dark:hover:text-white font-semibold transition-colors cursor-pointer"
           >
             Skip for now &gt;
           </button>
@@ -217,3 +217,5 @@ export const CandidateOnboardingModal: React.FC<CandidateOnboardingModalProps> =
     </div>
   );
 };
+
+export default CandidateOnboardingModal;
