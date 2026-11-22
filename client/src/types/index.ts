@@ -27,6 +27,31 @@ export interface UserProfile {
   created_at: string;
   updated_at: string;
 
+  // Adaptive Profile Extensions
+  phone?: string;
+  location?: string;
+  academicStatus?: string;
+  professionalStage?: string;
+  employmentStatus?: string;
+  currentIndustry?: string;
+  totalExperienceYears?: string;
+  previousJobRole?: string;
+  previousQualification?: string;
+  preferredCareerField?: string;
+  preferredIndustry?: string;
+  preferredCompanies?: string;
+  preferredJobType?: string;
+  projects?: {
+    id?: string;
+    title: string;
+    description: string;
+    techStack?: string;
+    link?: string;
+  }[];
+  certifications?: string[];
+  achievements?: string[];
+  skillProficiencies?: Record<string, 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'>;
+
   // Universal Student Expansion — Optional Academic Profile Fields (Stage 2)
   educationLevel?: EducationLevelId | string;
   academicStream?: AcademicStreamId | string;

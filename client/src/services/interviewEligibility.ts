@@ -19,9 +19,6 @@ export interface EligibilityResult {
 
 const BLOCKED_LEVELS = new Set([
   'intermediate',
-  'diploma_polytechnic',
-  'diploma',
-  'polytechnic',
   'iti_vocational',
   'iti',
   'vocational',
@@ -40,9 +37,6 @@ const BLOCKED_INTERMEDIATE_GROUPS = new Set([
 ]);
 
 const DISQUALIFYING_COURSE_PATTERNS = [
-  /\bdiploma\b/i,
-  /\bpolytechnic\b/i,
-  /\bpoly\b/i,
   /\biti\b/i,
   /\bintermediate\b/i,
   /\b10\s*\+\s*2\b/i,
@@ -66,6 +60,8 @@ const DISQUALIFYING_COURSE_PATTERNS = [
 ];
 
 const RECOGNISED_DEGREE_PATTERNS = [
+  /\bdiploma\b/i,
+  /\bpolytechnic\b/i,
   /\bb[\s.]*tech\b/i,
   /\bb[\s.]*e\b/i,
   /\bbachelor\s*of\s*(technology|engineering|science|commerce|arts|business|computer|pharmacy|architecture|design|laws|medicine)\b/i,
@@ -208,11 +204,15 @@ export function checkInterviewEligibility(profile?: Partial<UserProfile> | Parti
     }
   }
 
-  // 5. Check if education level is recognized degree level
+  // 5. Check if education level is recognized degree or higher education level
   const isDegreeLevel = (
     rawEduLevel === 'undergraduate' ||
     rawEduLevel === 'postgraduate' ||
-    rawEduLevel === 'professional_degree'
+    rawEduLevel === 'professional_degree' ||
+    rawEduLevel === 'diploma_polytechnic' ||
+    rawEduLevel === 'diploma' ||
+    rawEduLevel === 'polytechnic' ||
+    rawEduLevel === 'general'
   );
 
   if (isDegreeLevel) {
