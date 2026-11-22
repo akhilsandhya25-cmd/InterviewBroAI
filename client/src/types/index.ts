@@ -1,4 +1,22 @@
 import type { EducationLevelId, AcademicStreamId, IntermediateGroupId } from '../data/studentStreams';
+import type {
+  CandidateProfile,
+  CandidateEducation,
+  CandidateSkill,
+  CandidateExperience,
+  CandidateResume,
+  CommunicationBaseline,
+  SelfReportedComfort,
+  CandidatePreferences,
+  ReadinessScores,
+  CareerTarget,
+  CurrentStatus,
+  InterviewTypeFocus,
+  CompanyTypePreference,
+  PreparationTimeline
+} from './candidateProfile';
+
+export * from './candidateProfile';
 
 export type ExperienceLevel = 'student' | 'fresher' | 'junior' | 'mid' | 'senior';
 
@@ -26,6 +44,35 @@ export interface UserProfile {
   profile_completed?: boolean;
   created_at: string;
   updated_at: string;
+
+  // Normalized Candidate Profile Extensions
+  city_state?: string;
+  preferred_interview_language?: string;
+  current_status?: CurrentStatus;
+  target_roles?: string[];
+  primary_target_role?: string;
+  target_industry?: string;
+  interview_type_focus?: InterviewTypeFocus;
+  company_type_preference?: CompanyTypePreference;
+  preparation_timeline?: PreparationTimeline;
+  candidateEducation?: CandidateEducation[];
+  candidateSkills?: CandidateSkill[];
+  candidateExperience?: CandidateExperience[];
+  candidateResumes?: CandidateResume[];
+  communicationBaseline?: CommunicationBaseline;
+  selfReportedComfort?: SelfReportedComfort;
+  candidatePreferences?: CandidatePreferences;
+  readinessScores?: ReadinessScores;
+  weakAreas?: string[];
+  strengthAreas?: string[];
+
+  // Snake_case aliases for database syncing
+  self_reported_comfort?: SelfReportedComfort;
+  communication_baseline?: CommunicationBaseline;
+  preferences?: CandidatePreferences;
+  readiness_scores?: ReadinessScores;
+  weak_areas?: string[];
+  strength_areas?: string[];
 
   // Adaptive Profile Extensions
   phone?: string;
@@ -121,6 +168,7 @@ export interface InterviewConfig {
   subject?: string;
   targetRole?: string;
   interviewDuration?: number;
+  candidateProfile?: CandidateProfile;
 }
 
 export type InterviewSource = 'ai' | 'fallback';

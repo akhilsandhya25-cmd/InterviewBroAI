@@ -61,3 +61,5 @@ scratch/
 .vite/
 .data/
 **/.data/
+backups/
+**/backups/

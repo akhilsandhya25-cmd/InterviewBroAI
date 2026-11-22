@@ -129,8 +129,9 @@ const AppContent: React.FC = () => {
   const isProfileComplete = (u: UserProfile | null): boolean => {
     if (!u) return false;
     if (u.profile_completed === true) return true;
-    if (u.profile_completed === false) return false;
-    return Boolean(u.role_target && u.role_target.trim().length > 0 && u.skills && u.skills.length > 0);
+    const targetRole = u.role_target || u.primary_target_role;
+    const skillsList = u.skills || u.candidateSkills;
+    return Boolean(targetRole && targetRole.trim().length > 0 && skillsList && skillsList.length > 0);
   };
 
   // Once auth is resolved, set initial route

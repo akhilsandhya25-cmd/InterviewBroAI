@@ -1,4 +1,4 @@
-import { UserProfile, InterviewSession, FeedbackReport, ResumeAnalysis, UsageQuota, PrivacyPreferences, UserAcademyProgress, LessonProgress, QuizAttempt, PracticeAttempt, ResumeBuilderData, UserFeedback } from '../types';
+import { UserProfile, CandidateProfile, CandidateEducation, CandidateSkill, CandidateExperience, CandidateResume, InterviewSession, FeedbackReport, ResumeAnalysis, UsageQuota, PrivacyPreferences, UserAcademyProgress, LessonProgress, QuizAttempt, PracticeAttempt, ResumeBuilderData, UserFeedback } from '../types';
 import { TOTAL_ACADEMY_LESSONS } from '../data/academyCurriculum';
 import { supabase, isSupabaseConfigured, checkSupabaseTablesStatus, CloudSyncStatus, CloudHealthCheckResult } from './supabase';
 
@@ -86,6 +86,207 @@ export const storage = {
   getActiveUserId(): string | null {
     const user = this.getUser();
     return user ? user.id : null;
+  },
+
+  // =========================================================================
+  // Normalized Candidate Profile Operations
+  // =========================================================================
+  getCandidateProfile(userId?: string | null): CandidateProfile {
+    const uid = userId || this.getActiveUserId() || 'guest-user';
+    const cachedUser = this.getUser();
+    try {
+      const stored = localStorage.getItem(`interviewbro_candidate_profile_${uid}`);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch {
+      // ignore
+    }
+
+    const defaultDegree = cachedUser?.degreeCourse || cachedUser?.degree_course || 'Bachelor of Technology';
+    const defaultStream = cachedUser?.academicStream || cachedUser?.academic_stream || 'Engineering & Technology';
+    const defaultEduLevel = (cachedUser?.educationLevel || cachedUser?.education_level || 'undergraduate') as any;
+    const defaultTargetRole = cachedUser?.role_target || 'Software Engineer';
+    const defaultSkills: CandidateSkill[] = Array.isArray(cachedUser?.skills) && cachedUser.skills.length > 0
+      ? cachedUser.skills.map((s, idx) => ({
+          id: `sk-${idx}-${Date.now()}`,
+          userId: uid,
+          name: s,
+          category: 'Technical' as const,
+          selfRating: (cachedUser?.skillProficiencies?.[s] || 'Intermediate') as any,
+          verified: false
+        }))
+      : [
+          { id: 'sk-1', userId: uid, name: 'Problem Solving', category: 'Analytical' as const, selfRating: 'Intermediate' as const, verified: true },
+          { id: 'sk-2', userId: uid, name: 'Communication', category: 'Communication' as const, selfRating: 'Intermediate' as const, verified: true }
+        ];
+
+    const initialCandidateProfile: CandidateProfile = {
+      id: uid,
+      email: cachedUser?.email || '',
+      fullName: cachedUser?.full_name || 'Candidate',
+      avatarUrl: cachedUser?.avatar_url,
+      cityState: cachedUser?.city_state || cachedUser?.location || '',
+      preferredInterviewLanguage: cachedUser?.preferred_interview_language || 'English',
+      currentStatus: (cachedUser?.current_status || (cachedUser?.experience_level === 'student' ? 'Student' : 'Fresher')) as any,
+      careerTarget: {
+        targetRoles: cachedUser?.target_roles || [defaultTargetRole],
+        primaryTargetRole: defaultTargetRole,
+        targetIndustry: cachedUser?.target_industry || cachedUser?.currentIndustry || 'Technology',
+        interviewTypeFocus: (cachedUser?.interview_type_focus || 'Technical') as any,
+        companyTypePreference: (cachedUser?.company_type_preference || 'Not sure') as any,
+        timeline: (cachedUser?.preparation_timeline || '1 month') as any
+      },
+      education: [
+        {
+          id: `edu-${uid}-primary`,
+          userId: uid,
+          level: defaultEduLevel,
+          degree: defaultDegree,
+          stream: defaultStream,
+          specialization: cachedUser?.specialisation || '',
+          institution: cachedUser?.college || '',
+          yearOfStudy: cachedUser?.yearOfStudy || cachedUser?.year_of_study || 'Final Year',
+          graduationYear: cachedUser?.graduation_year || String(new Date().getFullYear()),
+          scoreCgpaPercentage: '',
+          keySubjects: [],
+          isPrimary: true
+        }
+      ],
+      skills: defaultSkills,
+      experience: (cachedUser?.projects || []).map((p, idx) => ({
+        id: p.id || `exp-${idx}-${Date.now()}`,
+        userId: uid,
+        category: 'project' as const,
+        title: p.title,
+        description: p.description,
+        techTools: p.techStack ? p.techStack.split(',').map(t => t.trim()) : [],
+        link: p.link,
+        isCurrent: false
+      })),
+      resumes: [],
+      communicationBaseline: cachedUser?.communicationBaseline || {
+        confidence: 75,
+        clarity: 75,
+        pace: 'moderate',
+        fillerWordsPerMin: 2,
+        answerStructureStar: 70,
+        evaluatedFromSessionsCount: 0
+      },
+      selfReportedComfort: cachedUser?.selfReportedComfort || {
+        nervous: false,
+        englishFluency: 'comfortable',
+        freezesOnTechnical: false
+      },
+      preferences: cachedUser?.candidatePreferences || {
+        deliveryMode: 'voice',
+        difficulty: 'intermediate',
+        sessionLengthMinutes: 15,
+        remindersEnabled: true,
+        accessibilityNeeds: '',
+        languageMix: 'English'
+      },
+      readinessScores: cachedUser?.readinessScores || {
+        overall: 70,
+        hr: 70,
+        technical: 70,
+        communication: 70,
+        resume: 70
+      },
+      weakAreas: cachedUser?.weakAreas || [],
+      strengthAreas: cachedUser?.strengthAreas || [],
+      interviewsRemaining: cachedUser?.interviews_remaining ?? 5,
+      totalInterviewsTaken: cachedUser?.total_interviews_taken ?? 0,
+      profileCompleted: Boolean(cachedUser?.profile_completed || (cachedUser?.role_target && cachedUser.skills?.length > 0)),
+      createdAt: cachedUser?.created_at || new Date().toISOString(),
+      updatedAt: cachedUser?.updated_at || new Date().toISOString()
+    };
+
+    return initialCandidateProfile;
+  },
+
+  saveCandidateProfile(profile: CandidateProfile): void {
+    const uid = profile.id || this.getActiveUserId();
+    if (!uid) return;
+
+    try {
+      localStorage.setItem(`interviewbro_candidate_profile_${uid}`, JSON.stringify(profile));
+
+      const currentUser = this.getUser();
+      const updatedUser: UserProfile = {
+        ...(currentUser || {}),
+        id: uid,
+        email: profile.email || currentUser?.email || '',
+        full_name: profile.fullName || currentUser?.full_name || 'Candidate',
+        avatar_url: profile.avatarUrl || currentUser?.avatar_url,
+        role_target: profile.careerTarget.primaryTargetRole,
+        experience_level: profile.currentStatus === 'Student' ? 'student' : (profile.currentStatus === 'Fresher' ? 'fresher' : 'junior'),
+        college: profile.education[0]?.institution || currentUser?.college,
+        graduation_year: profile.education[0]?.graduationYear || currentUser?.graduation_year,
+        skills: profile.skills.map(s => s.name),
+        interviews_remaining: profile.interviewsRemaining,
+        total_interviews_taken: profile.totalInterviewsTaken,
+        profile_completed: profile.profileCompleted,
+        city_state: profile.cityState,
+        preferred_interview_language: profile.preferredInterviewLanguage,
+        current_status: profile.currentStatus,
+        target_roles: profile.careerTarget.targetRoles,
+        primary_target_role: profile.careerTarget.primaryTargetRole,
+        target_industry: profile.careerTarget.targetIndustry,
+        interview_type_focus: profile.careerTarget.interviewTypeFocus,
+        company_type_preference: profile.careerTarget.companyTypePreference,
+        preparation_timeline: profile.careerTarget.timeline,
+        candidateEducation: profile.education,
+        candidateSkills: profile.skills,
+        candidateExperience: profile.experience,
+        candidateResumes: profile.resumes,
+        communicationBaseline: profile.communicationBaseline,
+        selfReportedComfort: profile.selfReportedComfort,
+        candidatePreferences: profile.preferences,
+        readinessScores: profile.readinessScores,
+        weakAreas: profile.weakAreas,
+        strengthAreas: profile.strengthAreas,
+        educationLevel: profile.education[0]?.level,
+        academicStream: profile.education[0]?.stream,
+        degreeCourse: profile.education[0]?.degree,
+        specialisation: profile.education[0]?.specialization,
+        yearOfStudy: profile.education[0]?.yearOfStudy,
+        created_at: profile.createdAt,
+        updated_at: new Date().toISOString()
+      };
+
+      this.setUser(updatedUser);
+      window.dispatchEvent(new CustomEvent('interviewbro_candidate_profile_updated', { detail: profile }));
+    } catch (e) {
+      console.error('Failed to save candidate profile:', e);
+    }
+  },
+
+  exportAllCandidateData(userId?: string | null): Record<string, any> {
+    const uid = userId || this.getActiveUserId();
+    return {
+      exportedAt: new Date().toISOString(),
+      candidateProfile: this.getCandidateProfile(uid),
+      sessions: this.getSessions(uid),
+      feedbackReports: this.getReports(uid),
+      resumes: this.getResumes(uid),
+      quota: this.getQuota(uid)
+    };
+  },
+
+  clearAllCandidateData(userId?: string | null): void {
+    const uid = userId || this.getActiveUserId();
+    if (!uid) return;
+    try {
+      localStorage.removeItem(`interviewbro_candidate_profile_${uid}`);
+      localStorage.removeItem(`interviewbro_sessions_${uid}`);
+      localStorage.removeItem(`interviewbro_reports_${uid}`);
+      localStorage.removeItem(`interviewbro_resumes_${uid}`);
+      localStorage.removeItem(`interviewbro_quota_${uid}`);
+      localStorage.removeItem(`interviewbro_academy_progress_${uid}`);
+    } catch (e) {
+      console.warn('Storage purge error:', e);
+    }
   },
 
   // User-Isolated Quota

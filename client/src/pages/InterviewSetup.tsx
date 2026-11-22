@@ -71,7 +71,7 @@ interface InterviewSetupProps {
 }
 
 export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavigate }) => {
-  const { user, quota } = useAuth();
+  const { user, quota, candidateProfile } = useAuth();
   const { startNewSession } = useInterview();
 
   useEffect(() => {
@@ -288,6 +288,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       careerGoal: isAcademic ? careerGoal : undefined,
       preparationMode: isAcademic ? (selectedPrepModeObj?.id || preparationMode) : undefined,
       subject: isAcademic ? (subject.trim() || undefined) : undefined,
+      candidateProfile: candidateProfile || undefined
     };
 
     // Client-side eligibility guard

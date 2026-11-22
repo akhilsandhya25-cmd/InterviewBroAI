@@ -1,4 +1,5 @@
 import { sanitizeForPrompt } from './security.js';
+import { buildGeminiProfileContext } from './geminiProfileContext.js';
 // =========================================================================
 // InterviewBro AI - Serverless Gemini 2.5 AI Engine for Vercel
 // Supports Question Generation, STAR Rubric Scoring, Adaptive Follow-ups,

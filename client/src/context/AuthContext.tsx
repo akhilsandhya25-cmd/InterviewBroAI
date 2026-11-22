@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserProfile, UsageQuota } from '../types';
+import { UserProfile, UsageQuota, CandidateProfile } from '../types';
 import { storage } from '../services/storage';
 import { authService, AuthResponse } from '../services/authService';
 import { isSupabaseConfigured, supabase } from '../services/supabase';
 
 interface AuthContextType {
   user: UserProfile | null;
+  candidateProfile: CandidateProfile;
   quota: UsageQuota;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -23,6 +24,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  updateCandidateProfile: (profile: CandidateProfile) => Promise<void>;
   decrementInterviewQuota: () => boolean;
 }
 
@@ -30,6 +32,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => storage.getUser());
+  const [candidateProfile, setCandidateProfile] = useState<CandidateProfile>(() => storage.getCandidateProfile(user?.id));
   const [quota, setQuota] = useState<UsageQuota>(() => storage.getQuota());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -42,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (isMounted) {
           setUser(restoredUser);
           if (restoredUser) {
+            setCandidateProfile(storage.getCandidateProfile(restoredUser.id));
             setQuota(storage.getQuota(restoredUser.id));
             // Hydrate cloud data if Supabase is active
             storage.syncWithCloud(restoredUser.id);
@@ -69,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           authService.restoreSession().then((restored) => {
             if (isMounted && restored) {
               setUser(restored);
+              setCandidateProfile(storage.getCandidateProfile(restored.id));
               setQuota(storage.getQuota(restored.id));
             }
           }).catch(() => {});
@@ -184,6 +189,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     const updated = await authService.updateProfile(updates);
     setUser(updated);
+    setCandidateProfile(storage.getCandidateProfile(updated.id));
+  };
+
+  const updateCandidateProfile = async (profile: CandidateProfile) => {
+    storage.saveCandidateProfile(profile);
+    setCandidateProfile(profile);
+    if (user) {
+      await authService.updateProfile({
+        city_state: profile.cityState,
+        preferred_interview_language: profile.preferredInterviewLanguage,
+        current_status: profile.currentStatus,
+        target_roles: profile.careerTarget.targetRoles,
+        primary_target_role: profile.careerTarget.primaryTargetRole,
+        target_industry: profile.careerTarget.targetIndustry,
+        interview_type_focus: profile.careerTarget.interviewTypeFocus,
+        company_type_preference: profile.careerTarget.companyTypePreference,
+        preparation_timeline: profile.careerTarget.timeline,
+        self_reported_comfort: profile.selfReportedComfort,
+        communication_baseline: profile.communicationBaseline,
+        preferences: profile.preferences,
+        readiness_scores: profile.readinessScores,
+        weak_areas: profile.weakAreas,
+        strength_areas: profile.strengthAreas,
+        role_target: profile.careerTarget.primaryTargetRole,
+        skills: profile.skills.map(s => s.name),
+        college: profile.education[0]?.institution,
+        graduation_year: profile.education[0]?.graduationYear,
+        profile_completed: profile.profileCompleted
+      }).catch((e) => console.warn('Supabase profile sync deferred:', e));
+    }
   };
 
   const decrementInterviewQuota = (): boolean => {
@@ -203,6 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
+        candidateProfile,
         quota,
         isAuthenticated: !!user,
         isLoading,
@@ -215,6 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithGoogle,
         logout,
         updateProfile,
+        updateCandidateProfile,
         decrementInterviewQuota
       }}
     >
