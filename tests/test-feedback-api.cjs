@@ -163,6 +163,7 @@ async function runFeedbackTests() {
   }
 
   // Test 5: GET /api/feedback returns list
+  let testItemId = null;
   try {
     const res = await invokeHandler(vercelHandler, {
       url: '/api/feedback',
@@ -172,10 +173,36 @@ async function runFeedbackTests() {
     assert.strictEqual(res.body.success, true);
     assert(Array.isArray(res.body.data), 'Data should be an array');
     assert(res.body.data.length > 0, 'Should have feedback entries');
+    testItemId = res.body.data[0].id;
     console.log('✅ PASS [GET /api/feedback returns feedback list, count: ' + res.body.data.length + ']');
     passed++;
   } catch (err) {
     console.error('❌ FAIL [GET /api/feedback returns feedback list]', err);
+    failed++;
+  }
+
+  // Test 6: DELETE /api/feedback?id=... deletes the review
+  try {
+    assert(testItemId, 'Must have a test item to delete');
+    const deleteRes = await invokeHandler(vercelHandler, {
+      url: `/api/feedback?id=${encodeURIComponent(testItemId)}`,
+      method: 'DELETE'
+    });
+    assert.strictEqual(deleteRes.statusCode, 200);
+    assert.strictEqual(deleteRes.body.success, true);
+    assert.strictEqual(deleteRes.body.deletedId, testItemId);
+
+    // Verify it is no longer in memory
+    const verifyGet = await invokeHandler(vercelHandler, {
+      url: '/api/feedback',
+      method: 'GET'
+    });
+    const stillPresent = verifyGet.body.data.some(item => item.id === testItemId);
+    assert.strictEqual(stillPresent, false, 'Deleted feedback should not be present');
+    console.log('✅ PASS [DELETE /api/feedback deletes review safely]');
+    passed++;
+  } catch (err) {
+    console.error('❌ FAIL [DELETE /api/feedback]', err);
     failed++;
   }
 

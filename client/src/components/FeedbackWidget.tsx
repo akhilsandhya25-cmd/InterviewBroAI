@@ -12,7 +12,8 @@ import {
   User,
   Mail,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
@@ -57,6 +58,20 @@ export const FeedbackWidget: React.FC = () => {
   const [feedbackList, setFeedbackList] = useState<UserFeedback[]>([]);
   const [isLoadingList, setIsLoadingList] = useState<boolean>(false);
   const [feedbackFilter, setFeedbackFilter] = useState<string>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteFeedback = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setDeletingId(id);
+    try {
+      await api.deleteFeedback(id);
+      setFeedbackList(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      console.warn('Failed to delete feedback item:', err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   // Prefill name and email when user is logged in
   useEffect(() => {
@@ -349,16 +364,32 @@ export const FeedbackWidget: React.FC = () => {
                           key={item.id}
                           className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-800 space-y-2"
                         >
-                          {/* Card Top Row: Category + Rating */}
+                          {/* Card Top Row: Category + Rating + Delete Button */}
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md bg-blue-100/60 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900">
                               {item.category}
                             </span>
-                            <div className="flex items-center gap-1 text-amber-500 text-xs font-bold">
-                              <span>{'★'.repeat(item.rating)}</span>
-                              <span className="text-slate-300 dark:text-slate-600 font-normal">
-                                {'★'.repeat(Math.max(0, 5 - item.rating))}
-                              </span>
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1 text-amber-500 text-xs font-bold">
+                                <span>{'★'.repeat(item.rating)}</span>
+                                <span className="text-slate-300 dark:text-slate-600 font-normal">
+                                  {'★'.repeat(Math.max(0, 5 - item.rating))}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteFeedback(item.id, e)}
+                                disabled={deletingId === item.id}
+                                aria-label="Delete this review"
+                                title="Delete this review"
+                                className="p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+                              >
+                                {deletingId === item.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                              </button>
                             </div>
                           </div>
 
@@ -367,7 +398,7 @@ export const FeedbackWidget: React.FC = () => {
                             {item.message}
                           </p>
 
-                          {/* Card Footer: Author + Date */}
+                          {/* Card Footer: Author + Date + Delete text button */}
                           <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-[10px] text-slate-500 dark:text-slate-400">
                             <div className="flex items-center gap-2">
                               <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
@@ -381,10 +412,22 @@ export const FeedbackWidget: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3 text-slate-400" />
-                              {new Date(item.createdAt).toLocaleDateString()}
-                            </span>
+                            <div className="flex items-center gap-3">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-slate-400" />
+                                {new Date(item.createdAt).toLocaleDateString()}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteFeedback(item.id, e)}
+                                disabled={deletingId === item.id}
+                                className="text-[10px] font-semibold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:underline flex items-center gap-1 transition-colors"
+                                title="Delete this review"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}

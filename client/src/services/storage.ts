@@ -1155,6 +1155,16 @@ export const storage = {
     }
   },
 
+  deleteUserFeedback(id: string): void {
+    try {
+      const existing = this.getUserFeedbackList();
+      const updated = existing.filter(f => f.id !== id);
+      localStorage.setItem('interviewbro_user_feedback_list', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to delete feedback from localStorage', e);
+    }
+  },
+
   /**
    * Evaluates cloud database readiness: 'synced', 'tables_missing', or 'offline'.
    */

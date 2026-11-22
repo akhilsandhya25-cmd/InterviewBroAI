@@ -317,10 +317,56 @@ export default async function handler(req, res) {
       });
     }
 
+    // Handle DELETE: Remove a feedback entry by ID
+    if (req.method === 'DELETE') {
+      const parsedUrl = new URL(req.url, 'http://localhost');
+      let targetId = parsedUrl.searchParams.get('id');
+      if (!targetId) {
+        const body = await parseBody(req);
+        targetId = body?.id;
+      }
+      targetId = String(targetId || '').trim();
+
+      if (!targetId) {
+        return res.status(400).json({
+          error: 'Missing Feedback ID',
+          message: 'Please provide the ID of the feedback entry to delete.'
+        });
+      }
+
+      // 1. Remove from in-memory cache
+      for (let i = feedbackMemoryStore.length - 1; i >= 0; i--) {
+        if (feedbackMemoryStore[i].id === targetId) {
+          feedbackMemoryStore.splice(i, 1);
+        }
+      }
+
+      // 2. Remove from Supabase if configured
+      try {
+        if (supaUrl && authKey) {
+          await fetch(`${supaUrl}/rest/v1/user_feedback?id=eq.${encodeURIComponent(targetId)}`, {
+            method: 'DELETE',
+            headers: {
+              'apikey': authKey,
+              'Authorization': `Bearer ${authKey}`
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('[Feedback API] Supabase delete notice:', err.message);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Feedback deleted successfully',
+        deletedId: targetId
+      });
+    }
+
     if (req.method !== 'POST') {
       return res.status(405).json({
         error: 'Method Not Allowed',
-        message: 'The /api/feedback endpoint accepts GET and POST requests only.'
+        message: 'The /api/feedback endpoint accepts GET, POST, and DELETE requests only.'
       });
     }
 

@@ -1377,5 +1377,35 @@ export const api = {
       source: 'local',
       data: storage.getUserFeedbackList()
     };
+  },
+
+  async deleteFeedback(id: string): Promise<{ success: boolean; message?: string }> {
+    // 1. Remove from local browser cache immediately
+    storage.deleteUserFeedback(id);
+
+    // 2. Call backend DELETE endpoint
+    try {
+      const res = await fetch(`${API_BASE}/feedback?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const data = await safeJson(res);
+      if (res.ok && data?.success) {
+        return { success: true, message: 'Feedback removed successfully' };
+      }
+    } catch (e) {
+      console.warn('[API] /feedback DELETE fetch failed:', e);
+    }
+
+    // 3. Fallback to direct Supabase client if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('user_feedback').delete().eq('id', id);
+      } catch (e) {
+        // Fall through
+      }
+    }
+
+    return { success: true, message: 'Feedback removed' };
   }
 };
