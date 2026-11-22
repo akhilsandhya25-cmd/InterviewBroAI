@@ -265,10 +265,10 @@ const AppContent: React.FC = () => {
             </button>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-800/80 text-xs text-slate-500">
+          <div className="mt-8 pt-6 border-t border-slate-200 text-xs text-slate-500">
             <button
               onClick={() => setCurrentRoute('landing')}
-              className="text-slate-400 hover:text-white transition-colors"
+              className="text-slate-500 hover:text-slate-900 transition-colors font-medium"
             >
               ← Return to Landing Page
             </button>

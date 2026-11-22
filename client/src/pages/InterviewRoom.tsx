@@ -675,8 +675,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               <div className="space-y-1">
                 <strong className="block text-white font-bold text-sm">{mediaError.title}</strong>
                 <p className="text-rose-200 leading-relaxed">{mediaError.message}</p>
-                <p className="text-[11px] text-slate-300 bg-white/60 p-2.5 rounded-lg border border-slate-200">
-                  <strong className="text-amber-300">Suggested Action:</strong> {mediaError.actionHint}
+                <p className="text-[11px] text-slate-800 dark:text-slate-200 bg-black/5 dark:bg-black/30 p-2.5 rounded-lg border border-slate-300 dark:border-slate-700">
+                  <strong className="text-amber-700 dark:text-amber-300">Suggested Action:</strong> {mediaError.actionHint}
                 </p>
               </div>
             </div>
@@ -992,8 +992,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
             <div className="space-y-1">
               <strong className="block text-white font-bold text-sm">{mediaError.title}</strong>
               <p className="text-rose-200 leading-relaxed">{mediaError.message}</p>
-              <p className="text-[11px] text-slate-300 bg-white/60 p-2.5 rounded-lg border border-slate-200">
-                <strong className="text-amber-300">Suggested Action:</strong> {mediaError.actionHint}
+              <p className="text-[11px] text-slate-800 dark:text-slate-200 bg-black/5 dark:bg-black/30 p-2.5 rounded-lg border border-slate-300 dark:border-slate-700">
+                <strong className="text-amber-700 dark:text-amber-300">Suggested Action:</strong> {mediaError.actionHint}
               </p>
             </div>
           </div>

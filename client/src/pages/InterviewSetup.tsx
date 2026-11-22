@@ -82,28 +82,28 @@ const ROUND_OPTIONS: RoundFocusOption[] = [
     label: 'All-Round Comprehensive',
     badge: 'Recommended',
     desc: 'Balanced mix of technical knowledge, situational judgment, and communication',
-    icon: <Sparkles className="w-4 h-4 text-[#C5F36B]" />
+    icon: <Sparkles className="w-4 h-4 text-[#C5F36B] dark:text-[#C5F36B]" />
   },
   {
     id: 'technical',
     label: 'Technical & Domain Deep-Dive',
     badge: 'Core Skills',
     desc: 'Domain problem solving, system architecture, core concepts & real-world tasks',
-    icon: <Terminal className="w-4 h-4 text-cyan-400" />
+    icon: <Terminal className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
   },
   {
     id: 'hr',
     label: 'HR & Behavioral',
     badge: 'STAR Method',
     desc: 'Situational experiences, teamwork, cultural fit, strengths and career vision',
-    icon: <Users className="w-4 h-4 text-amber-400" />
+    icon: <Users className="w-4 h-4 text-amber-600 dark:text-amber-400" />
   },
   {
     id: 'academic',
     label: 'Academic Viva & Projects',
     badge: 'College / Degree',
     desc: 'Degree syllabus topics, final-year project defense, and theoretical fundamentals',
-    icon: <GraduationCap className="w-4 h-4 text-emerald-400" />
+    icon: <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
   }
 ];
 
@@ -264,43 +264,43 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
 
   return (
     <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-white/[0.08]">
+      {/* Header (Fully visible in both light & dark themes) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-200 dark:border-white/[0.08]">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#C5F36B]/15 text-[#C5F36B] border border-[#C5F36B]/30 flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3" />
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#C5F36B]/20 text-emerald-800 dark:text-[#C5F36B] border border-emerald-500/30 dark:border-[#C5F36B]/30 flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3 text-emerald-700 dark:text-[#C5F36B]" />
               <span>AI Interview Studio</span>
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-[#F5F7FA] tracking-tight">
             Configure Your Mock Interview
           </h1>
-          <p className="text-xs sm:text-sm text-[#9AA4B2] mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-[#9AA4B2] mt-0.5 font-medium">
             Select your target role and company. Practice begins in seconds.
           </p>
         </div>
 
-        <div className="self-start sm:self-auto flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#0B0F19] border border-white/[0.08] text-xs font-medium text-[#9AA4B2]">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="self-start sm:self-auto flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-700 dark:text-[#9AA4B2]">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>
-            Allowance: <strong className="text-[#C5F36B] font-bold">Unlimited Practice</strong>
+            Allowance: <strong className="text-emerald-700 dark:text-[#C5F36B] font-extrabold">Unlimited Practice</strong>
           </span>
         </div>
       </div>
 
       {/* CARD 1: ROLE & COMPANY (Primary Target) */}
-      <div className="p-6 rounded-3xl bg-[#0B0F19] border border-white/[0.08] space-y-5">
+      <div className="p-6 rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] shadow-sm space-y-5">
         {/* Target Role */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-[#9AA4B2] flex items-center gap-2">
-              <Briefcase className="w-3.5 h-3.5 text-[#C5F36B]" />
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-[#9AA4B2] flex items-center gap-2">
+              <Briefcase className="w-3.5 h-3.5 text-blue-600 dark:text-[#C5F36B]" />
               <span>1. Target Job Role or Domain</span>
             </label>
             {candidateProfile?.degreeStream && (
-              <span className="text-[11px] text-[#9AA4B2]">
-                Aligned with <strong className="text-white">{candidateProfile.degreeStream}</strong>
+              <span className="text-[11px] text-slate-600 dark:text-[#9AA4B2]">
+                Aligned with <strong className="text-slate-900 dark:text-white font-semibold">{candidateProfile.degreeStream}</strong>
               </span>
             )}
           </div>
@@ -313,10 +313,10 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                   key={r}
                   type="button"
                   onClick={() => setRole(r)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                     isSelected
-                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold shadow-md shadow-[#C5F36B]/15'
-                      : 'bg-[#121826] border-white/[0.06] text-[#9AA4B2] hover:text-white hover:border-white/[0.15]'
+                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold shadow-md shadow-[#C5F36B]/20'
+                      : 'bg-slate-100 dark:bg-[#121826] border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-[#9AA4B2] hover:bg-slate-200 dark:hover:bg-white/[0.05] hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   {r}
@@ -330,18 +330,18 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             value={role}
             onChange={(e) => setRole(e.target.value)}
             placeholder="Or type custom role (e.g. Flutter Developer, Cloud Engineer, Tax Associate, Medical Intern)..."
-            className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-white placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
+            className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B] transition-colors"
           />
         </div>
 
         {/* Target Company or Exam Board */}
-        <div className="space-y-2.5 pt-2 border-t border-white/[0.06]">
+        <div className="space-y-2.5 pt-3 border-t border-slate-100 dark:border-white/[0.06]">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-[#9AA4B2] flex items-center gap-2">
-              <Building2 className="w-3.5 h-3.5 text-cyan-400" />
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-[#9AA4B2] flex items-center gap-2">
+              <Building2 className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
               <span>2. Target Company or Pattern</span>
             </label>
-            <span className="text-[11px] text-[#9AA4B2]">Adapts question difficulty & style</span>
+            <span className="text-[11px] text-slate-500 dark:text-[#9AA4B2]">Adapts question difficulty & style</span>
           </div>
 
           <div className="flex flex-wrap gap-1.5">
@@ -352,10 +352,10 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                   key={c}
                   type="button"
                   onClick={() => setCompany(c)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                     isSelected
-                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold shadow-md shadow-[#C5F36B]/15'
-                      : 'bg-[#121826] border-white/[0.06] text-[#9AA4B2] hover:text-white hover:border-white/[0.15]'
+                      ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold shadow-md shadow-[#C5F36B]/20'
+                      : 'bg-slate-100 dark:bg-[#121826] border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-[#9AA4B2] hover:bg-slate-200 dark:hover:bg-white/[0.05] hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   {c}
@@ -369,17 +369,17 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             value={company}
             onChange={(e) => setCompany(e.target.value)}
             placeholder="Or enter specific employer (e.g. Microsoft, Flipkart, Swiggy, TCS Ninja, AIIMS, Bar Council)..."
-            className="w-full px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-white placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
+            className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B] transition-colors"
           />
         </div>
       </div>
 
       {/* CARD 2: ROUND FOCUS & DELIVERY MODE */}
-      <div className="p-6 rounded-3xl bg-[#0B0F19] border border-white/[0.08] space-y-5">
+      <div className="p-6 rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] shadow-sm space-y-5">
         {/* Round Focus Options */}
         <div className="space-y-3">
-          <label className="text-xs font-bold uppercase tracking-wider text-[#9AA4B2] flex items-center gap-2">
-            <Layers className="w-3.5 h-3.5 text-amber-400" />
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-[#9AA4B2] flex items-center gap-2">
+            <Layers className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             <span>3. Interview Round Focus</span>
           </label>
 
@@ -392,26 +392,28 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                   onClick={() => setRoundFocus(opt.id)}
                   className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
                     isSelected
-                      ? 'bg-[#C5F36B]/10 border-[#C5F36B] shadow-sm ring-1 ring-[#C5F36B]'
-                      : 'bg-[#121826] border-white/[0.06] hover:border-white/[0.15]'
+                      ? 'bg-emerald-500/10 dark:bg-[#C5F36B]/10 border-emerald-500 dark:border-[#C5F36B] shadow-sm ring-1 ring-emerald-500 dark:ring-[#C5F36B]'
+                      : 'bg-slate-50 dark:bg-[#121826] border-slate-200 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-white/[0.15]'
                   }`}
                 >
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
                         {opt.icon}
-                        <span className="text-xs font-bold text-white">{opt.label}</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">{opt.label}</span>
                       </div>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                        isSelected ? 'bg-[#C5F36B] text-[#080B11]' : 'bg-white/[0.05] text-[#9AA4B2]'
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        isSelected
+                          ? 'bg-emerald-600 dark:bg-[#C5F36B] text-white dark:text-[#080B11]'
+                          : 'bg-slate-200 dark:bg-white/[0.05] text-slate-700 dark:text-[#9AA4B2]'
                       }`}>
                         {opt.badge}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#9AA4B2] leading-snug">{opt.desc}</p>
+                    <p className="text-[11px] text-slate-600 dark:text-[#9AA4B2] leading-snug">{opt.desc}</p>
                   </div>
                   {isSelected && (
-                    <div className="mt-2 pt-2 border-t border-[#C5F36B]/20 flex items-center justify-end gap-1 text-[11px] text-[#C5F36B] font-semibold">
+                    <div className="mt-2 pt-2 border-t border-emerald-500/20 dark:border-[#C5F36B]/20 flex items-center justify-end gap-1 text-[11px] text-emerald-700 dark:text-[#C5F36B] font-bold">
                       <Check className="w-3 h-3" />
                       <span>Active Selection</span>
                     </div>
@@ -423,13 +425,13 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
         </div>
 
         {/* Practice Mode (Voice vs Text) */}
-        <div className="space-y-3 pt-3 border-t border-white/[0.06]">
+        <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-white/[0.06]">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-[#9AA4B2] flex items-center gap-2">
-              <Mic className="w-3.5 h-3.5 text-rose-400" />
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-[#9AA4B2] flex items-center gap-2">
+              <Mic className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
               <span>4. Practice Delivery Format</span>
             </label>
-            <span className="text-[11px] text-[#9AA4B2]">Interactive verbal or silent keyboard</span>
+            <span className="text-[11px] text-slate-500 dark:text-[#9AA4B2]">Interactive verbal or silent keyboard</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -441,59 +443,59 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
               }}
               className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                 mode === 'voice_only'
-                  ? 'bg-[#C5F36B]/10 border-[#C5F36B] ring-1 ring-[#C5F36B]'
-                  : 'bg-[#121826] border-white/[0.06] hover:border-white/[0.15]'
+                  ? 'bg-emerald-500/10 dark:bg-[#C5F36B]/10 border-emerald-500 dark:border-[#C5F36B] ring-1 ring-emerald-500 dark:ring-[#C5F36B]'
+                  : 'bg-slate-50 dark:bg-[#121826] border-slate-200 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-white/[0.15]'
               }`}
             >
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-rose-500/15 text-rose-400">
+                  <div className="p-2 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400">
                     <Mic className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                       <span>Interactive Voice</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-400 font-bold">
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold">
                         Popular
                       </span>
                     </div>
-                    <div className="text-[11px] text-[#9AA4B2]">Spoken Q&A with live transcription</div>
+                    <div className="text-[11px] text-slate-500 dark:text-[#9AA4B2]">Spoken Q&A with live transcription</div>
                   </div>
                 </div>
-                {mode === 'voice_only' && <Check className="w-4 h-4 text-[#C5F36B]" />}
+                {mode === 'voice_only' && <Check className="w-4 h-4 text-emerald-600 dark:text-[#C5F36B]" />}
               </div>
-              <p className="text-[11px] text-[#9AA4B2] mt-2 leading-relaxed">
+              <p className="text-[11px] text-slate-600 dark:text-[#9AA4B2] mt-2 leading-relaxed">
                 Interviewer reads questions aloud. You speak naturally to simulate realistic verbal interviews.
               </p>
 
               {/* Inline Quick Mic Test */}
               {mode === 'voice_only' && (
-                <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2">
+                <div className="mt-3 pt-3 border-t border-slate-200 dark:border-white/[0.06] flex items-center justify-between gap-2">
                   {isTestingMic ? (
                     <div className="flex items-center gap-2 w-full">
-                      <div className="flex-1 h-2 rounded-full bg-black/40 overflow-hidden border border-white/[0.06]">
+                      <div className="flex-1 h-2 rounded-full bg-slate-200 dark:bg-black/40 overflow-hidden border border-slate-300 dark:border-white/[0.06]">
                         <div
-                          className="h-full bg-[#C5F36B] transition-all duration-75"
+                          className="h-full bg-emerald-500 dark:bg-[#C5F36B] transition-all duration-75"
                           style={{ width: `${Math.max(testAudioLevel, 8)}%` }}
                         />
                       </div>
-                      <span className="text-[10px] font-mono text-[#C5F36B]">{testAudioLevel}%</span>
+                      <span className="text-[10px] font-mono text-emerald-700 dark:text-[#C5F36B] font-bold">{testAudioLevel}%</span>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           stopMicTest();
                         }}
-                        className="text-[10px] text-rose-300 font-semibold px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25"
+                        className="text-[10px] text-rose-700 dark:text-rose-300 font-bold px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25"
                       >
                         Done
                       </button>
                     </div>
                   ) : (
                     <>
-                      <span className="text-[10px] text-[#9AA4B2] flex items-center gap-1">
+                      <span className="text-[10px] text-slate-600 dark:text-[#9AA4B2] flex items-center gap-1">
                         {testMicPassed ? (
-                          <span className="text-emerald-400 font-medium flex items-center gap-1">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3" /> Mic Verified
                           </span>
                         ) : (
@@ -506,9 +508,9 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                           e.stopPropagation();
                           startMicTest();
                         }}
-                        className="text-[10px] font-bold text-white px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] flex items-center gap-1 transition-colors"
+                        className="text-[10px] font-bold text-slate-700 dark:text-white px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-white/[0.06] hover:bg-slate-300 dark:hover:bg-white/[0.12] flex items-center gap-1 transition-colors"
                       >
-                        <Volume2 className="w-3 h-3 text-[#C5F36B]" />
+                        <Volume2 className="w-3 h-3 text-emerald-600 dark:text-[#C5F36B]" />
                         <span>Quick Mic Test</span>
                       </button>
                     </>
@@ -526,43 +528,43 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
               }}
               className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                 mode === 'text_only'
-                  ? 'bg-[#C5F36B]/10 border-[#C5F36B] ring-1 ring-[#C5F36B]'
-                  : 'bg-[#121826] border-white/[0.06] hover:border-white/[0.15]'
+                  ? 'bg-emerald-500/10 dark:bg-[#C5F36B]/10 border-emerald-500 dark:border-[#C5F36B] ring-1 ring-emerald-500 dark:ring-[#C5F36B]'
+                  : 'bg-slate-50 dark:bg-[#121826] border-slate-200 dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-white/[0.15]'
               }`}
             >
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-cyan-500/15 text-cyan-400">
+                  <div className="p-2 rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400">
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                       <span>Text-Based Mode</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-400 font-bold">
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 font-bold">
                         Silent
                       </span>
                     </div>
-                    <div className="text-[11px] text-[#9AA4B2]">No mic required • Type answers</div>
+                    <div className="text-[11px] text-slate-500 dark:text-[#9AA4B2]">No mic required • Type answers</div>
                   </div>
                 </div>
-                {mode === 'text_only' && <Check className="w-4 h-4 text-[#C5F36B]" />}
+                {mode === 'text_only' && <Check className="w-4 h-4 text-emerald-600 dark:text-[#C5F36B]" />}
               </div>
-              <p className="text-[11px] text-[#9AA4B2] mt-2 leading-relaxed">
+              <p className="text-[11px] text-slate-600 dark:text-[#9AA4B2] mt-2 leading-relaxed">
                 Read questions on-screen and type answers. Ideal for libraries, quiet rooms, or non-mic devices.
               </p>
             </div>
           </div>
 
           {testMicError && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center justify-between gap-2">
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                 <span>{testMicError.message || 'Microphone access denied.'}</span>
               </div>
               <button
                 type="button"
                 onClick={() => setMode('text_only')}
-                className="text-[11px] font-bold text-emerald-400 hover:underline shrink-0"
+                className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline shrink-0"
               >
                 Use Text Mode Instead
               </button>
@@ -572,17 +574,17 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       </div>
 
       {/* CARD 3: QUICK PARAMETERS & OPTIONAL RESUME/JD */}
-      <div className="p-6 rounded-3xl bg-[#0B0F19] border border-white/[0.08] space-y-5">
+      <div className="p-6 rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] shadow-sm space-y-5">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-bold uppercase tracking-wider text-[#9AA4B2] flex items-center gap-2">
-            <Sliders className="w-3.5 h-3.5 text-[#C5F36B]" />
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-[#9AA4B2] flex items-center gap-2">
+            <Sliders className="w-3.5 h-3.5 text-blue-600 dark:text-[#C5F36B]" />
             <span>5. Session Parameters</span>
           </label>
 
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="text-xs text-[#C5F36B] hover:underline font-semibold flex items-center gap-1"
+            className="text-xs text-blue-600 dark:text-[#C5F36B] hover:underline font-bold flex items-center gap-1"
           >
             <span>{showAdvanced ? 'Hide Custom Inputs' : '+ Add Job Description or Resume'}</span>
             {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -592,17 +594,17 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Difficulty */}
           <div>
-            <label className="block text-[11px] text-[#9AA4B2] mb-1 font-medium">Difficulty</label>
-            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#121826] border border-white/[0.06]">
+            <label className="block text-[11px] text-slate-600 dark:text-[#9AA4B2] mb-1 font-semibold">Difficulty</label>
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.06]">
               {(['beginner', 'intermediate', 'advanced'] as DifficultyLevel[]).map((d) => (
                 <button
                   key={d}
                   type="button"
                   onClick={() => setDifficulty(d)}
-                  className={`py-1.5 text-[11px] font-semibold rounded-lg capitalize transition-all ${
+                  className={`py-1.5 text-[11px] font-bold rounded-lg capitalize transition-all ${
                     difficulty === d
-                      ? 'bg-[#C5F36B] text-[#080B11] font-bold shadow-sm'
-                      : 'text-[#9AA4B2] hover:text-white'
+                      ? 'bg-[#C5F36B] text-[#080B11] shadow-sm'
+                      : 'text-slate-600 dark:text-[#9AA4B2] hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   {d}
@@ -613,8 +615,8 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
 
           {/* Question Count */}
           <div>
-            <label className="block text-[11px] text-[#9AA4B2] mb-1 font-medium">Questions</label>
-            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#121826] border border-white/[0.06]">
+            <label className="block text-[11px] text-slate-600 dark:text-[#9AA4B2] mb-1 font-semibold">Questions</label>
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.06]">
               {[
                 { count: 3, label: '3 Qs (10m)' },
                 { count: 5, label: '5 Qs (20m)' },
@@ -627,10 +629,10 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                     setQuestionCount(count);
                     setDurationMinutes(count === 3 ? 10 : count === 5 ? 20 : 30);
                   }}
-                  className={`py-1.5 text-[11px] font-semibold rounded-lg transition-all ${
+                  className={`py-1.5 text-[11px] font-bold rounded-lg transition-all ${
                     questionCount === count
-                      ? 'bg-[#C5F36B] text-[#080B11] font-bold shadow-sm'
-                      : 'text-[#9AA4B2] hover:text-white'
+                      ? 'bg-[#C5F36B] text-[#080B11] shadow-sm'
+                      : 'text-slate-600 dark:text-[#9AA4B2] hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   {label}
@@ -641,11 +643,11 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
 
           {/* Language */}
           <div>
-            <label className="block text-[11px] text-[#9AA4B2] mb-1 font-medium">Language</label>
+            <label className="block text-[11px] text-slate-600 dark:text-[#9AA4B2] mb-1 font-semibold">Language</label>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-[#121826] border border-white/[0.06] text-xs text-white focus:outline-none focus:border-[#C5F36B]"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.06] text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#C5F36B] font-medium"
             >
               <option value="English">English</option>
               <option value="Hindi">Hindi</option>
@@ -658,9 +660,9 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
 
         {/* Collapsible JD and Resume Context */}
         {showAdvanced && (
-          <div className="pt-4 border-t border-white/[0.06] space-y-4">
+          <div className="pt-4 border-t border-slate-100 dark:border-white/[0.06] space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-white mb-1">
+              <label className="block text-xs font-bold text-slate-800 dark:text-white mb-1">
                 Target Job Description (Optional)
               </label>
               <textarea
@@ -668,20 +670,20 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 placeholder="Paste the key responsibilities or skills from a job posting to generate exact interview questions..."
-                className="w-full p-3 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-white placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
+                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-white">
+                <label className="block text-xs font-bold text-slate-800 dark:text-white">
                   Resume Summary / Key Projects (Optional)
                 </label>
                 {resumeText && (
                   <button
                     type="button"
                     onClick={() => setResumeText('')}
-                    className="text-[11px] text-rose-400 hover:text-rose-300 font-medium"
+                    className="text-[11px] text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-bold"
                   >
                     Clear
                   </button>
@@ -692,15 +694,15 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
                 placeholder="Paste your key projects, tech stack, or achievements so the AI can ask you direct resume questions..."
-                className="w-full p-3 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-white placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
+                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
               />
             </div>
           </div>
         )}
 
         {/* Sync Indicator */}
-        <div className="pt-2 flex items-center gap-2 text-[11px] text-[#9AA4B2]">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+        <div className="pt-2 flex items-center gap-2 text-[11px] text-slate-600 dark:text-[#9AA4B2] font-medium">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span>
             Candidate profile & skills automatically personalized for this interview.
           </span>
@@ -709,15 +711,15 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
 
       {/* Error Banner */}
       {startError && (
-        <div role="alert" className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center justify-between gap-3 shadow-lg">
+        <div role="alert" className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between gap-3 shadow-lg">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>{startError}</span>
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+            <span className="font-medium">{startError}</span>
           </div>
           <button
             type="button"
             onClick={() => setStartError(null)}
-            className="text-[11px] underline text-rose-400 hover:text-rose-200"
+            className="text-[11px] underline text-rose-700 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200 font-bold"
           >
             Dismiss
           </button>
@@ -725,15 +727,15 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       )}
 
       {/* LAUNCH ACTION BAR */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-[#0B0F19] border border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-[#9AA4B2] font-semibold">
+          <div className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-[#9AA4B2] font-bold">
             Session Configuration
           </div>
-          <div className="text-base font-extrabold text-white mt-0.5">
+          <div className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
             {company} • {role}
           </div>
-          <div className="text-xs text-[#9AA4B2] mt-0.5 flex flex-wrap items-center gap-2">
+          <div className="text-xs text-slate-600 dark:text-[#9AA4B2] mt-0.5 flex flex-wrap items-center gap-2 font-medium">
             <span className="capitalize">{roundFocus} Round</span>
             <span>•</span>
             <span>{mode === 'voice_only' ? 'Voice Mode' : 'Text Mode'}</span>
@@ -767,18 +769,18 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       {/* Quota Modal */}
       {showQuotaModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md p-6 rounded-3xl bg-[#0B0F19] border border-white/[0.12] space-y-4 text-left shadow-2xl">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.12] space-y-4 text-left shadow-2xl">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <Sparkles className="w-5 h-5 text-[#C5F36B]" />
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Sparkles className="w-5 h-5 text-emerald-600 dark:text-[#C5F36B]" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Free Practice Limit Reached</h3>
-                <p className="text-xs text-[#9AA4B2]">Upgrade for unlimited practice sessions</p>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Free Practice Limit Reached</h3>
+                <p className="text-xs text-slate-500 dark:text-[#9AA4B2]">Upgrade for unlimited practice sessions</p>
               </div>
             </div>
 
-            <p className="text-xs text-[#9AA4B2] leading-relaxed">
+            <p className="text-xs text-slate-600 dark:text-[#9AA4B2] leading-relaxed">
               You have completed all 5 of your free mock interview sessions. Upgrade to unlimited practice to continue interview preparation without limits.
             </p>
 
@@ -797,7 +799,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
               <button
                 type="button"
                 onClick={() => setShowQuotaModal(false)}
-                className="px-4 py-2.5 rounded-xl bg-[#121826] border border-white/[0.08] text-xs text-[#9AA4B2] hover:text-white"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-700 dark:text-[#9AA4B2] hover:text-slate-900 dark:hover:text-white"
               >
                 Dismiss
               </button>

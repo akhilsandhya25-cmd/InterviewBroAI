@@ -431,12 +431,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-[#F5F7FA]">Company Recruitment Blueprints</h2>
-            <p className="text-xs text-[#9AA4B2]">One-click mock interviews configured for specific hiring formats.</p>
+            <h2 className="text-base font-bold text-slate-900 dark:text-[#F5F7FA]">Company Recruitment Blueprints</h2>
+            <p className="text-xs text-slate-600 dark:text-[#9AA4B2]">One-click mock interviews configured for specific hiring formats.</p>
           </div>
           <button
             onClick={() => onNavigate('setup')}
-            className="text-xs font-semibold text-[#C5F36B] hover:underline flex items-center gap-1"
+            className="text-xs font-semibold text-blue-600 dark:text-[#C5F36B] hover:underline flex items-center gap-1"
           >
             <span>View All Tracks</span>
             <ArrowRight className="w-3.5 h-3.5" />

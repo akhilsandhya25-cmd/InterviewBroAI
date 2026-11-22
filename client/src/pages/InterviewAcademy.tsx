@@ -300,14 +300,14 @@ export const InterviewAcademy: React.FC<InterviewAcademyProps> = ({ onNavigate, 
       <div className="space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-2 px-1">
           <div>
-            <h2 className="text-lg font-bold text-[#F5F7FA]">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-[#F5F7FA]">
               Step-by-Step Curriculum
             </h2>
-            <p className="text-xs text-[#9AA4B2]">
+            <p className="text-xs text-slate-600 dark:text-[#9AA4B2] font-medium">
               Explore universal foundation lessons or select your stream-specific learning pathway.
             </p>
           </div>
-          <span className="text-xs text-[#9AA4B2] font-semibold bg-white/[0.04] px-3 py-1 rounded-full border border-white/[0.06]">
+          <span className="text-xs text-slate-700 dark:text-[#9AA4B2] font-semibold bg-slate-100 dark:bg-white/[0.04] px-3 py-1 rounded-full border border-slate-200 dark:border-white/[0.06]">
             {displayedLessons.length} of {TOTAL_ACADEMY_LESSONS} Lessons Showing
           </span>
         </div>

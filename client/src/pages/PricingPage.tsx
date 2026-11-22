@@ -150,10 +150,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
           <Flame className="w-3.5 h-3.5 text-amber-400" />
           <span>Transparent Placement Tier</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-[#F5F7FA] tracking-tight">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-[#F5F7FA] tracking-tight">
           Fair, Accessible Interview Preparation
         </h1>
-        <p className="text-xs sm:text-sm text-[#9AA4B2] leading-relaxed">
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-[#9AA4B2] leading-relaxed font-medium">
           InterviewBro AI offers 5 full-length mock interviews completely free for every candidate. No hidden trials, no mandatory credit card.
         </p>
       </div>

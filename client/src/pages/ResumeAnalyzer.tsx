@@ -151,25 +151,25 @@ export const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({ onStartWithResum
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
       {/* Tab Navigation */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-white/[0.08] pb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#C5F36B]/15 text-[#C5F36B] border border-[#C5F36B]/30">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#C5F36B]/20 text-emerald-800 dark:text-[#C5F36B] border border-emerald-500/30 dark:border-[#C5F36B]/30">
               Universal Resume Suite
             </span>
-            <span className="text-xs text-[#9AA4B2]">Private • Multi-Stream • Honest Evaluation</span>
+            <span className="text-xs text-slate-600 dark:text-[#9AA4B2] font-medium">Private • Multi-Stream • Honest Evaluation</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-[#F5F7FA] tracking-tight">
             {activeTab === 'analyzer' ? 'Resume Analyzer & ATS Audit' : 'Universal Resume Builder'}
           </h1>
-          <p className="text-xs sm:text-sm text-[#9AA4B2] mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-[#9AA4B2] mt-1 font-medium">
             {activeTab === 'analyzer'
               ? 'Scan existing resumes with stream-aware evaluation criteria for students and professionals.'
               : 'Build an honest, ATS-friendly resume tailored to your qualification with live A4 preview and PDF export.'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-[#080B11] p-1.5 rounded-xl border border-white/[0.08] shrink-0 self-start sm:self-auto">
+        <div className="flex items-center gap-2 bg-slate-100 dark:bg-[#080B11] p-1.5 rounded-xl border border-slate-200 dark:border-white/[0.08] shrink-0 self-start sm:self-auto">
           <button
             type="button"
             onClick={() => setActiveTab('analyzer')}

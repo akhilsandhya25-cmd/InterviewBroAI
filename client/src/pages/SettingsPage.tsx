@@ -176,10 +176,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
             System & Privacy
           </span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-[#F5F7FA] tracking-tight">
           Settings & Infrastructure
         </h1>
-        <p className="text-xs sm:text-sm text-[#9AA4B2] mt-1">
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-[#9AA4B2] mt-1 font-medium">
           Review your database synchronization, backend AI proxy configuration, and device permissions.
         </p>
       </div>

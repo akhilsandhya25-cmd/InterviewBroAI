@@ -49,17 +49,17 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onNavigate }) => {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/[0.08]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-white/[0.08]">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#C5F36B]/15 text-[#C5F36B] border border-[#C5F36B]/30">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#C5F36B]/20 text-emerald-800 dark:text-[#C5F36B] border border-emerald-500/30 dark:border-[#C5F36B]/30">
               Session Archive
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F7FA] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-[#F5F7FA] tracking-tight">
             Interview History & Transcripts
           </h1>
-          <p className="text-xs sm:text-sm text-[#9AA4B2] mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-[#9AA4B2] mt-1 font-medium">
             Review past question evaluations, answers, and score improvements over time.
           </p>
         </div>
