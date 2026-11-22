@@ -334,6 +334,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPracticing, onN
           </div>
 
           <div className="flex items-center gap-6">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open_feedback_modal'))}
+              className="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+            >
+              Share Feedback
+            </button>
             <button onClick={() => onNavigate('privacy-center')} className="hover:text-blue-600 transition-colors">
               Privacy Center
             </button>

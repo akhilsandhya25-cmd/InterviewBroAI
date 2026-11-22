@@ -170,7 +170,7 @@ export function isSubstantiveAnswer(text: string | null | undefined): boolean {
   return true;
 }
 
-import { InterviewConfig, InterviewQuestion, FeedbackReport, ResumeAnalysis, QuestionEvaluation } from '../types';
+import { InterviewConfig, InterviewQuestion, FeedbackReport, ResumeAnalysis, QuestionEvaluation, UserFeedback, UserFeedbackInput } from '../types';
 import { CoachFeedback } from '../types/academy';
 import { SAMPLE_FALLBACK_QUESTIONS } from '../data/presets';
 import { getCompanyTrack } from '../data/companyTracks';
@@ -1254,6 +1254,64 @@ export const api = {
       success: true,
       alreadyJoined: false,
       message: `Thank you! You're on the waitlist for ${cleanPlan === 'pro' ? 'Student Pro' : 'Placement Unlimited'}!`
+    };
+  },
+
+  async submitFeedback(input: UserFeedbackInput): Promise<{ success: boolean; message: string; feedbackId?: string }> {
+    const feedbackRecord: UserFeedback = {
+      id: 'fb_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      rating: Number(input.rating) || 5,
+      category: input.category || 'General Thoughts',
+      message: (input.message || '').trim(),
+      name: input.name ? input.name.trim() : undefined,
+      email: input.email ? input.email.trim() : undefined,
+      pageUrl: input.pageUrl || (typeof window !== 'undefined' ? window.location.pathname : undefined),
+      createdAt: new Date().toISOString()
+    };
+
+    // Always preserve locally so feedback is never lost
+    storage.saveUserFeedback(feedbackRecord);
+
+    try {
+      const res = await fetch(`${API_BASE}/feedback`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(feedbackRecord)
+      });
+      const data = await safeJson(res);
+      if (res.ok && data) {
+        return {
+          success: true,
+          message: data.message || 'Thank you so much! Your feedback helps make InterviewBro AI better for everyone.',
+          feedbackId: data.feedbackId || feedbackRecord.id
+        };
+      }
+    } catch (err) {
+      console.warn('[API] /feedback fetch failed, saved locally:', err);
+    }
+
+    // Direct Supabase fallback if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('user_feedback').insert({
+          id: feedbackRecord.id,
+          rating: feedbackRecord.rating,
+          category: feedbackRecord.category,
+          message: feedbackRecord.message,
+          name: feedbackRecord.name || null,
+          email: feedbackRecord.email || null,
+          page_url: feedbackRecord.pageUrl || null,
+          created_at: feedbackRecord.createdAt
+        });
+      } catch (e) {
+        // Fall through
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Thank you so much! Your feedback has been safely recorded.',
+      feedbackId: feedbackRecord.id
     };
   }
 };

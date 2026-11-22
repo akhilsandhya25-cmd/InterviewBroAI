@@ -271,6 +271,112 @@ export default async function handler(req, res) {
     }
   }
 
+  // 1c. Friend & User Feedback Capture Endpoint
+  if (url.includes('/feedback') || url === 'feedback' || url.endsWith('/feedback')) {
+    if (req.method !== 'POST') {
+      return res.status(405).json({
+        error: 'Method Not Allowed',
+        message: 'The /api/feedback endpoint accepts POST requests only.'
+      });
+    }
+
+    const body = await parseBody(req);
+    const {
+      rating = 5,
+      category = 'General Feedback',
+      message = '',
+      name = '',
+      email = '',
+      pageUrl = ''
+    } = body || {};
+
+    const cleanMessage = String(message || '').trim().slice(0, 3000);
+    if (!cleanMessage) {
+      return res.status(400).json({
+        error: 'Missing Feedback Message',
+        message: 'Please provide your feedback or suggestions before submitting.'
+      });
+    }
+
+    const cleanRating = Math.max(1, Math.min(5, Number(rating) || 5));
+    const cleanCategory = String(category || 'General Feedback').trim().slice(0, 100);
+    const cleanName = String(name || '').trim().slice(0, 120);
+    const cleanEmail = String(email || '').trim().slice(0, 150).toLowerCase();
+
+    // Anti-spam rate limiting by client IP
+    const clientIp = getClientIp(req);
+    const rateLimitKey = `feedback:${clientIp}`;
+    if (isRateLimited(rateLimitKey)) {
+      return res.status(429).json({
+        error: 'Rate limit exceeded',
+        message: 'You have submitted recently. Please wait a moment before sending another feedback.'
+      });
+    }
+
+    const feedbackEntry = {
+      id: `fb-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      rating: cleanRating,
+      category: cleanCategory,
+      message: cleanMessage,
+      name: cleanName || 'Friend/Tester',
+      email: cleanEmail || null,
+      page_url: String(pageUrl || '').slice(0, 300),
+      client_ip: clientIp,
+      created_at: new Date().toISOString()
+    };
+
+    console.log('[Feedback API] New feedback received:', {
+      rating: cleanRating,
+      category: cleanCategory,
+      name: cleanName || 'Anonymous',
+      messageSnippet: cleanMessage.slice(0, 80)
+    });
+
+    const { url: supaUrl, key: supaKey } = getSupabaseConfig();
+    const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    const authKey = serviceRoleKey || supaKey;
+
+    try {
+      if (supaUrl && authKey) {
+        const supaRes = await fetch(`${supaUrl}/rest/v1/user_feedback`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': authKey,
+            'Authorization': `Bearer ${authKey}`,
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({
+            rating: cleanRating,
+            category: cleanCategory,
+            message: cleanMessage,
+            name: cleanName || null,
+            email: cleanEmail || null,
+            created_at: feedbackEntry.created_at
+          })
+        });
+
+        if (!supaRes.ok) {
+          const errText = await supaRes.text();
+          console.warn('[Feedback API] Supabase insert note:', errText);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Thank you so much for your feedback! It helps improve InterviewBro AI.',
+        feedbackId: feedbackEntry.id
+      });
+    } catch (err) {
+      console.warn('[Feedback API] Non-fatal persistence note:', err.message);
+      return res.status(200).json({
+        success: true,
+        message: 'Thank you so much for your feedback! It helps improve InterviewBro AI.',
+        feedbackId: feedbackEntry.id
+      });
+    }
+  }
+
   // 2. Auth status
   if (url.includes('/auth/status')) {
     return res.status(200).json({

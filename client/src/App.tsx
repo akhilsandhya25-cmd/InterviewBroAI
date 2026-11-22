@@ -20,6 +20,7 @@ import { LegalCenterPage } from './pages/LegalCenterPage';
 import { PrivacyCenterPage } from './pages/PrivacyCenterPage';
 import { InterviewAcademy } from './pages/InterviewAcademy';
 import { IntroSplashAnimation } from './components/IntroSplashAnimation';
+import { FeedbackWidget } from './components/FeedbackWidget';
 import { Shield, Lock, ArrowRight, Sparkles, Loader2, GraduationCap, Info, BookOpen, FileText, Users } from 'lucide-react';
 import { checkInterviewEligibility } from './services/interviewEligibility';
 import { BrandIcon } from './components/brand/BrandIcon';
@@ -546,6 +547,9 @@ const AppContent: React.FC = () => {
         onSuccess={handleAuthSuccess}
       />
 
+
+      {/* User / Friend Feedback Floating Widget */}
+      <FeedbackWidget />
 
       {/* Intro Animation Before Webapp Starts */}
       {showSplash && (

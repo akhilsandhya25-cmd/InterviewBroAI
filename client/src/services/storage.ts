@@ -1,4 +1,4 @@
-import { UserProfile, InterviewSession, FeedbackReport, ResumeAnalysis, UsageQuota, PrivacyPreferences, UserAcademyProgress, LessonProgress, QuizAttempt, PracticeAttempt, ResumeBuilderData } from '../types';
+import { UserProfile, InterviewSession, FeedbackReport, ResumeAnalysis, UsageQuota, PrivacyPreferences, UserAcademyProgress, LessonProgress, QuizAttempt, PracticeAttempt, ResumeBuilderData, UserFeedback } from '../types';
 import { TOTAL_ACADEMY_LESSONS } from '../data/academyCurriculum';
 import { supabase, isSupabaseConfigured, checkSupabaseTablesStatus, CloudSyncStatus, CloudHealthCheckResult } from './supabase';
 
@@ -1130,6 +1130,29 @@ export const storage = {
     progress.lastActiveLessonId = lessonId;
     this.saveAcademyProgress(progress, userId);
     return progress;
+  },
+
+  // User / Friend Feedback
+  getUserFeedbackList(): UserFeedback[] {
+    try {
+      const data = localStorage.getItem('interviewbro_user_feedback_list');
+      if (!data) return [];
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn('Failed to parse feedback list from localStorage', e);
+      return [];
+    }
+  },
+
+  saveUserFeedback(feedback: UserFeedback): void {
+    try {
+      const existing = this.getUserFeedbackList();
+      const updated = [feedback, ...existing.filter(f => f.id !== feedback.id)].slice(0, 50);
+      localStorage.setItem('interviewbro_user_feedback_list', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save feedback to localStorage', e);
+    }
   },
 
   /**

@@ -345,3 +345,25 @@ export interface PrivacyPreferences {
 
 // Re-export Interview Academy types
 export * from './academy';
+
+export interface UserFeedback {
+  id: string;
+  rating: number; // 1 to 5
+  category: string;
+  categoryLabel?: string;
+  message: string;
+  name?: string;
+  email?: string;
+  pageUrl?: string;
+  createdAt: string;
+}
+
+export interface UserFeedbackInput {
+  rating: number;
+  category: string;
+  message: string;
+  name?: string;
+  email?: string;
+  pageUrl?: string;
+}
+

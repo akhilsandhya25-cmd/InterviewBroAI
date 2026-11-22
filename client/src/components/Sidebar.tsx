@@ -10,7 +10,8 @@ import {
   Shield,
   ArrowRight,
   Sparkles,
-  GraduationCap
+  GraduationCap,
+  MessageSquarePlus
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
@@ -143,6 +144,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isOp
                   </button>
                 );
               })}
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  window.dispatchEvent(new CustomEvent('open_feedback_modal'));
+                }}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+              >
+                <div className="flex items-center gap-2.5">
+                  <MessageSquarePlus className="w-4 h-4 text-indigo-500" />
+                  <span>Share Feedback</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50">
+                  Friends
+                </span>
+              </button>
             </nav>
           </div>
         </div>
