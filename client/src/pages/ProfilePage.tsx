@@ -169,7 +169,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-slate-900 dark:text-white">{profile.fullName || 'Candidate Profile'}</h1>
+                <h1 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  {profile.fullName || user?.name || (user?.email ? user.email.split('@')[0] : '') || 'Candidate Profile'}
+                </h1>
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-700 dark:text-[#9AA4B2]">
                   {profile.currentStatus}
                 </span>
@@ -199,7 +201,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             <button
               type="button"
               onClick={() => onNavigate('setup')}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.08] dark:hover:bg-white/[0.14] text-slate-900 dark:text-white border border-slate-300 dark:border-white/[0.1] transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 transition-all cursor-pointer flex items-center gap-1.5"
             >
               <span>Practice Mock</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -259,7 +261,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* 1. I am a */}
             <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-white mb-2">1. I am a:</label>
+              <label className="block text-xs font-extrabold text-slate-900 dark:text-white mb-2">1. I am a:</label>
               <div className="grid grid-cols-2 gap-1.5">
                 {(['Student', 'Fresher', 'Job seeker', 'Working professional'] as CurrentStatus[]).map((st) => (
                   <button
@@ -272,12 +274,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                     }}
                     className={`p-2.5 rounded-xl text-xs font-semibold border text-left transition-all cursor-pointer flex items-center justify-between ${
                       profile.currentStatus === st
-                        ? 'bg-[#C5F36B] dark:bg-[#C5F36B]/20 border-[#C5F36B] text-[#080B11] dark:text-[#C5F36B] font-bold shadow-sm'
-                        : 'bg-slate-100 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-[#9AA4B2] hover:bg-slate-200 dark:hover:bg-white/[0.05]'
+                        ? 'bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-600 dark:border-blue-500 text-blue-900 dark:text-blue-200 font-bold shadow-sm'
+                        : 'bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-[#9AA4B2] hover:bg-slate-200 dark:hover:bg-white/[0.05]'
                     }`}
                   >
                     <span>{st}</span>
-                    {profile.currentStatus === st && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-800 dark:text-[#C5F36B]" />}
+                    {profile.currentStatus === st && <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
                   </button>
                 ))}
               </div>
@@ -285,7 +287,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
             {/* 2. Education Level */}
             <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-white mb-2">2. Education Level:</label>
+              <label className="block text-xs font-extrabold text-slate-900 dark:text-white mb-2">2. Education Level:</label>
               <div className="grid grid-cols-2 gap-1.5">
                 {[
                   { id: 'Diploma', label: 'Diploma' },
@@ -303,12 +305,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                     }}
                     className={`p-2.5 rounded-xl text-xs font-semibold border text-left transition-all cursor-pointer flex items-center justify-between ${
                       profile.educationLevel === lvl.id
-                        ? 'bg-[#C5F36B] dark:bg-[#C5F36B]/20 border-[#C5F36B] text-[#080B11] dark:text-[#C5F36B] font-bold shadow-sm'
-                        : 'bg-slate-100 dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-[#9AA4B2] hover:bg-slate-200 dark:hover:bg-white/[0.05]'
+                        ? 'bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-600 dark:border-blue-500 text-blue-900 dark:text-blue-200 font-bold shadow-sm'
+                        : 'bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-[#9AA4B2] hover:bg-slate-200 dark:hover:bg-white/[0.05]'
                     }`}
                   >
                     <span>{lvl.label}</span>
-                    {profile.educationLevel === lvl.id && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-800 dark:text-[#C5F36B]" />}
+                    {profile.educationLevel === lvl.id && <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
                   </button>
                 ))}
               </div>
@@ -316,14 +318,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
             {/* 3. Stream or Degree */}
             <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-white mb-1.5">3. Stream or Degree:</label>
+              <label className="block text-xs font-extrabold text-slate-900 dark:text-white mb-1.5">3. Stream or Degree:</label>
               <input
                 type="text"
                 value={profile.degreeStream}
                 onChange={(e) => setProfile({ ...profile, degreeStream: e.target.value })}
                 onBlur={() => handleSave()}
                 placeholder="e.g. B.Tech Computer Science, B.Com, MBA, BCA"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-300 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#C5F36B] font-medium"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-white/[0.03] border-2 border-slate-200 dark:border-white/[0.08] text-xs font-bold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-600"
               />
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {['B.Tech CSE', 'B.Com', 'BCA', 'BBA', 'MBA', 'B.Sc Physics', 'Mechanical'].map((chip) => (
@@ -335,9 +337,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                       setProfile(updated);
                       handleSave(updated);
                     }}
-                    className={`text-[10px] px-2 py-0.5 rounded-lg border transition-colors cursor-pointer font-semibold ${
+                    className={`text-[10px] px-2 py-0.5 rounded-lg border transition-colors cursor-pointer font-bold ${
                       profile.degreeStream === chip
-                        ? 'bg-[#C5F36B] text-[#080B11] border-[#C5F36B] font-bold'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                         : 'bg-slate-100 dark:bg-white/[0.02] text-slate-700 dark:text-[#9AA4B2] border-slate-200 dark:border-white/[0.06] hover:bg-slate-200 dark:hover:text-white'
                     }`}
                   >
@@ -349,14 +351,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
             {/* 4. Target Role */}
             <div>
-              <label className="block text-xs font-bold text-slate-800 dark:text-white mb-1.5">4. Target Role:</label>
+              <label className="block text-xs font-extrabold text-slate-900 dark:text-white mb-1.5">4. Target Role:</label>
               <input
                 type="text"
                 value={profile.targetRole}
                 onChange={(e) => setProfile({ ...profile, targetRole: e.target.value })}
                 onBlur={() => handleSave()}
                 placeholder="e.g. Software Engineer, Financial Analyst, HR Associate"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-300 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#C5F36B] font-medium"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-white/[0.03] border-2 border-slate-200 dark:border-white/[0.08] text-xs font-bold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-600"
               />
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {['Software Engineer', 'Data Analyst', 'Frontend Dev', 'Financial Analyst', 'HR Executive'].map((role) => (
@@ -368,9 +370,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                       setProfile(updated);
                       handleSave(updated);
                     }}
-                    className={`text-[10px] px-2 py-0.5 rounded-lg border transition-colors cursor-pointer font-semibold ${
+                    className={`text-[10px] px-2 py-0.5 rounded-lg border transition-colors cursor-pointer font-bold ${
                       profile.targetRole === role
-                        ? 'bg-[#C5F36B] text-[#080B11] border-[#C5F36B] font-bold'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                         : 'bg-slate-100 dark:bg-white/[0.02] text-slate-700 dark:text-[#9AA4B2] border-slate-200 dark:border-white/[0.06] hover:bg-slate-200 dark:hover:text-white'
                     }`}
                   >
