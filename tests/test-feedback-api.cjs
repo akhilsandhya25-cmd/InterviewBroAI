@@ -162,6 +162,23 @@ async function runFeedbackTests() {
     failed++;
   }
 
+  // Test 5: GET /api/feedback returns list
+  try {
+    const res = await invokeHandler(vercelHandler, {
+      url: '/api/feedback',
+      method: 'GET'
+    });
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.success, true);
+    assert(Array.isArray(res.body.data), 'Data should be an array');
+    assert(res.body.data.length > 0, 'Should have feedback entries');
+    console.log('✅ PASS [GET /api/feedback returns feedback list, count: ' + res.body.data.length + ']');
+    passed++;
+  } catch (err) {
+    console.error('❌ FAIL [GET /api/feedback returns feedback list]', err);
+    failed++;
+  }
+
   console.log(`\nFeedback Tests Complete: ${passed} passed, ${failed} failed.`);
   if (failed > 0) process.exit(1);
 }

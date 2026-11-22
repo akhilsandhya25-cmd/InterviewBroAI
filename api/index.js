@@ -89,6 +89,9 @@ const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 3;
 
+// In-memory store for user & friend feedback (persists across serverless warm requests)
+const feedbackMemoryStore = [];
+
 function isRateLimited(key) {
   const now = Date.now();
   const timestamps = rateLimitMap.get(key) || [];
@@ -271,12 +274,53 @@ export default async function handler(req, res) {
     }
   }
 
-  // 1c. Friend & User Feedback Capture Endpoint
+  // 1c. Friend & User Feedback Capture & Review Endpoint
   if (url.includes('/feedback') || url === 'feedback' || url.endsWith('/feedback')) {
+    const { url: supaUrl, key: supaKey } = getSupabaseConfig();
+    const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    const authKey = serviceRoleKey || supaKey;
+
+    // Handle GET: Fetch submitted feedback for developer / admin review
+    if (req.method === 'GET') {
+      try {
+        if (supaUrl && authKey) {
+          const supaRes = await fetch(`${supaUrl}/rest/v1/user_feedback?select=*&order=created_at.desc&limit=50`, {
+            method: 'GET',
+            headers: {
+              'apikey': authKey,
+              'Authorization': `Bearer ${authKey}`
+            }
+          });
+
+          if (supaRes.ok) {
+            const data = await supaRes.json();
+            if (Array.isArray(data) && data.length > 0) {
+              return res.status(200).json({
+                success: true,
+                count: data.length,
+                source: 'database',
+                data
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Feedback API] Supabase fetch notice:', err.message);
+      }
+
+      // Return server in-memory feedback store fallback
+      return res.status(200).json({
+        success: true,
+        count: feedbackMemoryStore.length,
+        source: 'memory',
+        data: feedbackMemoryStore
+      });
+    }
+
     if (req.method !== 'POST') {
       return res.status(405).json({
         error: 'Method Not Allowed',
-        message: 'The /api/feedback endpoint accepts POST requests only.'
+        message: 'The /api/feedback endpoint accepts GET and POST requests only.'
       });
     }
 
@@ -325,16 +369,18 @@ export default async function handler(req, res) {
       created_at: new Date().toISOString()
     };
 
+    // Keep latest in memory store
+    feedbackMemoryStore.unshift(feedbackEntry);
+    if (feedbackMemoryStore.length > 100) {
+      feedbackMemoryStore.pop();
+    }
+
     console.log('[Feedback API] New feedback received:', {
       rating: cleanRating,
       category: cleanCategory,
       name: cleanName || 'Anonymous',
       messageSnippet: cleanMessage.slice(0, 80)
     });
-
-    const { url: supaUrl, key: supaKey } = getSupabaseConfig();
-    const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-    const authKey = serviceRoleKey || supaKey;
 
     try {
       if (supaUrl && authKey) {
@@ -347,11 +393,14 @@ export default async function handler(req, res) {
             'Prefer': 'return=minimal'
           },
           body: JSON.stringify({
+            id: feedbackEntry.id,
             rating: cleanRating,
             category: cleanCategory,
             message: cleanMessage,
             name: cleanName || null,
             email: cleanEmail || null,
+            page_url: feedbackEntry.page_url,
+            client_ip: feedbackEntry.client_ip,
             created_at: feedbackEntry.created_at
           })
         });

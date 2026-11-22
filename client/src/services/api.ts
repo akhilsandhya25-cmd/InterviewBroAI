@@ -1313,5 +1313,69 @@ export const api = {
       message: 'Thank you so much! Your feedback has been safely recorded.',
       feedbackId: feedbackRecord.id
     };
+  },
+
+  async getFeedbackList(): Promise<{ success: boolean; data: UserFeedback[]; source?: string }> {
+    try {
+      const res = await fetch(`${API_BASE}/feedback`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      const json = await safeJson(res);
+      if (res.ok && json && Array.isArray(json.data) && json.data.length > 0) {
+        return {
+          success: true,
+          source: json.source || 'server',
+          data: json.data.map((item: any) => ({
+            id: item.id || `fb-${Math.random()}`,
+            rating: Number(item.rating) || 5,
+            category: item.category || 'General Feedback',
+            message: item.message || '',
+            name: item.name || undefined,
+            email: item.email || undefined,
+            pageUrl: item.page_url || item.pageUrl || undefined,
+            createdAt: item.created_at || item.createdAt || new Date().toISOString()
+          }))
+        };
+      }
+    } catch (e) {
+      console.warn('[API] /feedback GET fetch failed, falling back to local storage:', e);
+    }
+
+    // Direct Supabase Client fallback if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('user_feedback')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (!error && Array.isArray(data) && data.length > 0) {
+          return {
+            success: true,
+            source: 'supabase',
+            data: data.map((item: any) => ({
+              id: item.id || `fb-${Math.random()}`,
+              rating: Number(item.rating) || 5,
+              category: item.category || 'General Feedback',
+              message: item.message || '',
+              name: item.name || undefined,
+              email: item.email || undefined,
+              pageUrl: item.page_url || undefined,
+              createdAt: item.created_at || new Date().toISOString()
+            }))
+          };
+        }
+      } catch (e) {
+        // Fall through
+      }
+    }
+
+    // Local storage fallback
+    return {
+      success: true,
+      source: 'local',
+      data: storage.getUserFeedbackList()
+    };
   }
 };

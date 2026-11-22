@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-  MessageSquarePlus,
+  MessageSquare,
   Star,
   Send,
   X,
   CheckCircle2,
-  Sparkles,
   Loader2,
-  Heart,
-  History,
-  AlertCircle
+  RefreshCw,
+  AlertCircle,
+  Inbox,
+  User,
+  Mail,
+  Calendar,
+  ExternalLink
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
@@ -19,7 +22,7 @@ import { UserFeedback } from '../types';
 
 const CATEGORIES = [
   'General Thoughts',
-  'Interview AI & Audio',
+  'Mock Interview Quality',
   'Resume ATS & Builder',
   'Academy & Lessons',
   'Feature Request',
@@ -37,6 +40,9 @@ const RATING_DESCRIPTIONS: Record<number, string> = {
 export const FeedbackWidget: React.FC = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'give' | 'view'>('give');
+
+  // Feedback form state
   const [rating, setRating] = useState<number>(5);
   const [hoveredRating, setHoveredRating] = useState<number | null>(null);
   const [category, setCategory] = useState<string>('General Thoughts');
@@ -46,8 +52,11 @@ export const FeedbackWidget: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState<boolean>(false);
-  const [deviceHistory, setDeviceHistory] = useState<UserFeedback[]>([]);
+
+  // All Feedback List State (for viewing notes)
+  const [feedbackList, setFeedbackList] = useState<UserFeedback[]>([]);
+  const [isLoadingList, setIsLoadingList] = useState<boolean>(false);
+  const [feedbackFilter, setFeedbackFilter] = useState<string>('all');
 
   // Prefill name and email when user is logged in
   useEffect(() => {
@@ -57,19 +66,39 @@ export const FeedbackWidget: React.FC = () => {
     }
   }, [user]);
 
-  // Load device history on mount or modal open
-  useEffect(() => {
-    if (isOpen) {
-      setDeviceHistory(storage.getUserFeedbackList());
+  // Load feedback list when switching to 'view' tab or on initial modal open
+  const fetchAllFeedback = async () => {
+    setIsLoadingList(true);
+    try {
+      const res = await api.getFeedbackList();
+      if (res && Array.isArray(res.data)) {
+        setFeedbackList(res.data);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch feedback list:', e);
+      setFeedbackList(storage.getUserFeedbackList());
+    } finally {
+      setIsLoadingList(false);
     }
-  }, [isOpen, submitted]);
+  };
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'view') {
+      fetchAllFeedback();
+    }
+  }, [isOpen, activeTab]);
 
   // Listen for global custom event to trigger opening from any navbar/sidebar link
   useEffect(() => {
     const handleOpenEvent = (e: Event) => {
-      const customEvent = e as CustomEvent<{ category?: string }>;
+      const customEvent = e as CustomEvent<{ category?: string; viewOnly?: boolean }>;
       if (customEvent.detail && customEvent.detail.category) {
         setCategory(customEvent.detail.category);
+      }
+      if (customEvent.detail && customEvent.detail.viewOnly) {
+        setActiveTab('view');
+      } else {
+        setActiveTab('give');
       }
       setIsOpen(true);
       setSubmitted(false);
@@ -106,17 +135,17 @@ export const FeedbackWidget: React.FC = () => {
 
       if (result.success) {
         setSubmitted(true);
-        // Fire celebration confetti!
         try {
           confetti({
-            particleCount: 75,
-            spread: 60,
+            particleCount: 65,
+            spread: 55,
             origin: { y: 0.6 }
           });
         } catch {
           // ignore confetti if unsupported
         }
-        setDeviceHistory(storage.getUserFeedbackList());
+        // Refresh local view list
+        fetchAllFeedback();
       } else {
         setErrorMessage(result.message || 'Could not submit feedback. Please try again.');
       }
@@ -133,161 +162,287 @@ export const FeedbackWidget: React.FC = () => {
     setCategory('General Thoughts');
     setSubmitted(false);
     setErrorMessage(null);
-    setShowHistory(false);
   };
 
   const handleClose = () => {
     setIsOpen(false);
-    setShowHistory(false);
     if (submitted) {
       handleResetForm();
     }
   };
 
+  const filteredList = feedbackList.filter(item => {
+    if (feedbackFilter === 'all') return true;
+    return item.category === feedbackFilter;
+  });
+
   return (
     <>
-      {/* Floating Trigger Button */}
+      {/* Floating Trigger Button - Clean solid brand styling (No purple, no AI gradients) */}
       <button
         onClick={() => {
           setIsOpen(true);
           setSubmitted(false);
         }}
         aria-label="Give Feedback"
-        className="fixed bottom-5 right-5 z-40 group flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-medium text-xs sm:text-sm shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
+        className="fixed bottom-5 right-5 z-40 group flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 border border-blue-500/40"
       >
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
-        </span>
-        <MessageSquarePlus className="w-4 h-4 transition-transform group-hover:scale-110" />
-        <span className="font-semibold tracking-wide">Feedback</span>
+        <MessageSquare className="w-4 h-4 transition-transform group-hover:scale-105" />
+        <span className="tracking-normal">Feedback</span>
       </button>
 
       {/* Feedback Modal Backdrop and Dialog */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
           <div
-            className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-all duration-200 max-h-[92vh] flex flex-col"
+            className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-all duration-200 max-h-[92vh] flex flex-col"
             role="dialog"
             aria-modal="true"
             aria-labelledby="feedback-title"
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
-                  <Heart className="w-4 h-4 fill-white/80" />
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm">
+                  <MessageSquare className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 id="feedback-title" className="text-base font-bold text-slate-900 dark:text-slate-100">
-                    Share Your Feedback
+                  <h2 id="feedback-title" className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">
+                    Feedback & Suggestions
                   </h2>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Help Akhil improve InterviewBro AI for everyone!
+                    InterviewBro AI tester reviews & suggestions
                   </p>
                 </div>
               </div>
               <button
                 onClick={handleClose}
-                aria-label="Close feedback modal"
+                aria-label="Close modal"
                 className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            {/* Mode Tabs: Give Feedback vs View Feedback */}
+            <div className="flex items-center border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('give');
+                  setSubmitted(false);
+                }}
+                className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'give'
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Submit Feedback</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('view');
+                  fetchAllFeedback();
+                }}
+                className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'view'
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <Inbox className="w-3.5 h-3.5" />
+                <span>View All Feedback ({feedbackList.length})</span>
+              </button>
+            </div>
+
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-5 flex-1">
-              {submitted ? (
-                /* Success Screen */
-                <div className="py-8 text-center space-y-4 animate-fade-in">
-                  <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner">
-                    <CheckCircle2 className="w-10 h-10" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                      Feedback Received! 🎉
-                    </h3>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 max-w-sm mx-auto mt-1 leading-relaxed">
-                      Thank you so much, bro! Your notes have been safely recorded. Akhil reviews every piece of feedback to polish InterviewBro AI for campus placements and students.
-                    </p>
-                  </div>
-                  <div className="pt-4 flex items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleResetForm}
-                      className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors border border-slate-200 dark:border-slate-700"
-                    >
-                      Send Another Note
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleClose}
-                      className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-colors"
-                    >
-                      Done & Close
-                    </button>
-                  </div>
-                </div>
-              ) : showHistory ? (
-                /* On-device History Screen */
+              {activeTab === 'view' ? (
+                /* Tab 2: View All Received Feedback */
                 <div className="space-y-4 animate-fade-in">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Feedback Sent From This Device ({deviceHistory.length})
-                    </h3>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        Received Feedback Notes ({filteredList.length})
+                      </h3>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Submitted by friends and candidates testing the platform
+                      </p>
+                    </div>
+
                     <button
                       type="button"
-                      onClick={() => setShowHistory(false)}
-                      className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                      onClick={fetchAllFeedback}
+                      disabled={isLoadingList}
+                      className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center gap-1 transition-colors"
+                      title="Refresh feedback from server"
                     >
-                      ← Back to Form
+                      <RefreshCw className={`w-3 h-3 ${isLoadingList ? 'animate-spin' : ''}`} />
+                      <span>Refresh</span>
                     </button>
                   </div>
-                  {deviceHistory.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-8">
-                      No feedback sent from this browser yet.
-                    </p>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setFeedbackFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition-colors shrink-0 ${
+                        feedbackFilter === 'all'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      All ({feedbackList.length})
+                    </button>
+                    {CATEGORIES.map(cat => {
+                      const count = feedbackList.filter(f => f.category === cat).length;
+                      if (count === 0) return null;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setFeedbackFilter(cat)}
+                          className={`px-2.5 py-1 rounded-lg font-semibold transition-colors shrink-0 ${
+                            feedbackFilter === cat
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          }`}
+                        >
+                          {cat} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Feedback Cards List */}
+                  {isLoadingList ? (
+                    <div className="py-12 text-center space-y-2">
+                      <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto" />
+                      <p className="text-xs text-slate-500">Loading feedback notes...</p>
+                    </div>
+                  ) : filteredList.length === 0 ? (
+                    <div className="py-10 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                      <Inbox className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        No feedback notes found yet.
+                      </p>
+                      <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                        Share InterviewBro AI with your friends and ask them to tap the "Feedback" button to leave their thoughts!
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('give')}
+                        className="mt-2 text-xs font-semibold text-blue-600 hover:underline"
+                      >
+                        Submit a test note →
+                      </button>
+                    </div>
                   ) : (
-                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                      {deviceHistory.map((item) => (
+                    <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                      {filteredList.map((item) => (
                         <div
                           key={item.id}
-                          className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1.5"
+                          className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-800 space-y-2"
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 border border-blue-200/50 dark:border-blue-800/50">
+                          {/* Card Top Row: Category + Rating */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md bg-blue-100/60 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900">
                               {item.category}
                             </span>
-                            <div className="flex items-center gap-1 text-amber-500 text-xs font-semibold">
+                            <div className="flex items-center gap-1 text-amber-500 text-xs font-bold">
                               <span>{'★'.repeat(item.rating)}</span>
-                              <span className="text-[10px] text-slate-400">
-                                {new Date(item.createdAt).toLocaleDateString()}
+                              <span className="text-slate-300 dark:text-slate-600 font-normal">
+                                {'★'.repeat(Math.max(0, 5 - item.rating))}
                               </span>
                             </div>
                           </div>
-                          <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+
+                          {/* Message Content */}
+                          <p className="text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed font-normal">
                             {item.message}
                           </p>
-                          {item.name && (
-                            <p className="text-[10px] text-slate-400 italic">
-                              From: {item.name}
-                            </p>
-                          )}
+
+                          {/* Card Footer: Author + Date */}
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-[10px] text-slate-500 dark:text-slate-400">
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                                <User className="w-3 h-3 text-slate-400" />
+                                {item.name || 'Anonymous Friend'}
+                              </span>
+                              {item.email && (
+                                <span className="flex items-center gap-1 text-slate-400">
+                                  <Mail className="w-3 h-3 text-slate-400" />
+                                  {item.email}
+                                </span>
+                              )}
+                            </div>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-slate-400" />
+                              {new Date(item.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
+
+                  {/* Developer Note */}
+                  <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
+                    <span className="font-bold text-blue-700 dark:text-blue-400 block">
+                      Where is feedback stored?
+                    </span>
+                    <p className="text-[10px] leading-relaxed">
+                      1. In this in-app viewer (refreshes live via <code className="bg-white dark:bg-slate-800 px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700">/api/feedback</code>).<br />
+                      2. In your Supabase database table <code className="bg-white dark:bg-slate-800 px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700">user_feedback</code>.<br />
+                      3. In Vercel serverless function logs in real time.
+                    </p>
+                  </div>
+                </div>
+              ) : submitted ? (
+                /* Success Screen */
+                <div className="py-8 text-center space-y-4 animate-fade-in">
+                  <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                      Feedback Received!
+                    </h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 max-w-sm mx-auto mt-1 leading-relaxed">
+                      Thank you! Your feedback has been safely submitted and recorded. It helps directly in polishing InterviewBro AI.
+                    </p>
+                  </div>
+                  <div className="pt-2 flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('view')}
+                      className="px-4 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-xl transition-colors border border-blue-200 dark:border-blue-800"
+                    >
+                      View All Feedback
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               ) : (
-                /* Feedback Input Form */
+                /* Tab 1: Submit Feedback Form */
                 <form onSubmit={handleSubmit} className="space-y-5">
                   {/* Rating Selector */}
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                      How was your experience?
+                      Overall Experience Rating
                     </label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {[1, 2, 3, 4, 5].map((val) => {
                         const activeStar = hoveredRating !== null ? val <= hoveredRating : val <= rating;
                         return (
@@ -298,12 +453,12 @@ export const FeedbackWidget: React.FC = () => {
                             onMouseEnter={() => setHoveredRating(val)}
                             onMouseLeave={() => setHoveredRating(null)}
                             aria-label={`${val} star rating`}
-                            className="p-1 rounded-lg hover:scale-110 active:scale-95 transition-transform focus:outline-none focus:ring-2 focus:ring-amber-400"
+                            className="p-1 rounded-lg hover:scale-105 active:scale-95 transition-transform focus:outline-none focus:ring-2 focus:ring-amber-400"
                           >
                             <Star
-                              className={`w-7 h-7 transition-colors ${
+                              className={`w-6 h-6 transition-colors ${
                                 activeStar
-                                  ? 'fill-amber-400 text-amber-400 drop-shadow-sm'
+                                  ? 'fill-amber-400 text-amber-400'
                                   : 'text-slate-300 dark:text-slate-700'
                               }`}
                             />
@@ -316,10 +471,10 @@ export const FeedbackWidget: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Category Pills */}
+                  {/* Category Selection */}
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                      What are you sharing feedback on?
+                      What is this regarding?
                     </label>
                     <div className="flex flex-wrap gap-1.5">
                       {CATEGORIES.map((cat) => {
@@ -331,7 +486,7 @@ export const FeedbackWidget: React.FC = () => {
                             onClick={() => setCategory(cat)}
                             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                               isSelected
-                                ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-600 ring-offset-1 dark:ring-offset-slate-900'
+                                ? 'bg-blue-600 text-white shadow-sm'
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                             }`}
                           >
@@ -342,11 +497,11 @@ export const FeedbackWidget: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Message Field */}
+                  {/* Feedback Message */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label htmlFor="feedback-message" className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Your Feedback or Idea <span className="text-red-500">*</span>
+                        Your Feedback or Suggestions <span className="text-red-500">*</span>
                       </label>
                       <span className="text-[11px] text-slate-400">
                         {message.length}/3000
@@ -357,13 +512,13 @@ export const FeedbackWidget: React.FC = () => {
                       rows={4}
                       value={message}
                       onChange={(e) => setMessage(e.target.value.slice(0, 3000))}
-                      placeholder="What did you try? Did the mock interview feel realistic? Any questions or UI improvements you recommend?"
+                      placeholder="What did you try? Did the questions feel realistic? Any features or UI improvements you recommend?"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white dark:focus:bg-slate-900 transition-all resize-none"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white dark:focus:bg-slate-900 transition-all resize-none"
                     />
                   </div>
 
-                  {/* Optional Name & Email (Friend contact info) */}
+                  {/* Friend Information (Optional) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     <div className="space-y-1">
                       <label htmlFor="feedback-name" className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
@@ -401,36 +556,32 @@ export const FeedbackWidget: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Submit and Bottom Row */}
-                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    {deviceHistory.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowHistory(true)}
-                        className="text-[11px] font-medium text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 transition-colors"
-                      >
-                        <History className="w-3.5 h-3.5" />
-                        <span>View past feedback on this device ({deviceHistory.length})</span>
-                      </button>
-                    ) : (
-                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                        Direct to developer
-                      </span>
-                    )}
+                  {/* Form Action Buttons */}
+                  <div className="pt-2 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('view');
+                        fetchAllFeedback();
+                      }}
+                      className="text-[11px] font-semibold text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 transition-colors"
+                    >
+                      <Inbox className="w-3.5 h-3.5" />
+                      <span>View past notes ({feedbackList.length})</span>
+                    </button>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={handleClose}
-                        className="flex-1 sm:flex-none px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                        className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={isSubmitting || !message.trim()}
-                        className="flex-1 sm:flex-none px-5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                        className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow transition-all flex items-center justify-center gap-2"
                       >
                         {isSubmitting ? (
                           <>

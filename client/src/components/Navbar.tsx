@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Video, Menu, X, LogOut, Settings as SettingsIcon, History, UserCheck, ChevronDown, GraduationCap, MessageSquarePlus } from 'lucide-react';
+import { Video, Menu, X, LogOut, Settings as SettingsIcon, History, UserCheck, ChevronDown, GraduationCap, MessageSquare } from 'lucide-react';
 import { BrandLogo } from './brand/BrandLogo';
 import { ThemeToggle } from './ThemeToggle';
 import { checkInterviewEligibility } from '../services/interviewEligibility';
@@ -87,7 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">FAQ</a>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('open_feedback_modal'))}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors font-medium text-slate-500 dark:text-slate-400"
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium text-slate-500 dark:text-slate-400"
             >
               Feedback
             </button>
@@ -192,9 +192,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsUserMenuOpen(false);
                           window.dispatchEvent(new CustomEvent('open_feedback_modal'));
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 transition-colors text-left"
                       >
-                        <MessageSquarePlus className="w-4 h-4 text-indigo-500" />
+                        <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <span>Give Feedback</span>
                       </button>
                     </div>

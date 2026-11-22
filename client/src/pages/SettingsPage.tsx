@@ -19,7 +19,8 @@ import {
   Lock,
   FileText,
   CloudOff,
-  Palette
+  Palette,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isSupabaseConfigured, checkSupabaseTablesStatus, CloudHealthCheckResult } from '../services/supabase';
@@ -508,6 +509,45 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
           >
             <div className="text-xs font-semibold text-[#F5F7FA]">Media & Biometrics Notice</div>
             <div className="text-[11px] text-[#9AA4B2] mt-0.5">Local browser video mirror; zero facial biometric scanning</div>
+          </button>
+        </div>
+      </div>
+
+      {/* Tester & Friend Feedback Management */}
+      <div className="p-6 rounded-2xl bg-[#121826] border border-white/[0.08] shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2 className="text-sm font-bold text-[#F5F7FA] flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-blue-400" />
+              <span>Tester & Friend Feedback</span>
+            </h2>
+            <p className="text-xs text-[#9AA4B2] leading-relaxed">
+              Read notes, feature requests, and bug reports submitted by friends and candidates testing InterviewBro AI.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('open_feedback_modal', { detail: { viewOnly: true } }))}
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 transition-colors shadow-sm"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Open Feedback Inbox</span>
+          </button>
+        </div>
+
+        <div className="p-3.5 rounded-xl bg-[#080B11] border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="space-y-0.5">
+            <span className="font-semibold text-[#F5F7FA] block">Live Feedback Destinations</span>
+            <span className="text-[11px] text-[#9AA4B2]">
+              All submissions are recorded in the in-app inbox, Vercel backend logs, and the Supabase <code className="text-blue-300">user_feedback</code> table.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('open_feedback_modal', { detail: { viewOnly: true } }))}
+            className="text-xs font-bold text-blue-400 hover:underline shrink-0"
+          >
+            View Notes →
           </button>
         </div>
       </div>

@@ -11,7 +11,7 @@ import {
   ArrowRight,
   Sparkles,
   GraduationCap,
-  MessageSquarePlus
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
@@ -151,13 +151,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRoute, onNavigate, isOp
                   onClose();
                   window.dispatchEvent(new CustomEvent('open_feedback_modal'));
                 }}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
               >
                 <div className="flex items-center gap-2.5">
-                  <MessageSquarePlus className="w-4 h-4 text-indigo-500" />
+                  <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   <span>Share Feedback</span>
                 </div>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/50">
                   Friends
                 </span>
               </button>
