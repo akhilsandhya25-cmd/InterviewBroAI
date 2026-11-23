@@ -101,25 +101,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           {user ? (
             <>
               {/* Primary Action Button */}
-              {checkInterviewEligibility(user).isEligible ? (
-                <button
-                  onClick={() => onNavigate('setup')}
-                  className="btn-primary text-xs py-2 px-2.5 sm:px-3.5"
-                  title="Start Mock Interview"
-                >
-                  <Video className="w-4 h-4" />
-                  <span className="hidden sm:inline">Start Mock</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => onNavigate('academy')}
-                  className="btn-primary text-xs py-2 px-2.5 sm:px-3.5"
-                  title="Explore Interview Academy"
-                >
-                  <GraduationCap className="w-4 h-4" />
-                  <span className="hidden sm:inline">Academy</span>
-                </button>
-              )}
+              <button
+                onClick={() => onNavigate('setup')}
+                className="px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm flex items-center gap-1.5 transition-all min-h-[38px] touch-manipulation cursor-pointer"
+                title="Start Mock Interview"
+              >
+                <Video className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">Start Mock</span>
+              </button>
 
               {/* Authenticated User Menu */}
               <div className="relative" ref={userMenuRef}>

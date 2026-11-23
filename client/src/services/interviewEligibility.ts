@@ -108,156 +108,17 @@ export const INCOMPLETE_PROFILE_EXPLANATION =
 
 /**
  * Evaluates whether a candidate profile or session configuration is eligible
- * for AI mock interviews under the B.Tech & Degree student policy.
+ * for AI mock interviews.
+ * 
+ * In InterviewBro AI 2.0, all candidates (Students, Freshers, Job Seekers,
+ * Working Professionals, Diploma, UG, PG) are 100% eligible to practice mock
+ * interviews immediately. Nothing blocks the user from practicing.
  */
 export function checkInterviewEligibility(profile?: Partial<UserProfile> | Partial<InterviewConfig> | null): EligibilityResult {
-  if (!profile || typeof profile !== 'object') {
-    return {
-      isEligible: false,
-      status: 'incomplete',
-      reason: INCOMPLETE_PROFILE_EXPLANATION
-    };
-  }
-
-  const rawEduLevel = String(
-    profile.educationLevel ||
-    (profile as any).education_level ||
-    ''
-  ).toLowerCase().trim();
-
-  const rawGroup = String(
-    profile.intermediateGroup ||
-    (profile as any).intermediate_group ||
-    ''
-  ).toLowerCase().trim();
-
-  const rawDegree = String(
-    profile.degreeCourse ||
-    (profile as any).degree_course ||
-    (profile as any).degree_stream ||
-    (profile as any).degreeStream ||
-    (profile as any).degree ||
-    ''
-  ).trim();
-
-  const rawSpecialisation = String(
-    profile.specialisation ||
-    (profile as any).specialization ||
-    ''
-  ).trim();
-
-  const rawStream = String(
-    profile.academicStream ||
-    (profile as any).academic_stream ||
-    ''
-  ).toLowerCase().trim();
-
-  const combinedCourseText = `${rawDegree} ${rawSpecialisation} ${rawStream}`.trim();
-
-  // 1. Check explicitly blocked intermediate groups (MPC, BiPC, MEC, CEC, HEC, MBiPC, Vocational)
-  if (rawGroup && BLOCKED_INTERMEDIATE_GROUPS.has(rawGroup)) {
-    return {
-      isEligible: false,
-      status: 'ineligible',
-      reason: INELIGIBILITY_EXPLANATION,
-      educationLevel: rawEduLevel || 'intermediate',
-      degreeCourse: rawDegree
-    };
-  }
-
-  // 2. Check explicitly blocked education levels (Intermediate, Diploma, ITI)
-  if (rawEduLevel && BLOCKED_LEVELS.has(rawEduLevel)) {
-    return {
-      isEligible: false,
-      status: 'ineligible',
-      reason: INELIGIBILITY_EXPLANATION,
-      educationLevel: rawEduLevel,
-      degreeCourse: rawDegree
-    };
-  }
-
-  // 3. Inspect degree/course text for disqualifying non-degree patterns (prevents Diploma classifying as UG)
-  if (combinedCourseText) {
-    for (const pattern of DISQUALIFYING_COURSE_PATTERNS) {
-      if (pattern.test(combinedCourseText)) {
-        return {
-          isEligible: false,
-          status: 'ineligible',
-          reason: INELIGIBILITY_EXPLANATION,
-          educationLevel: rawEduLevel || 'non_degree',
-          degreeCourse: rawDegree
-        };
-      }
-    }
-  }
-
-  // 4. Check for recognised degree course explicitly stated
-  if (combinedCourseText) {
-    for (const pattern of RECOGNISED_DEGREE_PATTERNS) {
-      if (pattern.test(combinedCourseText)) {
-        return {
-          isEligible: true,
-          status: 'eligible',
-          reason: 'Eligible degree candidate.',
-          educationLevel: rawEduLevel || 'undergraduate',
-          degreeCourse: rawDegree
-        };
-      }
-    }
-  }
-
-  // 5. Check if education level is recognized degree or higher education level
-  const isDegreeLevel = (
-    rawEduLevel === 'undergraduate' ||
-    rawEduLevel === 'postgraduate' ||
-    rawEduLevel === 'professional_degree' ||
-    rawEduLevel === 'diploma_polytechnic' ||
-    rawEduLevel === 'diploma' ||
-    rawEduLevel === 'polytechnic' ||
-    rawEduLevel === 'ug' ||
-    rawEduLevel === 'pg' ||
-    rawEduLevel === 'professional' ||
-    rawEduLevel === 'general'
-  );
-
-  if (isDegreeLevel) {
-    return {
-      isEligible: true,
-      status: 'eligible',
-      reason: 'Eligible degree candidate.',
-      educationLevel: rawEduLevel,
-      degreeCourse: rawDegree || 'Degree Programme'
-    };
-  }
-
-  // 6. If candidate has valid target role or degree stream and is not blocked, allow practice
-  const hasValidPracticeIntent = Boolean(
-    (profile as any).role ||
-    (profile as any).target_role ||
-    (profile as any).targetRole ||
-    (profile as any).degree_stream ||
-    (profile as any).degreeStream ||
-    (profile as any).current_status ||
-    (profile as any).currentStatus
-  );
-
-  if (hasValidPracticeIntent && !BLOCKED_LEVELS.has(rawEduLevel)) {
-    return {
-      isEligible: true,
-      status: 'eligible',
-      reason: 'Eligible candidate.',
-      educationLevel: rawEduLevel || 'ug',
-      degreeCourse: rawDegree || 'Professional Practice'
-    };
-  }
-
-  // 6. Unknown / Incomplete education level: Blocked until verified
   return {
-    isEligible: false,
-    status: 'incomplete',
-    reason: INCOMPLETE_PROFILE_EXPLANATION,
-    educationLevel: rawEduLevel || undefined,
-    degreeCourse: rawDegree || undefined
+    isEligible: true,
+    status: 'eligible',
+    reason: 'Eligible for AI Mock Interviews'
   };
 }
 
