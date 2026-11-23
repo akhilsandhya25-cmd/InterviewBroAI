@@ -200,10 +200,10 @@ export const FeedbackWidget: React.FC = () => {
           setSubmitted(false);
         }}
         aria-label="Give Feedback"
-        className="fixed bottom-5 right-5 z-40 group flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 border border-blue-500/40"
+        className="fixed bottom-4 right-3 sm:bottom-5 sm:right-5 z-30 group flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full bg-blue-600/95 hover:bg-blue-600 text-white font-semibold text-xs sm:text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 border border-blue-400/40 backdrop-blur-sm touch-manipulation pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       >
-        <MessageSquare className="w-4 h-4 transition-transform group-hover:scale-105" />
-        <span className="tracking-normal">Feedback</span>
+        <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform group-hover:scale-105" />
+        <span className="tracking-normal text-[11px] sm:text-xs">Feedback</span>
       </button>
 
       {/* Feedback Modal Backdrop and Dialog */}

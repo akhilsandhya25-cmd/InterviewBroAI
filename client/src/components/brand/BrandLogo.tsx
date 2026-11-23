@@ -21,17 +21,17 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   const iconSize = size === 'sm' ? 'sm' : size === 'md' ? 'md' : size === 'lg' ? 'lg' : 'xl';
 
   const titleSize = size === 'sm' 
-    ? 'text-sm sm:text-base' 
+    ? 'text-xs xs:text-sm sm:text-base' 
     : size === 'md' 
-    ? 'text-base sm:text-lg' 
+    ? 'text-xs xs:text-sm sm:text-base md:text-lg' 
     : size === 'lg'
     ? 'text-xl sm:text-2xl'
     : 'text-2xl sm:text-3xl';
 
   const badgeSize = size === 'sm'
-    ? 'text-[9px] px-1 py-0.2'
+    ? 'text-[8px] xs:text-[9px] px-1 py-0.2'
     : size === 'md'
-    ? 'text-[10px] px-1.5 py-0.5'
+    ? 'text-[8px] xs:text-[10px] px-1 xs:px-1.5 py-0.5'
     : 'text-xs px-2 py-0.5';
 
   if (useOfficialImage) {
@@ -76,16 +76,16 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   return (
     <div 
       onClick={onClick}
-      className={`inline-flex items-center gap-2.5 select-none ${onClick ? 'cursor-pointer group' : ''} ${className}`}
+      className={`inline-flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 select-none shrink-0 ${onClick ? 'cursor-pointer group' : ''} ${className}`}
     >
       <BrandIcon size={iconSize} glow={false} className={onClick ? 'group-hover:scale-105 transition-transform duration-200' : ''} />
       
-      <div className="flex flex-col">
-        <div className="flex items-center gap-1.5 leading-none">
-          <span className={`font-black tracking-tight text-[#0A2540] dark:text-white uppercase ${titleSize} transition-colors`}>
-            INTERVIEW<span className="text-[#DC2626] ml-1">BRO</span>
+      <div className="flex flex-col min-w-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 leading-none">
+          <span className={`font-black tracking-tight text-[#0A2540] dark:text-white uppercase ${titleSize} transition-colors whitespace-nowrap`}>
+            INTERVIEW<span className="text-[#DC2626] ml-0.5 sm:ml-1">BRO</span>
           </span>
-          <span className={`font-extrabold uppercase tracking-wider bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-md shadow-sm ${badgeSize}`}>
+          <span className={`font-extrabold uppercase tracking-wider bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-md shadow-sm shrink-0 ${badgeSize}`}>
             AI
           </span>
         </div>

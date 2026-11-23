@@ -126,7 +126,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
             <div className="text-xs sm:text-sm text-slate-600 dark:text-[#9AA4B2] mt-2 flex flex-wrap items-center gap-1.5 max-w-full">
               <span className="font-semibold text-slate-800 dark:text-slate-200 shrink-0">Targeting:</span>
               {effectiveRole ? (
-                <span className="inline-block max-w-full break-words px-2.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-[#C5F36B] font-bold text-xs sm:text-sm border border-blue-200 dark:border-blue-900/50">
+                <span className="inline-block max-w-full break-words text-left px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-[#C5F36B] font-bold text-xs sm:text-sm border border-blue-200 dark:border-blue-900/50 leading-relaxed">
                   {effectiveRole}
                 </span>
               ) : (

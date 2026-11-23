@@ -481,7 +481,7 @@ const AppContent: React.FC = () => {
         currentRoute={currentRoute}
       />
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-w-0 w-full max-w-full">
         {/* Persistent Desktop & Drawer Mobile Sidebar (Hidden on landing/full-width pages or during live interview room) */}
         {!isFullWidth && !isInterviewRoom && (
           <Sidebar
@@ -494,7 +494,7 @@ const AppContent: React.FC = () => {
 
         {/* Main Content Area */}
         <main 
-          className={`flex-1 transition-all duration-200 ${
+          className={`flex-1 min-w-0 w-full max-w-full transition-all duration-200 ${
             !isFullWidth && !isInterviewRoom ? 'lg:pl-64' : ''
           }`}
         >
