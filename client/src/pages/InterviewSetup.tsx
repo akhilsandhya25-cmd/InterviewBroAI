@@ -263,9 +263,9 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-6">
-      {/* Header (Fully visible in both light & dark themes) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-200 dark:border-white/[0.08]">
+    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6">
+      {/* Header (Fully visible & responsive in both light & dark themes) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 sm:pb-5 border-b border-slate-200 dark:border-white/[0.08]">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#C5F36B]/20 text-emerald-800 dark:text-[#C5F36B] border border-emerald-500/30 dark:border-[#C5F36B]/30 flex items-center gap-1.5">
@@ -273,7 +273,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
               <span>AI Interview Studio</span>
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-[#F5F7FA] tracking-tight">
+          <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 dark:text-[#F5F7FA] tracking-tight">
             Configure Your Mock Interview
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-[#9AA4B2] mt-0.5 font-medium">
@@ -281,7 +281,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
           </p>
         </div>
 
-        <div className="self-start sm:self-auto flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-700 dark:text-[#9AA4B2]">
+        <div className="self-start sm:self-auto flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-700 dark:text-[#9AA4B2]">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>
             Allowance: <strong className="text-emerald-700 dark:text-[#C5F36B] font-extrabold">Unlimited Practice</strong>
@@ -290,10 +290,10 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       </div>
 
       {/* CARD 1: ROLE & COMPANY (Primary Target) */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] shadow-sm space-y-5">
+      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] shadow-sm space-y-4 sm:space-y-5">
         {/* Target Role */}
         <div className="space-y-2.5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-1">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-[#9AA4B2] flex items-center gap-2">
               <Briefcase className="w-3.5 h-3.5 text-blue-600 dark:text-[#C5F36B]" />
               <span>1. Target Job Role or Domain</span>
@@ -313,7 +313,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                   key={r}
                   type="button"
                   onClick={() => setRole(r)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  className={`px-3 py-1.5 min-h-[34px] rounded-xl text-xs font-semibold border transition-all touch-manipulation flex items-center ${
                     isSelected
                       ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold shadow-md shadow-[#C5F36B]/20'
                       : 'bg-slate-100 dark:bg-[#121826] border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-[#9AA4B2] hover:bg-slate-200 dark:hover:bg-white/[0.05] hover:text-slate-900 dark:hover:text-white'
@@ -329,14 +329,14 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             type="text"
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            placeholder="Or type custom role (e.g. Flutter Developer, Cloud Engineer, Tax Associate, Medical Intern)..."
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B] transition-colors"
+            placeholder="Or type custom role (e.g. Flutter Developer, Cloud Engineer, Tax Associate)..."
+            className="w-full px-3.5 py-2.5 min-h-[44px] rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-base sm:text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B] transition-colors touch-manipulation"
           />
         </div>
 
         {/* Target Company or Exam Board */}
         <div className="space-y-2.5 pt-3 border-t border-slate-100 dark:border-white/[0.06]">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-1">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-[#9AA4B2] flex items-center gap-2">
               <Building2 className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
               <span>2. Target Company or Pattern</span>
@@ -352,7 +352,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                   key={c}
                   type="button"
                   onClick={() => setCompany(c)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  className={`px-3 py-1.5 min-h-[34px] rounded-xl text-xs font-semibold border transition-all touch-manipulation flex items-center ${
                     isSelected
                       ? 'bg-[#C5F36B] border-[#C5F36B] text-[#080B11] font-bold shadow-md shadow-[#C5F36B]/20'
                       : 'bg-slate-100 dark:bg-[#121826] border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-[#9AA4B2] hover:bg-slate-200 dark:hover:bg-white/[0.05] hover:text-slate-900 dark:hover:text-white'
@@ -368,14 +368,14 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             type="text"
             value={company}
             onChange={(e) => setCompany(e.target.value)}
-            placeholder="Or enter specific employer (e.g. Microsoft, Flipkart, Swiggy, TCS Ninja, AIIMS, Bar Council)..."
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B] transition-colors"
+            placeholder="Or enter specific employer (e.g. Microsoft, Flipkart, Swiggy, TCS Ninja, AIIMS)..."
+            className="w-full px-3.5 py-2.5 min-h-[44px] rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-base sm:text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B] transition-colors touch-manipulation"
           />
         </div>
       </div>
 
       {/* CARD 2: ROUND FOCUS & DELIVERY MODE */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] shadow-sm space-y-5">
+      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] shadow-sm space-y-4 sm:space-y-5">
         {/* Round Focus Options */}
         <div className="space-y-3">
           <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-[#9AA4B2] flex items-center gap-2">
@@ -574,8 +574,8 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
       </div>
 
       {/* CARD 3: QUICK PARAMETERS & OPTIONAL RESUME/JD */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] shadow-sm space-y-5">
-        <div className="flex items-center justify-between">
+      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] shadow-sm space-y-4 sm:space-y-5">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-[#9AA4B2] flex items-center gap-2">
             <Sliders className="w-3.5 h-3.5 text-blue-600 dark:text-[#C5F36B]" />
             <span>5. Session Parameters</span>
@@ -584,7 +584,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="text-xs text-blue-600 dark:text-[#C5F36B] hover:underline font-bold flex items-center gap-1"
+            className="text-xs text-blue-600 dark:text-[#C5F36B] hover:underline font-bold flex items-center gap-1 py-1 touch-manipulation"
           >
             <span>{showAdvanced ? 'Hide Custom Inputs' : '+ Add Job Description or Resume'}</span>
             {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -601,7 +601,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                   key={d}
                   type="button"
                   onClick={() => setDifficulty(d)}
-                  className={`py-1.5 text-[11px] font-bold rounded-lg capitalize transition-all ${
+                  className={`py-2 sm:py-1.5 text-xs sm:text-[11px] font-bold rounded-lg capitalize transition-all touch-manipulation min-h-[36px] flex items-center justify-center ${
                     difficulty === d
                       ? 'bg-[#C5F36B] text-[#080B11] shadow-sm'
                       : 'text-slate-600 dark:text-[#9AA4B2] hover:text-slate-900 dark:hover:text-white'
@@ -629,7 +629,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                     setQuestionCount(count);
                     setDurationMinutes(count === 3 ? 10 : count === 5 ? 20 : 30);
                   }}
-                  className={`py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                  className={`py-2 sm:py-1.5 text-xs sm:text-[11px] font-bold rounded-lg transition-all touch-manipulation min-h-[36px] flex items-center justify-center ${
                     questionCount === count
                       ? 'bg-[#C5F36B] text-[#080B11] shadow-sm'
                       : 'text-slate-600 dark:text-[#9AA4B2] hover:text-slate-900 dark:hover:text-white'
@@ -647,7 +647,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.06] text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#C5F36B] font-medium"
+              className="w-full px-3 py-2 min-h-[44px] rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.06] text-base sm:text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#C5F36B] font-medium touch-manipulation"
             >
               <option value="English">English</option>
               <option value="Hindi">Hindi</option>
@@ -670,7 +670,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 placeholder="Paste the key responsibilities or skills from a job posting to generate exact interview questions..."
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
+                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-base sm:text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B] touch-manipulation"
               />
             </div>
 
@@ -683,7 +683,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                   <button
                     type="button"
                     onClick={() => setResumeText('')}
-                    className="text-[11px] text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-bold"
+                    className="text-[11px] text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-bold py-1 touch-manipulation"
                   >
                     Clear
                   </button>
@@ -694,7 +694,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
                 placeholder="Paste your key projects, tech stack, or achievements so the AI can ask you direct resume questions..."
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B]"
+                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#121826] border border-slate-200 dark:border-white/[0.08] text-base sm:text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-[#9AA4B2]/50 focus:outline-none focus:border-[#C5F36B] touch-manipulation"
               />
             </div>
           </div>
@@ -719,23 +719,23 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
           <button
             type="button"
             onClick={() => setStartError(null)}
-            className="text-[11px] underline text-rose-700 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200 font-bold"
+            className="text-[11px] underline text-rose-700 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200 font-bold py-1 touch-manipulation"
           >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* LAUNCH ACTION BAR */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
-        <div>
+      {/* LAUNCH ACTION BAR (Sticky & full-width on mobile) */}
+      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/[0.08] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-xl">
+        <div className="min-w-0">
           <div className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-[#9AA4B2] font-bold">
             Session Configuration
           </div>
-          <div className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
+          <div className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white mt-0.5 truncate">
             {company} • {role}
           </div>
-          <div className="text-xs text-slate-600 dark:text-[#9AA4B2] mt-0.5 flex flex-wrap items-center gap-2 font-medium">
+          <div className="text-xs text-slate-600 dark:text-[#9AA4B2] mt-0.5 flex flex-wrap items-center gap-1.5 sm:gap-2 font-medium">
             <span className="capitalize">{roundFocus} Round</span>
             <span>•</span>
             <span>{mode === 'voice_only' ? 'Voice Mode' : 'Text Mode'}</span>
@@ -750,7 +750,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
           type="button"
           disabled={isStartingSession}
           onClick={handleStartInterview}
-          className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#C5F36B] hover:bg-[#b5e65b] text-[#080B11] font-extrabold text-sm shadow-lg shadow-[#C5F36B]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+          className="w-full sm:w-auto px-8 py-3.5 min-h-[48px] rounded-xl sm:rounded-2xl bg-[#C5F36B] hover:bg-[#b5e65b] text-[#080B11] font-extrabold text-sm sm:text-base shadow-lg shadow-[#C5F36B]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer touch-manipulation"
         >
           {isStartingSession ? (
             <>
