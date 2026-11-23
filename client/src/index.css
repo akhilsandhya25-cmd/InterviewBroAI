@@ -315,10 +315,10 @@
 }
 
 /* Guard against legacy dark-theme text-white becoming invisible on white surfaces */
-:root:not(.dark) [class*="bg-white"] .text-white:not(button):not(a),
-:root:not(.dark) [class*="bg-slate-50"] .text-white:not(button):not(a),
-:root:not(.dark) [class*="bg-[#0B0F19]"] .text-white:not(button):not(a),
-:root:not(.dark) [class*="bg-[#080B11]"] .text-white:not(button):not(a) {
+:root:not(.dark) [class*="bg-white"] .text-white:not(button):not(button *):not(a):not(a *),
+:root:not(.dark) [class*="bg-slate-50"] .text-white:not(button):not(button *):not(a):not(a *),
+:root:not(.dark) [class*="bg-[#0B0F19]"] .text-white:not(button):not(button *):not(a):not(a *),
+:root:not(.dark) [class*="bg-[#080B11]"] .text-white:not(button):not(button *):not(a):not(a *) {
   color: #0F172A !important;
 }
 
@@ -326,8 +326,9 @@
 :root:not(.dark) [class*="bg-slate-50"] label.text-white,
 :root:not(.dark) [class*="bg-[#0B0F19]"] label.text-white,
 :root:not(.dark) [class*="bg-[#080B11]"] label.text-white,
-:root:not(.dark) label[class*="text-white"] {
-  color: #0F172A !important;
+:root:not(.dark) label[class*="text-white"],
+:root:not(.dark) label {
+  color: #0F172A;
 }
 
 :root:not(.dark) [class*="bg-white"] h1.text-white,
@@ -343,6 +344,16 @@
 :root:not(.dark) h3[class*="text-white"],
 :root:not(.dark) h4[class*="text-white"] {
   color: #0F172A !important;
+}
+
+/* Ensure vibrant colored buttons and chips keep crisp, legible text */
+:root:not(.dark) [class*="bg-blue-600"],
+:root:not(.dark) [class*="bg-blue-600"] * {
+  color: #FFFFFF !important;
+}
+:root:not(.dark) [class*="bg-[#C5F36B]"],
+:root:not(.dark) [class*="bg-[#C5F36B]"] * {
+  color: #080B11 !important;
 }
 
 /* Functional Motion Only (150-250ms) */
