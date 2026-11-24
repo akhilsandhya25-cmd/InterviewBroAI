@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import {
   Award,
   Mic,
+  MicOff,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
@@ -170,7 +171,7 @@ function getReportPillars(report: FeedbackReportType, isFallback: boolean): Rubr
 }
 
 export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: propReport, onStartNew, onNavigate }) => {
-  const { activeReport, recordedVideoUrl } = useInterview();
+  const { activeReport, activeSession, recordedVideoUrl } = useInterview();
   const report = propReport || activeReport;
   const isFallback = Boolean(report?.source === 'fallback');
   const pillars = report ? getReportPillars(report, isFallback) : [];
@@ -216,8 +217,49 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
     window.print();
   };
 
+  const isTextSession =
+    (report as any).config?.mode === 'text_only' ||
+    (report as any).config?.mode === 'text' ||
+    activeSession?.config?.mode === 'text_only' ||
+    activeSession?.config?.mode === 'text' ||
+    report.speechFluency?.isAssessed === false ||
+    report.speechFluency?.status === 'not_assessed';
+
+  const totalQuestions =
+    report.interviewCoverage?.totalQuestions ||
+    activeSession?.questions?.length ||
+    report.questionsEvaluated?.length ||
+    3;
+
+  const answeredCount =
+    report.interviewCoverage?.answeredCount ??
+    activeSession?.questions?.filter((q: any) => q.candidateAnswer && q.candidateAnswer.trim().length >= 3).length ??
+    ((report.overallScore ?? 0) > 0 ? 1 : 0);
+
+  const coveragePercent =
+    report.interviewCoverage?.coveragePercent ??
+    Math.min(100, Math.round((answeredCount / Math.max(1, totalQuestions)) * 100));
+
+  const isProvisional =
+    report.interviewCoverage?.isProvisional ??
+    (answeredCount > 0 && (answeredCount === 1 || answeredCount < Math.ceil(totalQuestions / 2)));
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+      {/* Provisional Assessment Banner */}
+      {isProvisional && (report.overallScore ?? 0) > 0 && !isFallback && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-start sm:items-center gap-3 shadow-sm">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+          <div className="text-xs space-y-0.5">
+            <div className="font-bold text-amber-900 dark:text-amber-200 text-sm">
+              Provisional Assessment — Limited Evidence
+            </div>
+            <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80">
+              This score reflects your performance on the {answeredCount} question(s) answered ({coveragePercent}% coverage). Complete the full practice interview to unlock a comprehensive placement readiness tier.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Demo Mode / AI Unavailable Notice Banner */}
       {isFallback && (
         <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 flex items-start sm:items-center gap-3 shadow-lg">
@@ -281,13 +323,17 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
                 <span className="text-[10px] font-bold text-slate-50/70">/ 100</span>
               </div>
             )}
-            <div>
-              <div className="text-xs font-bold text-slate-900 dark:text-white">{isFallback ? 'Scoring Status' : 'Overall Readiness'}</div>
-              <div className="text-[11px] font-medium mt-0.5 text-emerald-600">
+            <div className="space-y-0.5">
+              <div className="text-xs font-bold text-slate-900 dark:text-white">
+                {isFallback ? 'Scoring Status' : isProvisional ? 'Answer Quality Score' : 'Overall Readiness'}
+              </div>
+              <div className="text-[11px] font-medium text-emerald-600">
                 {isFallback ? (
                   <span className="text-amber-600 font-semibold">Qualitative Review Only</span>
                 ) : report.overallScore === 0 ? (
                   <span className="text-amber-600 font-semibold">No Answers Submitted (0%)</span>
+                ) : isProvisional ? (
+                  <span className="text-amber-600 font-semibold">Provisional • {coveragePercent}% Interview Coverage</span>
                 ) : (
                   report.overallScore != null && report.overallScore >= 80
                     ? 'Exceptional Progress • Placement Ready'
@@ -296,8 +342,14 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
                       : 'Developing Track • High Growth'
                 )}
               </div>
-              <div className="text-[10px] text-slate-500 mt-0.5">
-                {isFallback ? 'Scores Withheld (Demo Mode)' : report.overallScore === 0 ? 'Session Incomplete' : 'AI Interviewer Evaluation'}
+              <div className="text-[10px] text-slate-500">
+                {isFallback
+                  ? 'Scores Withheld (Demo Mode)'
+                  : report.overallScore === 0
+                  ? 'Session Incomplete'
+                  : isProvisional
+                  ? `Based on ${answeredCount} of ${totalQuestions} questions answered`
+                  : 'Full Session AI Evaluation'}
               </div>
             </div>
           </div>
@@ -325,96 +377,124 @@ export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: prop
 
       {/* 2. Dynamic Competency Pillars Score Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {pillars.map((pillar) => (
-          <div key={pillar.key} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800">
-            <div className="text-xs text-slate-500 font-medium">{pillar.label}</div>
-            <div className={`text-xl font-bold mt-1 ${pillar.color || 'text-blue-600'}`}>
-              {isFallback || pillar.score == null ? (
-                <span className="text-sm text-slate-500">Not scored</span>
-              ) : (
-                `${pillar.score}%`
-              )}
+        {pillars.map((pillar) => {
+          const isNotAssessed = isFallback || pillar.score == null || pillar.isAssessed === false || pillar.status === 'not_assessed';
+          return (
+            <div key={pillar.key} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800">
+              <div className="text-xs text-slate-500 font-medium">{pillar.label}</div>
+              <div className={`text-xl font-bold mt-1 ${isNotAssessed ? 'text-slate-400' : (pillar.color || 'text-blue-600')}`}>
+                {isNotAssessed ? (
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                    Not Assessed
+                  </span>
+                ) : (
+                  `${pillar.score}%`
+                )}
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium mt-1 truncate" title={pillar.description}>
+                {isNotAssessed ? 'Not tested in answered questions' : pillar.description}
+              </div>
             </div>
-            <div className="text-[11px] text-slate-500 font-medium mt-1 truncate">
-              {pillar.description}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* 3. Speech Fluency & Verbal Delivery Breakdown */}
-      <section className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-semibold mb-1">
-              <Mic className="w-3.5 h-3.5 text-blue-600" />
-              <span>Speech Delivery & Articulation</span>
+      {isTextSession ? (
+        <section className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold mb-1">
+                <MicOff className="w-3.5 h-3.5 text-slate-500" />
+                <span>Speech Delivery & Articulation</span>
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Speech Fluency Analysis
+              </h2>
             </div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              Speech Fluency & Filler Words Analysis
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Objective evaluation of hesitation sounds ("hum", "aaa", "um", "uh") and verbal delivery pacing
-            </p>
+            <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700">
+              Not Assessed — Text-Only Mode
+            </span>
           </div>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Verbal articulation, speech pacing, and filler sound analysis are evaluated exclusively in Voice Mode. Because this session was completed in Text Mode, no spoken fluency metrics were assessed. Select Voice Mode in your next session to practice spoken delivery.
+          </p>
+        </section>
+      ) : (
+        <section className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-semibold mb-1">
+                <Mic className="w-3.5 h-3.5 text-blue-600" />
+                <span>Speech Delivery & Articulation</span>
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Speech Fluency & Filler Words Analysis
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Objective evaluation of hesitation sounds ("hum", "aaa", "um", "uh") and verbal delivery pacing
+                {report.speechFluency?.spokenCount ? ` • Based on ${report.speechFluency.spokenCount} verified spoken response(s)` : ''}
+              </p>
+            </div>
 
-          <div className="flex items-center gap-3">
-            <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 text-center">
-              <div className="text-[11px] text-slate-500 font-medium">Fluency Score</div>
-              <div className="text-xl font-black text-blue-600">
-                {report.speechFluency?.overallFluencyScore ?? 92}%
+            <div className="flex items-center gap-3">
+              <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 text-center">
+                <div className="text-[11px] text-slate-500 font-medium">Fluency Score</div>
+                <div className="text-xl font-black text-blue-600">
+                  {report.speechFluency?.overallFluencyScore != null ? `${report.speechFluency.overallFluencyScore}%` : 'N/A'}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80/80 space-y-1">
-            <div className="text-xs text-slate-500 font-medium">Total Filler Sounds</div>
-            <div className="text-2xl font-black text-slate-900 dark:text-white">
-              {report.speechFluency?.totalFillers ?? 0}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
+              <div className="text-xs text-slate-500 font-medium">Total Filler Sounds</div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                {report.speechFluency?.totalFillers ?? 0}
+              </div>
+              <div className="text-[11px] text-slate-500">
+                Across spoken answers
+              </div>
             </div>
-            <div className="text-[11px] text-slate-500">
-              Across entire mock interview
+
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
+              <div className="text-xs text-slate-500 font-medium">Filler Speech Density</div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                {report.speechFluency?.fillerDensity ?? 0}%
+              </div>
+              <div className="text-[11px] text-slate-500">
+                {(report.speechFluency?.fillerDensity ?? 0) <= 5 ? 'Excellent verbal control' : 'Practice deliberate silent pauses'}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
+              <div className="text-xs text-slate-500 font-medium">Most Frequent Hesitations</div>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {report.speechFluency?.topFillers && report.speechFluency.topFillers.length > 0 ? (
+                  report.speechFluency.topFillers.map((tf, i) => (
+                    <span key={i} className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs">
+                      "{tf.word}" × {tf.count}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-emerald-600 font-medium">Zero filler words detected!</span>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80/80 space-y-1">
-            <div className="text-xs text-slate-500 font-medium">Filler Speech Density</div>
-            <div className="text-2xl font-black text-slate-900 dark:text-white">
-              {report.speechFluency?.fillerDensity ?? 0}%
+          {report.speechFluency?.deliveryAdvice && (
+            <div className="p-4 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 text-xs text-blue-950 dark:text-blue-200 flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <strong className="text-blue-900 font-bold block mb-0.5">Delivery Coach Insight:</strong>
+                {report.speechFluency.deliveryAdvice}
+              </div>
             </div>
-            <div className="text-[11px] text-slate-500">
-              {(report.speechFluency?.fillerDensity ?? 0) <= 5 ? 'Excellent verbal control' : 'Practice deliberate silent pauses'}
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80/80 space-y-1">
-            <div className="text-xs text-slate-500 font-medium">Most Frequent Hesitations</div>
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {report.speechFluency?.topFillers && report.speechFluency.topFillers.length > 0 ? (
-                report.speechFluency.topFillers.map((tf, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs">
-                    "{tf.word}" × {tf.count}
-                  </span>
-                ))
-              ) : (
-                <span className="text-xs text-emerald-600 font-medium">Zero filler words detected!</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {report.speechFluency?.deliveryAdvice && (
-          <div className="p-4 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 text-xs text-blue-950 dark:text-blue-200 flex items-start gap-2.5">
-            <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-            <div className="leading-relaxed">
-              <strong className="text-blue-900 font-bold block mb-0.5">Delivery Coach Insight:</strong>
-              {report.speechFluency.deliveryAdvice}
-            </div>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      )}
 
       {/* 4. Verbal Mentor Debrief & Summary */}
       <section className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-4">

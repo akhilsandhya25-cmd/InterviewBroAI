@@ -1140,23 +1140,23 @@ export const api = {
     if (answeredQuestions.length === 0) {
       const zeroPillars = config.interviewType === 'technical'
         ? [
-            { key: 'correctness', label: 'Technical Correctness', score: 0, description: 'No response submitted', color: 'text-[#C5F36B]' },
-            { key: 'depthAndEdgeCases', label: 'Depth & Edge Cases', score: 0, description: 'No response submitted', color: 'text-emerald-400' },
-            { key: 'tradeoffAwareness', label: 'Complexity & Tradeoffs', score: 0, description: 'No response submitted', color: 'text-violet-400' },
-            { key: 'communicationClarity', label: 'Communication Clarity', score: 0, description: 'No response submitted', color: 'text-cyan-400' }
+            { key: 'correctness', label: 'Technical Correctness', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-[#C5F36B]' },
+            { key: 'depthAndEdgeCases', label: 'Depth & Edge Cases', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-emerald-400' },
+            { key: 'tradeoffAwareness', label: 'Complexity & Tradeoffs', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-violet-400' },
+            { key: 'communicationClarity', label: 'Communication Clarity', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-cyan-400' }
           ]
         : config.interviewType === 'system_design'
         ? [
-            { key: 'requirementsClarification', label: 'Requirements & Scope', score: 0, description: 'No response submitted', color: 'text-blue-400' },
-            { key: 'architecture', label: 'System Architecture', score: 0, description: 'No response submitted', color: 'text-[#C5F36B]' },
-            { key: 'scalabilityAndTradeoffs', label: 'Scalability & Resilience', score: 0, description: 'No response submitted', color: 'text-emerald-400' },
-            { key: 'communicationClarity', label: 'Articulation & Defensibility', score: 0, description: 'No response submitted', color: 'text-cyan-400' }
+            { key: 'requirementsClarification', label: 'Requirements & Scope', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-blue-400' },
+            { key: 'architecture', label: 'System Architecture', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-[#C5F36B]' },
+            { key: 'scalabilityAndTradeoffs', label: 'Scalability & Resilience', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-emerald-400' },
+            { key: 'communicationClarity', label: 'Articulation & Defensibility', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-cyan-400' }
           ]
         : [
-            { key: 'starStructure', label: 'STAR Methodology', score: 0, description: 'No response submitted', color: 'text-indigo-400' },
-            { key: 'ownership', label: 'Ownership & Impact', score: 0, description: 'No response submitted', color: 'text-[#C5F36B]' },
-            { key: 'relevance', label: 'Question Relevance', score: 0, description: 'No response submitted', color: 'text-emerald-400' },
-            { key: 'communicationClarity', label: 'Delivery & Composure', score: 0, description: 'No response submitted', color: 'text-cyan-400' }
+            { key: 'starStructure', label: 'STAR Methodology', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-indigo-400' },
+            { key: 'ownership', label: 'Ownership & Impact', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-[#C5F36B]' },
+            { key: 'relevance', label: 'Question Relevance', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-emerald-400' },
+            { key: 'communicationClarity', label: 'Delivery & Composure', isAssessed: false, status: 'not_assessed' as const, score: 0, description: 'No response submitted', color: 'text-cyan-400' }
           ];
 
       return {

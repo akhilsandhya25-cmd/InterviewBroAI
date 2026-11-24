@@ -177,6 +177,9 @@ export interface RubricPillar {
   score: number | null;
   description: string;
   color?: string;
+  isAssessed?: boolean;
+  status?: 'assessed' | 'not_assessed';
+  evidence?: string;
 }
 
 export interface RubricCategoryScore {
@@ -278,6 +281,7 @@ export interface InterviewQuestion {
     | 'aptitude_reasoning';
   contextOrHints?: string;
   candidateAnswer?: string;
+  answerSource?: 'spoken' | 'typed';
   timeTakenSeconds?: number;
   evaluation?: QuestionEvaluation;
   followUpToQuestionId?: string;
@@ -320,11 +324,23 @@ export interface FeedbackReport {
   }[];
   questionsEvaluated: InterviewQuestion[];
   speechFluency?: {
-    totalFillers: number;
-    fillerDensity: number;
-    overallFluencyScore: number;
+    isAssessed?: boolean;
+    status?: 'assessed' | 'not_assessed';
+    reason?: string;
+    spokenCount?: number;
+    totalFillers: number | null;
+    fillerDensity: number | null;
+    overallFluencyScore: number | null;
     topFillers: Array<{ word: string; count: number }>;
-    deliveryAdvice: string;
+    deliveryAdvice: string | null;
+  };
+  answerQualityScore?: number | null;
+  interviewCoverage?: {
+    answeredCount: number;
+    totalQuestions: number;
+    coveragePercent: number;
+    isProvisional: boolean;
+    provisionalReason?: string;
   };
   createdAt: string;
 }

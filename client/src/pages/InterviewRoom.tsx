@@ -120,7 +120,18 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
   const getDraftKey = (sessionId?: string, qId?: string) =>
     `interviewbro_draft_${sessionId || activeSession?.id}_${qId || currentQuestion?.id}`;
 
-  const saveDraftLocally = (text: string) => {
+  const getAnswerSource = (): 'spoken' | 'typed' => {
+    if (isTextOnly) return 'typed';
+    if (isVoiceOnly) return 'spoken';
+    if (hasTypedManually.current && candidateTypedText.trim()) return 'typed';
+    const serviceTranscript = recognitionRef.current?.getLatestTranscript?.() || '';
+    const resolvedSpoken = (serviceTranscript || spokenTranscript || interimText || '').trim();
+    if (resolvedSpoken) return 'spoken';
+    if (candidateTypedText.trim()) return 'typed';
+    return isVoiceOnly ? 'spoken' : 'typed';
+  };
+
+  const saveDraftLocally = (text: string, source?: 'spoken' | 'typed') => {
     if (!activeSession?.id || !currentQuestion?.id || !text || !text.trim()) return;
     try {
       localStorage.setItem(
@@ -129,6 +140,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
           sessionId: activeSession.id,
           questionId: currentQuestion.id,
           text: text.trim(),
+          answerSource: source || getAnswerSource(),
           savedAt: Date.now()
         })
       );
@@ -454,8 +466,10 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       return;
     }
 
+    const answerSource = getAnswerSource();
+
     // Immediately save local draft to protect candidate against network loss
-    saveDraftLocally(effectiveCandidateAnswer);
+    saveDraftLocally(effectiveCandidateAnswer, answerSource);
     setSubmissionError(null);
 
     // If device reports offline before submitting, notify immediately without losing draft
@@ -468,7 +482,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
     setNetworkError(null);
 
     try {
-      const res = await submitAnswer(effectiveCandidateAnswer);
+      const res = await submitAnswer(effectiveCandidateAnswer, answerSource);
       if (!res.success) {
         setSubmissionError(res.error || 'Failed to record answer. Please try submitting again.');
       } else {
@@ -520,6 +534,8 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
 
   const handleFinishEarly = async () => {
     const pendingAnswer = getEffectiveAnswer();
+    const answerSource = getAnswerSource();
+    const activeQuestionId = currentQuestion?.id;
     const hasPendingAnswer = isSubstantiveAnswer(pendingAnswer) && !currentQuestion?.candidateAnswer;
 
     if (confirm('Finish this interview and generate your performance report?')) {
@@ -527,11 +543,11 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
       tts.stop();
       setIsSubmitting(true);
       try {
-        if (hasPendingAnswer) {
-          saveDraftLocally(pendingAnswer);
-          await submitAnswer(pendingAnswer);
+        if (hasPendingAnswer && activeQuestionId) {
+          saveDraftLocally(pendingAnswer, answerSource);
+          await submitAnswer(pendingAnswer, answerSource);
         }
-        const report = await endInterview(pendingAnswer);
+        const report = await endInterview(pendingAnswer, activeQuestionId, answerSource);
         if (report) {
           onComplete();
         }

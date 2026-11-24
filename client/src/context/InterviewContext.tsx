@@ -38,13 +38,13 @@ interface InterviewContextType {
   activeReport: FeedbackReport | null;
   latestAdaptiveDecision: AdaptiveDecisionInfo | null;
   startNewSession: (config: InterviewConfig) => Promise<boolean>;
-  submitAnswer: (answerText: string) => Promise<{ success: boolean; error?: string; evaluation?: QuestionEvaluation; adaptiveDecision?: AdaptiveDecisionInfo }>;
+  submitAnswer: (answerText: string, answerSource?: 'spoken' | 'typed') => Promise<{ success: boolean; error?: string; evaluation?: QuestionEvaluation; adaptiveDecision?: AdaptiveDecisionInfo }>;
   requestFollowUp: () => Promise<void>;
   replaceUpcomingQuestion: (targetIndex: number, newQuestion: InterviewQuestion) => void;
   nextQuestion: () => void;
   previousQuestion: () => void;
   togglePause: () => void;
-  endInterview: (pendingAnswer?: string) => Promise<FeedbackReport | null>;
+  endInterview: (pendingAnswer?: string, activeQuestionId?: string, answerSource?: 'spoken' | 'typed') => Promise<FeedbackReport | null>;
   setConsentToRecord: (consent: boolean) => void;
   toggleCamera: () => Promise<void>;
   toggleMic: () => void;
@@ -318,7 +318,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const submitAnswer = async (answerText: string): Promise<{ success: boolean; error?: string; evaluation?: any; adaptiveDecision?: AdaptiveDecisionInfo }> => {
+  const submitAnswer = async (answerText: string, answerSource?: 'spoken' | 'typed'): Promise<{ success: boolean; error?: string; evaluation?: any; adaptiveDecision?: AdaptiveDecisionInfo }> => {
     if (!activeSession) {
       return { success: false, error: 'No active interview session found.' };
     }
@@ -332,11 +332,14 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return { success: false, error: 'Please provide an answer before submitting.' };
     }
 
+    const resolvedSource = answerSource || (activeSession.config.mode === 'text_only' ? 'typed' : undefined);
+
     // 1. Immediately record candidate's answer into session
     const updatedQuestions = [...activeSession.questions];
     updatedQuestions[currentQuestionIndex] = {
       ...currentQ,
-      candidateAnswer: trimmedAnswer
+      candidateAnswer: trimmedAnswer,
+      answerSource: resolvedSource
     };
 
     let updatedSession: InterviewSession = {
@@ -402,24 +405,31 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setActiveSession(updatedSession);
 
     // 3. Perform background evaluation asynchronously so rich rubric metrics are saved for final report synthesis
+    const targetQuestionId = currentQ.id; // Capture stable question ID
     api.evaluateAnswer(currentQ, trimmedAnswer, activeSession.config)
       .then((evaluation) => {
         if (evaluation) {
+          let updatedWithEval: InterviewSession | null = null;
           setActiveSession(prev => {
-            const currentSession = prev || updatedSession;
-            const fresh = [...currentSession.questions];
-            if (fresh[currentQuestionIndex]) {
-              fresh[currentQuestionIndex] = {
-                ...fresh[currentQuestionIndex],
-                candidateAnswer: fresh[currentQuestionIndex].candidateAnswer || trimmedAnswer,
-                evaluation
-              };
-              const withEval = { ...currentSession, questions: fresh };
-              storage.saveSession(withEval, user?.id);
-              return withEval;
-            }
-            return currentSession;
+            if (!prev) return prev;
+            const targetIdx = prev.questions.findIndex(q => q.id === targetQuestionId);
+            if (targetIdx === -1) return prev; // Missing question safety
+
+            const fresh = [...prev.questions];
+            fresh[targetIdx] = {
+              ...fresh[targetIdx],
+              candidateAnswer: fresh[targetIdx].candidateAnswer || trimmedAnswer,
+              answerSource: fresh[targetIdx].answerSource || resolvedSource,
+              evaluation
+            };
+            updatedWithEval = { ...prev, questions: fresh };
+            return updatedWithEval;
           });
+
+          // Controlled external persistence outside React state updater (FIX 5)
+          if (updatedWithEval) {
+            storage.saveSession(updatedWithEval, user?.id);
+          }
         }
       })
       .catch((err) => {
@@ -498,15 +508,24 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const nextQuestion = () => {
     if (!activeSession) return;
     if (currentQuestionIndex < activeSession.questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      const nextIdx = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextIdx);
       setCurrentTranscript('');
+      const updated = { ...activeSession, currentQuestionIndex: nextIdx };
+      storage.saveSession(updated, user?.id);
+      setActiveSession(updated);
     }
   };
 
   const previousQuestion = () => {
+    if (!activeSession) return;
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
+      const prevIdx = currentQuestionIndex - 1;
+      setCurrentQuestionIndex(prevIdx);
       setCurrentTranscript('');
+      const updated = { ...activeSession, currentQuestionIndex: prevIdx };
+      storage.saveSession(updated, user?.id);
+      setActiveSession(updated);
     }
   };
 
@@ -514,22 +533,31 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsPaused(prev => !prev);
   };
 
-  const endInterview = async (pendingAnswer?: string): Promise<FeedbackReport | null> => {
+  const endInterview = async (
+    pendingAnswer?: string,
+    activeQuestionId?: string,
+    answerSource?: 'spoken' | 'typed'
+  ): Promise<FeedbackReport | null> => {
     let session = activeSession ? (storage.getSessionById(activeSession.id, user?.id) || activeSession) : null;
     if (!session) return null;
     
     // Stop and release all microphone and camera media tracks
     releaseMedia();
 
-    // 1. If an answer was pending on the active question, commit it
-    const currentQIdx = session.currentQuestionIndex ?? currentQuestionIndex;
     const questionsToEvaluate = [...session.questions];
 
+    // 1. Commit pending answer to the target active question using its stable ID (Correction 1)
     if (pendingAnswer && pendingAnswer.trim()) {
-      if (questionsToEvaluate[currentQIdx] && !questionsToEvaluate[currentQIdx].candidateAnswer) {
-        questionsToEvaluate[currentQIdx] = {
-          ...questionsToEvaluate[currentQIdx],
-          candidateAnswer: pendingAnswer.trim()
+      const targetId = activeQuestionId || session.questions[currentQuestionIndex]?.id;
+      const targetIdx = targetId
+        ? questionsToEvaluate.findIndex(q => q.id === targetId)
+        : currentQuestionIndex;
+
+      if (targetIdx !== -1 && questionsToEvaluate[targetIdx] && !questionsToEvaluate[targetIdx].candidateAnswer) {
+        questionsToEvaluate[targetIdx] = {
+          ...questionsToEvaluate[targetIdx],
+          candidateAnswer: pendingAnswer.trim(),
+          answerSource: answerSource || (session.config.mode === 'text_only' ? 'typed' : undefined)
         };
       }
     }
@@ -545,7 +573,8 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (parsed?.text && isSubstantiveAnswer(parsed.text)) {
               questionsToEvaluate[idx] = {
                 ...q,
-                candidateAnswer: parsed.text.trim()
+                candidateAnswer: parsed.text.trim(),
+                answerSource: parsed.answerSource || (session!.config.mode === 'text_only' ? 'typed' : undefined)
               };
             }
           }
