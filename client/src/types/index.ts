@@ -23,6 +23,7 @@ export interface UserProfile {
   id: string;
   email: string;
   full_name: string;
+  name?: string;
   avatar_url?: string;
   role_target: string;
   experience_level: ExperienceLevel;

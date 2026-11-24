@@ -551,6 +551,13 @@ export const api = {
       throw err;
     }
 
+    if (res.status === 403 || errorData?.error === 'INELIGIBLE_STUDENT_CATEGORY') {
+      const err: any = new Error(errorData?.message || 'Access restricted. Please review your candidate profile details.');
+      err.code = errorData?.error || 'FORBIDDEN';
+      err.status = 403;
+      throw err;
+    }
+
     // Only if AI service is offline / unconfigured (503) or generic server error, return instant fallback
     console.warn(`Backend /api/ai/questions returned HTTP ${res.status}, using instant fallback bank.`);
     return this.getInstantInitialQuestions(config, previousQuestions);
@@ -862,7 +869,7 @@ export const api = {
     } else if (wordCount >= 35 && currentDiff !== 'beginner' && !currentQuestion.isFollowUp) {
       decision = 'CHALLENGE';
       decisionReason = 'Candidate gave an extensive answer. Testing real-world edge cases and trade-offs.';
-      calibratedDiff = currentDiff === 'beginner' ? 'intermediate' : 'advanced';
+      calibratedDiff = 'advanced';
     } else if (/\b(maybe|sort of|kind of|i guess|not really sure)\b/i.test(clean)) {
       decision = 'CLARIFY';
       decisionReason = 'Candidate response was ambiguous or tentative. Seeking clarification on key differences.';
