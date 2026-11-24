@@ -692,16 +692,19 @@ export async function generateAdaptiveNextQuestion(config, currentQuestion, cand
   const isNonTech = isNonTechnicalCandidate(degreeStream, targetRole, intermediateGroup);
 
   const blueprint = sessionMemory.blueprint || generateInterviewBlueprint(config);
-  const previousQuestions = Array.isArray(sessionMemory.previousQuestions)
+  const previousQuestions = (Array.isArray(sessionMemory.previousQuestions)
     ? sessionMemory.previousQuestions
-    : (currentQuestion?.questionText ? [currentQuestion.questionText] : []);
-  const topicsExplored = Array.isArray(sessionMemory.topicsExplored) ? sessionMemory.topicsExplored : [];
+    : (currentQuestion ? [currentQuestion] : [])
+  ).map(q => typeof q === 'string' ? q : (q?.questionText || q?.text || '')).filter(Boolean);
+  const topicsExplored = (Array.isArray(sessionMemory.topicsExplored) ? sessionMemory.topicsExplored : [])
+    .map(t => typeof t === 'string' ? t : (t?.name || t?.topic || ''))
+    .filter(Boolean);
   const currentDiff = sessionMemory.currentDifficulty || config.difficulty || 'intermediate';
   const orderIdx = (currentQuestion?.orderIndex !== undefined ? currentQuestion.orderIndex : 0) + 1;
 
   // Unexplored competencies remaining in blueprint
-  const remainingCompetencies = blueprint.competencies
-    .filter(c => !topicsExplored.some(t => t.toLowerCase() === c.name.toLowerCase()))
+  const remainingCompetencies = (blueprint?.competencies || [])
+    .filter(c => !topicsExplored.some(t => t.toLowerCase() === (c.name || '').toLowerCase()))
     .map(c => c.name);
 
   const systemInstruction = `You are a calibrated, human-like Principal Interviewer conducting an adaptive oral mock interview.
@@ -758,7 +761,7 @@ ${remainingCompetencies.length > 0 ? remainingCompetencies.join(' -> ') : 'All c
 [/SESSION_MEMORY]
 
 [CURRENT_TURN]
-Question Just Asked: "${sanitizeForPrompt(currentQuestion?.questionText || '')}"
+Question Just Asked: "${sanitizeForPrompt(typeof currentQuestion === 'string' ? currentQuestion : (currentQuestion?.questionText || currentQuestion?.text || ''))}"
 Candidate's Spoken Answer:
 """
 ${sanitizeForPrompt(candidateAnswer || '').slice(0, 3500)}

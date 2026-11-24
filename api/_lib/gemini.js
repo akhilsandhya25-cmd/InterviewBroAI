@@ -51,7 +51,8 @@ const STOP_WORDS = new Set([
 
 export function normalizeQuestion(text) {
   if (!text) return '';
-  return text
+  const rawText = typeof text === 'string' ? text : (text?.questionText || text?.text || String(text));
+  return rawText
     .toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .replace(/\b(welcome to|this interview for the|interview for|position at|tell me about|can you explain|walk me through|how would you|what is|how do you|in your opinion|give me an example of)\b/gi, ' ')
@@ -116,7 +117,8 @@ export function isDuplicateQuestion(candidate, history = [], threshold = 0.50) {
 
 export function cleanSpokenQuestion(text) {
   if (!text) return '';
-  let cleaned = text
+  const rawText = typeof text === 'string' ? text : (text?.questionText || text?.text || String(text));
+  let cleaned = rawText
     .replace(/^["']\s*|\s*["']$/g, '')
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
@@ -170,10 +172,7 @@ export async function callGemini(prompt, temperature = 0.4, systemInstruction = 
   const candidateModels = [
     process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
     'gemini-flash-lite-latest',
-    'gemini-flash-latest',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-3.8-flash'
+    'gemini-flash-latest'
   ];
   const uniqueModels = Array.from(new Set(candidateModels.filter(Boolean)));
 
@@ -1718,6 +1717,20 @@ ${excludedListFormatted}`;
         console.warn('Gemini question batch generation notice:', err.message);
         break;
       }
+    }
+
+    if (accumulatedQuestions.length === 0) {
+      const bp = generateInterviewBlueprint(config);
+      const firstComp = bp?.competencies?.[0];
+      const qText = firstComp?.fallbackQuestions?.[0] || `Welcome to your interview for ${cleanRole || 'the role'}. Could you please introduce yourself and walk me through your background?`;
+      accumulatedQuestions.push({
+        id: `q-fallback-${Date.now()}-0`,
+        orderIndex: 0,
+        questionText: cleanSpokenQuestion(qText),
+        category: firstComp?.name || cleanRound || 'technical',
+        contextOrHints: firstComp?.description || '',
+        source: 'fallback'
+      });
     }
 
     return accumulatedQuestions;
