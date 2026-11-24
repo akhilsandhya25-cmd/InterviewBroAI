@@ -469,43 +469,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
         setInterimText('');
 
         if (currentQuestionIndex < totalQuestions - 1) {
-          // Check if we should trigger an adaptive conversational follow-up
-          const isSubstantive = isSubstantiveAnswer(effectiveCandidateAnswer);
-          const isCurrentFollowUp = Boolean(question.isFollowUp);
-          const words = effectiveCandidateAnswer.trim().split(/\s+/).filter(Boolean);
-
-          // Conversational trigger condition:
-          // 1. Must be substantive answer (not empty or pure filler sounds)
-          // 2. Current question is not already a follow-up (avoid consecutive follow-up chains)
-          // 3. Question 0 (Intro / Tell me about yourself): ALWAYS follow up on what they shared!
-          // 4. Other questions: ~65% chance if candidate gave a detailed answer (>= 12 words)
-          const shouldFollowUp = !isCurrentFollowUp && isSubstantive && (
-            currentQuestionIndex === 0 || (words.length >= 12 && Math.random() < 0.65)
-          );
-
-          if (shouldFollowUp) {
-            try {
-              const sessionQuestions = session.questions.map((q: any) => q.questionText);
-              const followUp = await api.generateFollowUp(
-                question,
-                effectiveCandidateAnswer,
-                session.config,
-                sessionQuestions,
-                question.evaluation?.score ?? undefined
-              );
-              if (followUp) {
-                replaceUpcomingQuestion(currentQuestionIndex + 1, {
-                  ...followUp,
-                  isFollowUp: true,
-                  orderIndex: currentQuestionIndex + 1,
-                  followUpToQuestionId: question.id
-                });
-              }
-            } catch (followUpErr) {
-              console.warn('[InterviewRoom] Follow-up generation note:', followUpErr);
-            }
-          }
-
+          // Dynamic adaptive question was already prepared by submitAnswer
           // Seamlessly advance to the next interview question
           nextQuestion();
         } else {
@@ -1374,10 +1338,44 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
               </button>
             </div>
 
-            {currentQuestion.isFollowUp && (
+            {/* Adaptive Interviewer Decision Pill */}
+            {currentQuestion.adaptiveDecision ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold text-[10px] flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-400" />
+                <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 border ${
+                  currentQuestion.adaptiveDecision.decision === 'PROBE'
+                    ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30'
+                    : currentQuestion.adaptiveDecision.decision === 'CLARIFY'
+                    ? 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30'
+                    : currentQuestion.adaptiveDecision.decision === 'CHALLENGE'
+                    ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30'
+                    : currentQuestion.adaptiveDecision.decision === 'ENCOURAGE'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                    : 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                }`}>
+                  <Sparkles className="w-3 h-3" />
+                  <span>
+                    {currentQuestion.adaptiveDecision.decision === 'PROBE' && 'Follow-Up Probe'}
+                    {currentQuestion.adaptiveDecision.decision === 'CLARIFY' && 'Seeking Clarification'}
+                    {currentQuestion.adaptiveDecision.decision === 'CHALLENGE' && 'Practical Challenge'}
+                    {currentQuestion.adaptiveDecision.decision === 'ENCOURAGE' && 'Foundational Calibration'}
+                    {currentQuestion.adaptiveDecision.decision === 'MOVE_FORWARD' && `Competency: ${currentQuestion.adaptiveDecision.competencyAssessed || 'Core Domain'}`}
+                  </span>
+                </span>
+                {currentQuestion.adaptiveDecision.calibratedDifficulty && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    {currentQuestion.adaptiveDecision.calibratedDifficulty}
+                  </span>
+                )}
+                {currentQuestion.adaptiveDecision.reason && (
+                  <span className="text-[11px] text-slate-600 dark:text-slate-400 italic">
+                    {currentQuestion.adaptiveDecision.reason}
+                  </span>
+                )}
+              </div>
+            ) : currentQuestion.isFollowUp ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-semibold text-[10px] flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-500" />
                   <span>Follow-Up Deep Dive</span>
                 </span>
                 {currentQuestion.followUpReason && (
@@ -1386,7 +1384,7 @@ export const InterviewRoom: React.FC<InterviewRoomProps> = ({ onComplete, onExit
                   </span>
                 )}
               </div>
-            )}
+            ) : null}
 
             <p className="text-lg sm:text-xl font-bold text-slate-900 leading-relaxed">
               {currentQuestion.questionText}

@@ -170,7 +170,20 @@ export function isSubstantiveAnswer(text: string | null | undefined): boolean {
   return true;
 }
 
-import { InterviewConfig, InterviewQuestion, FeedbackReport, ResumeAnalysis, QuestionEvaluation, UserFeedback, UserFeedbackInput } from '../types';
+import {
+  InterviewConfig,
+  InterviewQuestion,
+  FeedbackReport,
+  ResumeAnalysis,
+  QuestionEvaluation,
+  UserFeedback,
+  UserFeedbackInput,
+  AdaptiveDecision,
+  AdaptiveDecisionInfo,
+  InterviewBlueprint,
+  InterviewSessionMemory,
+  DifficultyLevel
+} from '../types';
 import { CoachFeedback } from '../types/academy';
 import { SAMPLE_FALLBACK_QUESTIONS } from '../data/presets';
 import { getCompanyTrack } from '../data/companyTracks';
@@ -644,6 +657,355 @@ export const api = {
       missedPoints: [],
       betterAnswerExample: ''
     };
+  },
+
+  // Generates client-side Interview Blueprint
+  getInterviewBlueprint(config: InterviewConfig): InterviewBlueprint {
+    const role = config.role || 'Software Engineer';
+    const stream = config.academicStream || config.degreeCourse || 'B.Tech Computer Science';
+    const level = config.educationLevel || 'undergraduate';
+    const requestedCount = Math.min(10, Math.max(3, Number(config.questionCount) || 5));
+    const baseDiff = config.difficulty || 'intermediate';
+
+    // Difficulty curve
+    const difficultyProgression: DifficultyLevel[] = [];
+    for (let i = 0; i < requestedCount; i++) {
+      if (i === 0) difficultyProgression.push(baseDiff === 'advanced' ? 'intermediate' : 'beginner');
+      else if (i === requestedCount - 1) difficultyProgression.push(baseDiff === 'beginner' ? 'intermediate' : baseDiff);
+      else difficultyProgression.push(baseDiff);
+    }
+
+    const isNonTech = /\b(b\.com|bcom|commerce|accounting|accountant|bba|mba|marketing|cec|hec|mec|bipc|arts|law|nursing)\b/i.test(`${stream} ${role} ${config.intermediateGroup || ''}`);
+
+    const competencies = isNonTech
+      ? [
+          {
+            id: 'c1',
+            name: 'Academic Foundation & Double-Entry Principles',
+            description: 'Core domain principles, terminology, and foundational methods.',
+            category: 'subject_specific',
+            difficulty: 'beginner' as DifficultyLevel,
+            targetOrder: 0,
+            explored: false,
+            fallbackQuestions: [
+              `Welcome! Please introduce yourself, your academic background in ${stream}, and what core principles guide your work.`
+            ]
+          },
+          {
+            id: 'c2',
+            name: 'Financial Statements, Trial Balance & Adjustments',
+            description: 'Core subject calculations, reconciliations, and adjustments.',
+            category: 'technical',
+            difficulty: 'intermediate' as DifficultyLevel,
+            targetOrder: 1,
+            explored: false,
+            fallbackQuestions: [
+              'When reviewing financial statements or core records, how do you verify entries and reconcile unexpected variances?'
+            ]
+          },
+          {
+            id: 'c3',
+            name: 'Statutory Compliance & Standards',
+            description: 'Statutory regulations, guidelines, and compliance frameworks.',
+            category: 'technical',
+            difficulty: 'intermediate' as DifficultyLevel,
+            targetOrder: 2,
+            explored: false,
+            fallbackQuestions: [
+              'Under current statutory and regulatory frameworks, what compliance checks or audit steps must be performed diligently?'
+            ]
+          },
+          {
+            id: 'c4',
+            name: 'Practical Reconciliation & Diagnostics',
+            description: 'Reconciling real-world discrepancies and internal controls.',
+            category: 'technical',
+            difficulty: 'advanced' as DifficultyLevel,
+            targetOrder: 3,
+            explored: false,
+            fallbackQuestions: [
+              'Suppose two internal records or reports show contradictory balances. Walk me step-by-step through how you isolate the discrepancy.'
+            ]
+          },
+          {
+            id: 'c5',
+            name: 'Professional Ethics & Scenarios',
+            description: 'Client confidentiality, ethics, and deadline prioritization.',
+            category: 'behavioral',
+            difficulty: 'intermediate' as DifficultyLevel,
+            targetOrder: 4,
+            explored: false,
+            fallbackQuestions: [
+              'Tell me about a time you had to deliver an important report or task under tight deadline pressure with incomplete information.'
+            ]
+          }
+        ]
+      : [
+          {
+            id: 't1',
+            name: 'Technical Journey, Projects & Architecture',
+            description: 'Background, key projects, tech stack, and architectural decisions.',
+            category: 'technical',
+            difficulty: 'beginner' as DifficultyLevel,
+            targetOrder: 0,
+            explored: false,
+            fallbackQuestions: [
+              'Welcome! Please introduce yourself, your technical background, and tell me about a project you built that you are particularly proud of.'
+            ]
+          },
+          {
+            id: 't2',
+            name: 'Data Structures & Algorithmic Problem Solving',
+            description: 'Complexity analysis, memory trade-offs, and optimal structures.',
+            category: 'technical',
+            difficulty: 'intermediate' as DifficultyLevel,
+            targetOrder: 1,
+            explored: false,
+            fallbackQuestions: [
+              'How would you design an efficient lookup structure for a high-throughput system? Walk me through the time and space trade-offs.'
+            ]
+          },
+          {
+            id: 't3',
+            name: 'System Architecture, State & API Design',
+            description: 'API idempotency, state management, latency, and database query design.',
+            category: 'system_design',
+            difficulty: 'intermediate' as DifficultyLevel,
+            targetOrder: 2,
+            explored: false,
+            fallbackQuestions: [
+              'When designing APIs for high-volume transactions, how do you ensure idempotent handling and prevent duplicate processing?'
+            ]
+          },
+          {
+            id: 't4',
+            name: 'Debugging, Edge Cases & Error Handling',
+            description: 'Troubleshooting production bugs, race conditions, and bottlenecks.',
+            category: 'technical',
+            difficulty: 'advanced' as DifficultyLevel,
+            targetOrder: 3,
+            explored: false,
+            fallbackQuestions: [
+              'Walk me through a difficult bug or race condition you investigated in your code. What systematic steps did you use to isolate it?'
+            ]
+          },
+          {
+            id: 't5',
+            name: 'Engineering Collaboration & STAR Behavioral',
+            description: 'Code reviews, technical trade-off discussions, and sprint delivery.',
+            category: 'behavioral',
+            difficulty: 'intermediate' as DifficultyLevel,
+            targetOrder: 4,
+            explored: false,
+            fallbackQuestions: [
+              'Tell me about a time you had a technical disagreement with a peer or teammate. How did you resolve the differences and align?'
+            ]
+          }
+        ];
+
+    return {
+      id: `bp-${Date.now()}`,
+      targetRole: role,
+      degreeStream: stream,
+      educationLevel: level,
+      intermediateGroup: config.intermediateGroup,
+      targetCompany: config.companyName || 'Target Company',
+      baseDifficulty: baseDiff,
+      totalTargetQuestions: requestedCount,
+      difficultyProgression,
+      competencies: competencies.slice(0, requestedCount),
+      createdAt: new Date().toISOString()
+    };
+  },
+
+  // Deterministic adaptive fallback on client
+  getAdaptiveNextQuestionFallback(
+    config: InterviewConfig,
+    currentQuestion: InterviewQuestion,
+    candidateAnswer: string,
+    sessionMemory?: InterviewSessionMemory
+  ): {
+    decision: AdaptiveDecision;
+    decisionReason: string;
+    nextQuestion: InterviewQuestion;
+    updatedMemory: InterviewSessionMemory;
+  } {
+    const raw = (candidateAnswer || '').trim();
+    const clean = raw.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const wordCount = raw.split(/\s+/).filter(Boolean).length;
+    const blueprint = sessionMemory?.blueprint || this.getInterviewBlueprint(config);
+    const orderIdx = (currentQuestion.orderIndex !== undefined ? currentQuestion.orderIndex : 0) + 1;
+    const currentDiff = sessionMemory?.currentDifficulty || config.difficulty || 'intermediate';
+
+    const isNonTech = /\b(b\.com|bcom|commerce|accounting|accountant|bba|mba|marketing|cec|hec|mec|bipc|arts|law|nursing)\b/i.test(
+      `${config.academicStream || config.degreeCourse || ''} ${config.role || ''} ${config.intermediateGroup || ''}`
+    );
+
+    // Decision classification
+    let decision: AdaptiveDecision = 'MOVE_FORWARD';
+    let decisionReason = 'Advancing to the next competency objective in the blueprint.';
+    let calibratedDiff: DifficultyLevel = currentDiff;
+
+    const isDismissal =
+      !isSubstantiveAnswer(raw) ||
+      /^(i\s+)?(do\s*n'?t|cannot|cant)\s+(know|remember|recall|answer)|^(no|skip|pass|none|nothing|idk|not sure|no idea)\b/i.test(clean) ||
+      wordCount < 4;
+
+    if (isDismissal) {
+      decision = 'ENCOURAGE';
+      decisionReason = 'Candidate struggled, gave a very short answer, or was unsure. Calibrating down to a guided foundational question.';
+      calibratedDiff = 'beginner';
+    } else if (wordCount >= 10 && wordCount <= 28 && !currentQuestion.isFollowUp) {
+      decision = 'PROBE';
+      decisionReason = 'Candidate stated high-level points. Probing concrete steps and practical execution details.';
+      calibratedDiff = currentDiff;
+    } else if (wordCount >= 35 && currentDiff !== 'beginner' && !currentQuestion.isFollowUp) {
+      decision = 'CHALLENGE';
+      decisionReason = 'Candidate gave an extensive answer. Testing real-world edge cases and trade-offs.';
+      calibratedDiff = currentDiff === 'beginner' ? 'intermediate' : 'advanced';
+    } else if (/\b(maybe|sort of|kind of|i guess|not really sure)\b/i.test(clean)) {
+      decision = 'CLARIFY';
+      decisionReason = 'Candidate response was ambiguous or tentative. Seeking clarification on key differences.';
+      calibratedDiff = currentDiff;
+    }
+
+    const unexplored = blueprint.competencies.filter(c => !c.explored);
+    const targetComp = (decision === 'MOVE_FORWARD' || unexplored.length > 0)
+      ? (unexplored[0] || blueprint.competencies[blueprint.competencies.length - 1])
+      : blueprint.competencies[Math.min(blueprint.competencies.length - 1, orderIdx)];
+
+    let questionText = '';
+    let hints = targetComp.description || '';
+
+    if (decision === 'ENCOURAGE') {
+      questionText = isNonTech
+        ? `No worries at all! Let's simplify this. Can you tell me in simple words the main purpose of ${targetComp.name.toLowerCase()} and how you approach it?`
+        : `That is completely understandable under interview conditions. Let's step back: how would you describe the basic purpose of ${targetComp.name.toLowerCase()} in simple terms?`;
+      hints = 'Focus on the simplest core definition and practical intuition.';
+    } else if (decision === 'PROBE') {
+      questionText = isNonTech
+        ? `You brought up an important point. Could you walk me through the specific steps or calculations you would follow to handle that in practice?`
+        : `Building on what you just shared, what specific implementation steps or trade-offs did you consider in that setup?`;
+      hints = 'Discuss specific mechanisms, steps, or real-life examples.';
+    } else if (decision === 'CLARIFY') {
+      questionText = `Could you clarify the distinction in what you just stated? In what specific conditions would you prefer one approach over the other?`;
+      hints = 'Differentiate the two sides of your explanation with a specific condition.';
+    } else if (decision === 'CHALLENGE') {
+      questionText = isNonTech
+        ? `That is a sound textbook approach. But what happens if records do not balance, or unexpected discrepancies arise right before a deadline? How do you react?`
+        : `That covers standard operations well. But how does that approach behave under peak load, unexpected failures, or edge-case input values?`;
+      hints = 'Address non-obvious failure modes and resilient mitigation steps.';
+    } else {
+      const pool = targetComp.fallbackQuestions || [];
+      questionText = pool[0] || `Let's move to our next competency: ${targetComp.name}. Can you explain your experience and understanding of this area?`;
+      targetComp.explored = true;
+    }
+
+    const nextQ: InterviewQuestion = {
+      id: `q-adaptive-${Date.now()}-${orderIdx}`,
+      orderIndex: orderIdx,
+      questionText,
+      category: (targetComp.category as any) || 'technical',
+      contextOrHints: hints,
+      isFollowUp: decision === 'PROBE' || decision === 'CLARIFY' || decision === 'CHALLENGE',
+      followUpReason: decisionReason,
+      adaptiveDecision: {
+        decision,
+        reason: decisionReason,
+        competencyAssessed: targetComp.name,
+        calibratedDifficulty: calibratedDiff
+      },
+      source: 'fallback'
+    };
+
+    const updatedMemory: InterviewSessionMemory = {
+      blueprint,
+      previousQuestions: [...(sessionMemory?.previousQuestions || []), currentQuestion.questionText],
+      topicsExplored: [...(sessionMemory?.topicsExplored || []), targetComp.name].filter((v, i, a) => a.indexOf(v) === i),
+      demonstratedCompetencies: [...(sessionMemory?.demonstratedCompetencies || [])],
+      knowledgeGaps: [...(sessionMemory?.knowledgeGaps || [])],
+      decisionsHistory: [
+        ...(sessionMemory?.decisionsHistory || []),
+        {
+          decision,
+          reason: decisionReason,
+          competencyAssessed: targetComp.name,
+          calibratedDifficulty: calibratedDiff,
+          orderIndex: orderIdx
+        }
+      ],
+      currentDifficulty: calibratedDiff,
+      currentCompetency: targetComp.name
+    };
+
+    return {
+      decision,
+      decisionReason,
+      nextQuestion: nextQ,
+      updatedMemory
+    };
+  },
+
+  // Adaptive Interviewer: Generate dynamic next question based on candidate answer & session memory
+  async getNextAdaptiveQuestion(
+    config: InterviewConfig,
+    currentQuestion: InterviewQuestion,
+    candidateAnswer: string,
+    sessionMemory?: InterviewSessionMemory
+  ): Promise<{
+    decision: AdaptiveDecision;
+    decisionReason: string;
+    nextQuestion: InterviewQuestion;
+    updatedMemory: InterviewSessionMemory;
+  }> {
+    try {
+      let res = await fetch(`${API_BASE}/ai/next-question`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          config,
+          currentQuestion,
+          candidateAnswer,
+          sessionMemory
+        })
+      });
+      if (res.status === 404) {
+        res = await fetch(`${API_BASE}/ai-next-question`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            config,
+            currentQuestion,
+            candidateAnswer,
+            sessionMemory
+          })
+        });
+      }
+      if (res.ok) {
+        const data = await safeJson<{
+          success: boolean;
+          decision: AdaptiveDecision;
+          decisionReason: string;
+          nextQuestion: InterviewQuestion;
+          updatedMemory: InterviewSessionMemory;
+        }>(res);
+        if (data?.nextQuestion) {
+          return {
+            decision: data.decision || 'MOVE_FORWARD',
+            decisionReason: data.decisionReason || '',
+            nextQuestion: {
+              ...data.nextQuestion,
+              source: data.nextQuestion.source || 'ai'
+            },
+            updatedMemory: data.updatedMemory || sessionMemory!
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Backend /api/ai/next-question notice, using client adaptive generator:', e);
+    }
+
+    return this.getAdaptiveNextQuestionFallback(config, currentQuestion, candidateAnswer, sessionMemory);
   },
 
   // Generate follow-up question

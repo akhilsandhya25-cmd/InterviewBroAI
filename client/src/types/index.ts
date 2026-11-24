@@ -212,6 +212,54 @@ export interface QuestionEvaluation {
   fluencyFeedback?: string;
 }
 
+export type AdaptiveDecision = 'PROBE' | 'CLARIFY' | 'CHALLENGE' | 'MOVE_FORWARD' | 'ENCOURAGE';
+
+export interface AdaptiveDecisionInfo {
+  decision: AdaptiveDecision;
+  reason: string;
+  competencyAssessed?: string;
+  conceptsDemonstrated?: string[];
+  knowledgeGapsDetected?: string[];
+  calibratedDifficulty?: DifficultyLevel;
+  orderIndex?: number;
+}
+
+export interface InterviewCompetency {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  difficulty?: DifficultyLevel;
+  targetOrder: number;
+  explored: boolean;
+  fallbackQuestions?: string[];
+}
+
+export interface InterviewBlueprint {
+  id: string;
+  targetRole: string;
+  degreeStream: string;
+  educationLevel: string;
+  intermediateGroup?: string;
+  targetCompany: string;
+  baseDifficulty: DifficultyLevel;
+  totalTargetQuestions: number;
+  difficultyProgression: DifficultyLevel[];
+  competencies: InterviewCompetency[];
+  createdAt: string;
+}
+
+export interface InterviewSessionMemory {
+  blueprint: InterviewBlueprint;
+  previousQuestions: string[];
+  topicsExplored: string[];
+  demonstratedCompetencies: string[];
+  knowledgeGaps: string[];
+  decisionsHistory: AdaptiveDecisionInfo[];
+  currentDifficulty: DifficultyLevel;
+  currentCompetency?: string;
+}
+
 export interface InterviewQuestion {
   id: string;
   orderIndex: number;
@@ -234,6 +282,7 @@ export interface InterviewQuestion {
   followUpToQuestionId?: string;
   isFollowUp?: boolean;
   followUpReason?: string;
+  adaptiveDecision?: AdaptiveDecisionInfo;
   source?: InterviewSource;
 }
 
@@ -288,6 +337,8 @@ export interface InterviewSession {
   questions: InterviewQuestion[];
   currentQuestionIndex: number;
   feedbackReport?: FeedbackReport;
+  sessionMemory?: InterviewSessionMemory;
+  blueprint?: InterviewBlueprint;
   startedAt: string;
   completedAt?: string;
   elapsedSeconds: number;

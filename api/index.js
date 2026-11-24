@@ -1027,6 +1027,87 @@ export default async function handler(req, res) {
     }
   }
 
+  // Adaptive Interview Intelligence — Dynamic Next Question Endpoint
+  if (url.includes('/ai/next-question') || url.includes('/ai-next-question') || url.includes('/next-question') || url === 'next-question' || url.endsWith('/next-question')) {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    const { url: supaUrl, key: supaKey } = getSupabaseConfig();
+    const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    const auth = await authenticateRequest(req, supaUrl, supaKey);
+    if (!auth.authenticated) {
+      return res.status(401).json({
+        error: 'UNAUTHORIZED',
+        message: auth.message || 'Authentication required for adaptive interview questions.'
+      });
+    }
+
+    const rateCheck = checkRateLimit(req, auth.user.id, 'ai');
+    if (!rateCheck.allowed) {
+      res.setHeader('Retry-After', String(rateCheck.retryAfter || 60));
+      return res.status(429).json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: rateCheck.message,
+        retryAfter: rateCheck.retryAfter
+      });
+    }
+
+    const quotaCheck = await verifyUserQuotaAvailable(auth.user.id, supaUrl, supaKey, serviceRoleKey);
+    if (!quotaCheck.allowed) {
+      return res.status(402).json({
+        error: 'QUOTA_EXCEEDED',
+        message: quotaCheck.message,
+        used: quotaCheck.used,
+        limit: quotaCheck.limit
+      });
+    }
+
+    const body = await parseBody(req);
+    const { currentQuestion, candidateAnswer, config, sessionMemory } = body || {};
+
+    const userMetadata = auth.user?.user_metadata || {};
+    const eligibilityCheck = verifyBackendEligibility(userMetadata, config || {});
+    if (!eligibilityCheck.allowed) {
+      return res.status(403).json({
+        error: eligibilityCheck.error || 'INELIGIBLE_STUDENT_CATEGORY',
+        message: eligibilityCheck.message || INELIGIBILITY_EXPLANATION,
+        details: eligibilityCheck.details
+      });
+    }
+
+    try {
+      const result = await geminiService.generateAdaptiveNextQuestion(
+        config || {},
+        currentQuestion || {},
+        candidateAnswer || '',
+        sessionMemory || {}
+      );
+      return res.status(200).json({ success: true, ...result });
+    } catch (err) {
+      console.warn('[Adaptive Endpoint] Notice, falling back to deterministic adaptive question:', err.message);
+      const fallback = geminiService.generateInterviewBlueprint
+        ? geminiService.generateAdaptiveNextQuestionFallback?.(config || {}, currentQuestion || {}, candidateAnswer || '', sessionMemory || {})
+        : null;
+      if (fallback) {
+        return res.status(200).json({ success: true, ...fallback });
+      }
+      return res.status(500).json({ error: 'AI_ERROR', message: err.message });
+    }
+  }
+
+  // Interview Blueprint Endpoint
+  if (url.includes('/ai/blueprint') || url.includes('/ai-blueprint') || url.includes('/blueprint') || url === 'blueprint' || url.endsWith('/blueprint')) {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    const body = await parseBody(req);
+    const config = body?.config || body || {};
+    const blueprint = geminiService.generateInterviewBlueprint(config);
+    return res.status(200).json({ success: true, blueprint });
+  }
+
   if (url.includes('/ai/evaluate') || url.includes('/ai-evaluate') || url.includes('/evaluate') || url === 'evaluate' || url.endsWith('/evaluate')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });

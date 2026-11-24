@@ -1,5 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { InterviewConfig, InterviewSession, InterviewQuestion, FeedbackReport, QuestionEvaluation } from '../types';
+import {
+  InterviewConfig,
+  InterviewSession,
+  InterviewQuestion,
+  FeedbackReport,
+  QuestionEvaluation,
+  AdaptiveDecisionInfo,
+  InterviewBlueprint,
+  InterviewSessionMemory
+} from '../types';
 import { storage } from '../services/storage';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
@@ -27,8 +36,9 @@ interface InterviewContextType {
   recordedBlobs: Blob[];
   recordedVideoUrl: string | null;
   activeReport: FeedbackReport | null;
+  latestAdaptiveDecision: AdaptiveDecisionInfo | null;
   startNewSession: (config: InterviewConfig) => Promise<boolean>;
-  submitAnswer: (answerText: string) => Promise<{ success: boolean; error?: string; evaluation?: QuestionEvaluation }>;
+  submitAnswer: (answerText: string) => Promise<{ success: boolean; error?: string; evaluation?: QuestionEvaluation; adaptiveDecision?: AdaptiveDecisionInfo }>;
   requestFollowUp: () => Promise<void>;
   replaceUpcomingQuestion: (targetIndex: number, newQuestion: InterviewQuestion) => void;
   nextQuestion: () => void;
@@ -71,6 +81,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Active Report state
   const [activeReport, setActiveReport] = useState<FeedbackReport | null>(null);
+  const [latestAdaptiveDecision, setLatestAdaptiveDecision] = useState<AdaptiveDecisionInfo | null>(null);
 
   // Timer loop
   useEffect(() => {
@@ -193,6 +204,18 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // Call serverless endpoint to consume quota atomically & generate questions
       const aiQuestions = await api.generateQuestions(config, previousQuestions);
 
+      const blueprint = api.getInterviewBlueprint(config);
+      const sessionMemory: InterviewSessionMemory = {
+        blueprint,
+        previousQuestions: [],
+        topicsExplored: [blueprint.competencies[0]?.name || 'Introduction'],
+        demonstratedCompetencies: [],
+        knowledgeGaps: [],
+        decisionsHistory: [],
+        currentDifficulty: config.difficulty || 'intermediate',
+        currentCompetency: blueprint.competencies[0]?.name || 'Introduction'
+      };
+
       const session: InterviewSession = {
         id: `sess-${Date.now()}`,
         userId: user?.id || 'usr-guest',
@@ -201,12 +224,15 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         status: 'in_progress',
         questions: aiQuestions && aiQuestions.length > 0 ? aiQuestions : api.getInstantInitialQuestions(config, previousQuestions),
         currentQuestionIndex: 0,
+        blueprint,
+        sessionMemory,
         startedAt: new Date().toISOString(),
         elapsedSeconds: 0
       };
 
       storage.saveSession(session);
       setActiveSession(session);
+      setLatestAdaptiveDecision(null);
       setCurrentQuestionIndex(0);
       setElapsedSeconds(0);
       setIsPaused(false);
@@ -292,7 +318,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const submitAnswer = async (answerText: string): Promise<{ success: boolean; error?: string; evaluation?: any }> => {
+  const submitAnswer = async (answerText: string): Promise<{ success: boolean; error?: string; evaluation?: any; adaptiveDecision?: AdaptiveDecisionInfo }> => {
     if (!activeSession) {
       return { success: false, error: 'No active interview session found.' };
     }
@@ -313,16 +339,69 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       candidateAnswer: trimmedAnswer
     };
 
-    const updatedSession: InterviewSession = {
+    let updatedSession: InterviewSession = {
       ...activeSession,
       questions: updatedQuestions,
       elapsedSeconds
     };
 
+    let adaptiveDecision: AdaptiveDecisionInfo | undefined;
+
+    // 2. Dynamic Adaptive Question Progression:
+    // If not the last question, generate the next question adaptively based on this response
+    if (currentQuestionIndex < activeSession.questions.length - 1) {
+      try {
+        const mem: InterviewSessionMemory = activeSession.sessionMemory || {
+          blueprint: activeSession.blueprint || api.getInterviewBlueprint(activeSession.config),
+          previousQuestions: activeSession.questions.map(q => q.questionText),
+          topicsExplored: [activeSession.config.role || 'Introduction'],
+          demonstratedCompetencies: [],
+          knowledgeGaps: [],
+          decisionsHistory: [],
+          currentDifficulty: activeSession.config.difficulty || 'intermediate'
+        };
+
+        const adaptiveResult = await api.getNextAdaptiveQuestion(
+          activeSession.config,
+          currentQ,
+          trimmedAnswer,
+          mem
+        );
+
+        if (adaptiveResult && adaptiveResult.nextQuestion) {
+          adaptiveDecision = adaptiveResult.nextQuestion.adaptiveDecision || {
+            decision: adaptiveResult.decision,
+            reason: adaptiveResult.decisionReason
+          };
+
+          const nextQuestionObj: InterviewQuestion = {
+            ...adaptiveResult.nextQuestion,
+            orderIndex: currentQuestionIndex + 1
+          };
+
+          updatedQuestions[currentQuestionIndex + 1] = nextQuestionObj;
+          updatedQuestions[currentQuestionIndex] = {
+            ...updatedQuestions[currentQuestionIndex],
+            adaptiveDecision
+          };
+
+          updatedSession = {
+            ...updatedSession,
+            questions: updatedQuestions,
+            sessionMemory: adaptiveResult.updatedMemory
+          };
+
+          setLatestAdaptiveDecision(adaptiveDecision);
+        }
+      } catch (adaptErr) {
+        console.warn('[Adaptive Engine] Context update notice:', adaptErr);
+      }
+    }
+
     storage.saveSession(updatedSession, user?.id);
     setActiveSession(updatedSession);
 
-    // 2. Perform background evaluation asynchronously so rich rubric metrics are saved for final report synthesis
+    // 3. Perform background evaluation asynchronously so rich rubric metrics are saved for final report synthesis
     api.evaluateAnswer(currentQ, trimmedAnswer, activeSession.config)
       .then((evaluation) => {
         if (evaluation) {
@@ -342,7 +421,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         console.warn('[Background Eval] Non-blocking evaluation note:', err.message || err);
       });
 
-    return { success: true };
+    return { success: true, adaptiveDecision };
   };
 
   const requestFollowUp = async () => {
@@ -526,6 +605,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         recordedBlobs,
         recordedVideoUrl,
         activeReport,
+        latestAdaptiveDecision,
         startNewSession,
         submitAnswer,
         requestFollowUp,

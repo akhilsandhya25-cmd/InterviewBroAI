@@ -59,9 +59,18 @@ export function normalizeQuestion(text) {
     .trim();
 }
 
+export function stemToken(token) {
+  if (!token || token.length <= 3) return token;
+  const lower = token.toLowerCase();
+  if (lower.endsWith('ies') && lower.length > 4) return lower.slice(0, -3) + 'y';
+  if (lower.endsWith('es') && lower.length > 4) return lower.slice(0, -2);
+  if (lower.endsWith('s') && !lower.endsWith('ss') && lower.length > 3) return lower.slice(0, -1);
+  return lower;
+}
+
 export function getQuestionTokens(text) {
   const normalized = normalizeQuestion(text);
-  const words = normalized.split(/\s+/).filter(w => w.length > 2 && !STOP_WORDS.has(w));
+  const words = normalized.split(/\s+/).filter(w => w.length > 2 && !STOP_WORDS.has(w)).map(stemToken);
   return new Set(words);
 }
 
@@ -126,7 +135,7 @@ export function cleanSpokenQuestion(text) {
   return cleaned;
 }
 
-function cleanAndParseJson(rawText, fallback) {
+export function cleanAndParseJson(rawText, fallback) {
   if (!rawText) return fallback;
   try {
     const cleaned = rawText
@@ -150,7 +159,7 @@ function cleanAndParseJson(rawText, fallback) {
   }
 }
 
-async function callGemini(prompt, temperature = 0.4, systemInstruction = null) {
+export async function callGemini(prompt, temperature = 0.4, systemInstruction = null) {
   const apiKey = (process.env.GEMINI_API_KEY || '').trim();
   if (!apiKey || apiKey.includes('your-gemini-api-key') || apiKey.length < 10) {
     const err = new Error('AI_NOT_CONFIGURED');
@@ -2418,5 +2427,35 @@ ${safeAnswer}
       isAiGenerated: true,
       evaluatedAt: new Date().toISOString()
     };
+  },
+
+  generateInterviewBlueprint(config) {
+    return generateInterviewBlueprint(config);
+  },
+
+  async generateAdaptiveNextQuestion(config, currentQuestion, candidateAnswer, sessionMemory) {
+    return generateAdaptiveNextQuestion(config, currentQuestion, candidateAnswer, sessionMemory);
+  },
+
+  generateAdaptiveNextQuestionFallback(config, currentQuestion, candidateAnswer, sessionMemory) {
+    return generateAdaptiveNextQuestionFallback(config, currentQuestion, candidateAnswer, sessionMemory);
   }
+};
+
+import {
+  generateInterviewBlueprint,
+  generateAdaptiveNextQuestion,
+  generateAdaptiveNextQuestionFallback,
+  isNonTechnicalCandidate,
+  getDomainCompetencies,
+  classifyAdaptiveDecision
+} from './adaptiveInterviewEngine.js';
+
+export {
+  generateInterviewBlueprint,
+  generateAdaptiveNextQuestion,
+  generateAdaptiveNextQuestionFallback,
+  isNonTechnicalCandidate,
+  getDomainCompetencies,
+  classifyAdaptiveDecision
 };
