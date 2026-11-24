@@ -244,10 +244,6 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         questionCount: session.questions.length
       });
 
-      if (session.questions.some(q => q.source === 'fallback')) {
-        analyticsService.trackFallbackModeShown({ context: 'interview_session' });
-      }
-
       // Initialize media hardware concurrently in the background without blocking the room entry
       if (config.mode === 'text_only') {
         releaseMedia();

@@ -8,11 +8,12 @@ async function runRegressionSuite() {
 
   const results = [];
 
-  function record(num, name, passed, details) {
+  async function record(num, name, passed, details) {
     results.push({ num, name, passed, details });
     const mark = passed ? '✅ PASS' : '❌ FAIL';
     console.log(`${mark} [Scenario ${String(num).padStart(2, '0')}] ${name}`);
     console.log(`   Details: ${details}\n`);
+    await new Promise(r => setTimeout(r, 1500)); // 1.5s pace to stay within free-tier 15 RPM
   }
 
   const baseConfig = {
@@ -47,10 +48,10 @@ async function runRegressionSuite() {
     const isProvisional = report.interviewCoverage?.isProvisional === true && report.interviewCoverage?.answeredCount === 1;
 
     const pass = isTextMode && hasQualityScore && isProvisional;
-    record(1, 'Text-only interview with 1 strong answer', pass,
+    await record(1, 'Text-only interview with 1 strong answer', pass,
       `Fluency status: "${report.speechFluency?.status}" (isAssessed: ${report.speechFluency?.isAssessed}). Overall Score: ${report.overallScore}/100. Provisional: ${report.interviewCoverage?.isProvisional} (${report.interviewCoverage?.answeredCount}/${report.interviewCoverage?.totalQuestions}).`);
   } catch (err) {
-    record(1, 'Text-only interview with 1 strong answer', false, `Error: ${err.message}`);
+    await record(1, 'Text-only interview with 1 strong answer', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -77,10 +78,10 @@ async function runRegressionSuite() {
     const isProvisional = report.interviewCoverage?.isProvisional === true;
 
     const pass = isTextMode && isLowScore && isProvisional;
-    record(2, 'Text-only interview with 1 weak answer', pass,
+    await record(2, 'Text-only interview with 1 weak answer', pass,
       `Fluency status: "${report.speechFluency?.status}". Overall Score: ${report.overallScore}/100 (appropriately weak). Provisional: ${report.interviewCoverage?.isProvisional}.`);
   } catch (err) {
-    record(2, 'Text-only interview with 1 weak answer', false, `Error: ${err.message}`);
+    await record(2, 'Text-only interview with 1 weak answer', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -107,10 +108,10 @@ async function runRegressionSuite() {
     const highFluencyScore = (report.speechFluency?.overallFluencyScore || 0) >= 90;
 
     const pass = isFluencyAssessed && zeroFillers && highFluencyScore;
-    record(3, 'Voice interview with clear speech', pass,
+    await record(3, 'Voice interview with clear speech', pass,
       `Speech status: "${report.speechFluency?.status}". Total Fillers: ${report.speechFluency?.totalFillers}. Fluency Score: ${report.speechFluency?.overallFluencyScore}%. Density: ${report.speechFluency?.fillerDensity}%.`);
   } catch (err) {
-    record(3, 'Voice interview with clear speech', false, `Error: ${err.message}`);
+    await record(3, 'Voice interview with clear speech', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -137,10 +138,10 @@ async function runRegressionSuite() {
     const topFillersCaptured = Array.isArray(report.speechFluency?.topFillers) && report.speechFluency.topFillers.length > 0;
 
     const pass = isFluencyAssessed && hasFillers && topFillersCaptured;
-    record(4, 'Voice interview with filler words', pass,
+    await record(4, 'Voice interview with filler words', pass,
       `Detected ${report.speechFluency?.totalFillers} fillers (${report.speechFluency?.fillerDensity}% density). Top fillers: ${report.speechFluency?.topFillers?.map(f => `"${f.word}"x${f.count}`).join(', ')}. Fluency score: ${report.speechFluency?.overallFluencyScore}%.`);
   } catch (err) {
-    record(4, 'Voice interview with filler words', false, `Error: ${err.message}`);
+    await record(4, 'Voice interview with filler words', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -173,10 +174,10 @@ async function runRegressionSuite() {
     const isAssessed = report.speechFluency?.isAssessed === true;
 
     const pass = spokenCountExact && isAssessed;
-    record(5, 'Mixed text and voice interview', pass,
+    await record(5, 'Mixed text and voice interview', pass,
       `Spoken count strictly equals ${report.speechFluency?.spokenCount} (typed answer excluded from speech analysis). Total Fillers: ${report.speechFluency?.totalFillers}.`);
   } catch (err) {
-    record(5, 'Mixed text and voice interview', false, `Error: ${err.message}`);
+    await record(5, 'Mixed text and voice interview', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -213,10 +214,10 @@ async function runRegressionSuite() {
     const coverage = report.interviewCoverage?.coveragePercent <= 34;
 
     const pass = isProvisional && answeredCount && coverage;
-    record(6, 'One-question early finish', pass,
+    await record(6, 'One-question early finish', pass,
       `isProvisional: ${report.interviewCoverage?.isProvisional}. Coverage: ${report.interviewCoverage?.coveragePercent}% (${report.interviewCoverage?.answeredCount}/${report.interviewCoverage?.totalQuestions}). Untested pillars handled honestly.`);
   } catch (err) {
-    record(6, 'One-question early finish', false, `Error: ${err.message}`);
+    await record(6, 'One-question early finish', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -259,10 +260,10 @@ async function runRegressionSuite() {
     const hasAssessedPillars = report.rubricPillars.some(p => p.isAssessed);
 
     const pass = coverage && answeredCount && hasAssessedPillars;
-    record(7, 'Two-question early finish', pass,
+    await record(7, 'Two-question early finish', pass,
       `Answered: ${report.interviewCoverage?.answeredCount}/4 (${report.interviewCoverage?.coveragePercent}%). Tested competencies scored; overall score computed strictly from assessed pillars: ${report.overallScore}/100.`);
   } catch (err) {
-    record(7, 'Two-question early finish', false, `Error: ${err.message}`);
+    await record(7, 'Two-question early finish', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -301,10 +302,10 @@ async function runRegressionSuite() {
     const allAssessed = report.rubricPillars.every(p => p.isAssessed);
 
     const pass = fullCoverage && notProvisional && allAssessed;
-    record(8, 'Full interview completion', pass,
+    await record(8, 'Full interview completion', pass,
       `Full session coverage: ${report.interviewCoverage?.coveragePercent}%. isProvisional: ${report.interviewCoverage?.isProvisional}. All 4 rubric pillars assessed: ${report.rubricPillars.map(p => `${p.label}=${p.score}`).join(', ')}.`);
   } catch (err) {
-    record(8, 'Full interview completion', false, `Error: ${err.message}`);
+    await record(8, 'Full interview completion', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -342,10 +343,10 @@ async function runRegressionSuite() {
     const followupIntact = sessionQuestions[1].id === 'q-followup-999' && !sessionQuestions[1].evaluation;
 
     const pass = correctTarget && followupIntact;
-    record(9, 'Follow-up insertion while evaluation is pending', pass,
+    await record(9, 'Follow-up insertion while evaluation is pending', pass,
       `Stable ID matching attached evaluation to Question ${sessionQuestions[0].id} (index ${targetIdx}), leaving inserted follow-up ${sessionQuestions[1].id} untouched.`);
   } catch (err) {
-    record(9, 'Follow-up insertion while evaluation is pending', false, `Error: ${err.message}`);
+    await record(9, 'Follow-up insertion while evaluation is pending', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -371,10 +372,10 @@ async function runRegressionSuite() {
 
     const answerSurvives = session.questions[0].candidateAnswer === candidateText;
     const pass = answerSurvives && caughtError !== null;
-    record(10, 'Network interruption during evaluation', pass,
+    await record(10, 'Network interruption during evaluation', pass,
       `Candidate answer was safely retained in session state during network rejection: "${session.questions[0].candidateAnswer.slice(0, 40)}...".`);
   } catch (err) {
-    record(10, 'Network interruption during evaluation', false, `Error: ${err.message}`);
+    await record(10, 'Network interruption during evaluation', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -398,10 +399,10 @@ async function runRegressionSuite() {
     }
 
     const flushedCorrectly = sessionQuestions[0].candidateAnswer === pendingText && sessionQuestions[0].answerSource === 'typed';
-    record(11, 'End & Report with pending text', flushedCorrectly,
+    await record(11, 'End & Report with pending text', flushedCorrectly,
       `Pending text successfully flushed to active question ID "${activeQuestionId}" with answerSource: "${sessionQuestions[0].answerSource}".`);
   } catch (err) {
-    record(11, 'End & Report with pending text', false, `Error: ${err.message}`);
+    await record(11, 'End & Report with pending text', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -425,10 +426,10 @@ async function runRegressionSuite() {
     }
 
     const flushedSpeech = sessionQuestions[0].candidateAnswer === pendingSpeech && sessionQuestions[0].answerSource === 'spoken';
-    record(12, 'End & Report with pending speech', flushedSpeech,
+    await record(12, 'End & Report with pending speech', flushedSpeech,
       `Pending speech buffer flushed to question ID "${activeQuestionId}" with verified answerSource: "${sessionQuestions[0].answerSource}".`);
   } catch (err) {
-    record(12, 'End & Report with pending speech', false, `Error: ${err.message}`);
+    await record(12, 'End & Report with pending speech', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
@@ -452,10 +453,10 @@ async function runRegressionSuite() {
     const speechNotAssessed = report.speechFluency?.status === 'not_assessed';
 
     const pass = isHonestZero && allPillarsZero && summaryContainsZeroWarning && speechNotAssessed;
-    record(13, 'Completely blank interview', pass,
+    await record(13, 'Completely blank interview', pass,
       `Report overallScore: ${report.overallScore}/100. All pillars: 0. Speech status: "${report.speechFluency?.status}". Anti-fabrication integrity upheld.`);
   } catch (err) {
-    record(13, 'Completely blank interview', false, `Error: ${err.message}`);
+    await record(13, 'Completely blank interview', false, `Error: ${err.message}`);
   }
 
   // -------------------------------------------------------------
