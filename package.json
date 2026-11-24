@@ -23,6 +23,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "canvas-confetti": "^1.9.4",
+    "dotenv": "^16.4.7",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.16.0",
     "mammoth": "^1.13.0",
     "pdf-parse": "^1.1.1",
