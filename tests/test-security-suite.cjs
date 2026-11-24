@@ -33,16 +33,16 @@ const {
   validateResumeFile,
   inspectZipContainer,
   sanitizeForPrompt
-} = require('../api/security.js');
+} = require('../api/_lib/security.js');
 
-const { resumeParser } = require('../api/resume.js');
+const { resumeParser } = require('../api/_lib/resume.js');
 const {
   clampScore,
   validateAndSanitizeConfig,
   ROUND_RUBRICS,
   getRubricForRound,
   validateAndScoreRubric
-} = require('../api/gemini.js');
+} = require('../api/_lib/gemini.js');
 
 let testCount = 0;
 let passedCount = 0;
@@ -135,7 +135,7 @@ async function executeTestSuite() {
   console.log('====================================================\n');
 
   const vercelHandler = (await import('../api/index.js')).default;
-  const deleteAccountHandler = (await import('../api/auth/delete-account.js')).default;
+  const deleteAccountHandler = (await import('../api/_lib/auth/delete-account.js')).default;
 
   // 1. IP Spoofing & Header Trust Hierarchy
   runTest('IP Spoofing', 'getClientIp prioritizes edge-verified x-real-ip over spoofed X-Forwarded-For', () => {
@@ -279,7 +279,7 @@ async function executeTestSuite() {
 
   runTest('Static Instructions', 'All Gemini systemInstruction declarations across api/ have 0 template interpolations', () => {
     const fs = require('fs');
-    ['api/resume.js', 'api/gemini.js'].forEach(file => {
+    ['api/_lib/resume.js', 'api/_lib/gemini.js'].forEach(file => {
       const code = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
       const matches = [...code.matchAll(/const\s+systemInstruction\s*=\s*`([\s\S]*?)`;/g)];
       assert(matches.length > 0, `Expected systemInstruction declarations in ${file}`);

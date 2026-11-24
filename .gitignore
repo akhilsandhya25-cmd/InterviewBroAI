@@ -63,3 +63,5 @@ scratch/
 **/.data/
 backups/
 **/backups/
+
+.vercel

@@ -1,7 +1,7 @@
-import { getIsGeminiConfigured, geminiService } from './gemini.js';
-import { resumeParser } from './resume.js';
-import deleteAccountHandler from './auth/delete-account.js';
-import { captureServerlessError } from './errorMonitoring.js';
+import { getIsGeminiConfigured, geminiService } from './_lib/gemini.js';
+import { resumeParser } from './_lib/resume.js';
+import deleteAccountHandler from './_lib/auth/delete-account.js';
+import { captureServerlessError } from './_lib/errorMonitoring.js';
 import {
   applySecurityHeaders,
   isAllowedOrigin,
@@ -11,11 +11,11 @@ import {
   consumeQuotaOnSessionStart,
   validateResumeFile,
   verifyUserQuotaAvailable
-} from './security.js';
+} from './_lib/security.js';
 import {
   verifyBackendEligibility,
   INELIGIBILITY_EXPLANATION
-} from './eligibility.js';
+} from './_lib/eligibility.js';
 
 export function validateRequiredEnvironment() {
   const missingRequired = [];

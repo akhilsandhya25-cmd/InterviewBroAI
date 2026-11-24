@@ -27,9 +27,9 @@ async function runTestSuite() {
     generateAdaptiveNextQuestionFallback,
     isNonTechnicalCandidate,
     getDomainCompetencies
-  } = await import('../api/adaptiveInterviewEngine.js');
+  } = await import('../api/_lib/adaptiveInterviewEngine.js');
 
-  const { calculateQuestionSimilarity, isDuplicateQuestion } = await import('../api/gemini.js');
+  const { calculateQuestionSimilarity, isDuplicateQuestion } = await import('../api/_lib/gemini.js');
 
   let passed = 0;
   let total = 0;

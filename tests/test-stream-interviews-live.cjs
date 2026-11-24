@@ -22,8 +22,8 @@ async function runStreamTestSuite() {
   console.log('STARTING STREAM-SPECIFIC END-TO-END INTERVIEW TEST SUITE');
   console.log('====================================================\n');
 
-  const { geminiService, getIsGeminiConfigured } = await import('../api/gemini.js');
-  const { checkInterviewEligibility, verifyBackendEligibility } = await import('../api/eligibility.js');
+  const { geminiService, getIsGeminiConfigured } = await import('../api/_lib/gemini.js');
+  const { checkInterviewEligibility, verifyBackendEligibility } = await import('../api/_lib/eligibility.js');
 
   const isGeminiReady = getIsGeminiConfigured();
   console.log(`[Config Check] Gemini API Configured: ${isGeminiReady}`);
