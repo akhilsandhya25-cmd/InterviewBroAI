@@ -2259,11 +2259,11 @@ ${transcriptSummary}
         deliveryAdvice
       };
 
-      // Mathematical recalculation of overallScore server-side from rubric pillars and completion ratio
+      // Mathematical recalculation of overallScore server-side from rubric pillars
       const sumPillars = finalPillars.reduce((sum, p) => sum + p.score, 0);
       const rawAverage = Math.round(sumPillars / finalPillars.length);
-      const completionRatio = Math.min(1, answeredQuestions.length / Math.max(1, (questions || []).length));
-      parsed.overallScore = Math.round(rawAverage * completionRatio);
+      // Ensure genuine candidate answers receive full placement score without artificial deflation from unasked queue questions
+      parsed.overallScore = Math.max(1, rawAverage);
 
       // Populate backward-compatible legacy scores
       if (activeRubric.roundType === 'technical' || activeRubric.roundType === 'subject_viva' || activeRubric.roundType === 'iti_trade' || activeRubric.roundType === 'healthcare_clinical' || activeRubric.roundType === 'legal_jurisprudence') {

@@ -10,7 +10,7 @@ import {
   InterviewSessionMemory
 } from '../types';
 import { storage } from '../services/storage';
-import { api } from '../services/api';
+import { api, isSubstantiveAnswer } from '../services/api';
 import { useAuth } from './AuthContext';
 import confetti from 'canvas-confetti';
 import { releaseMediaStream, parseMicrophoneError, MicrophoneErrorInfo } from '../services/microphoneService';
@@ -44,7 +44,7 @@ interface InterviewContextType {
   nextQuestion: () => void;
   previousQuestion: () => void;
   togglePause: () => void;
-  endInterview: () => Promise<FeedbackReport | null>;
+  endInterview: (pendingAnswer?: string) => Promise<FeedbackReport | null>;
   setConsentToRecord: (consent: boolean) => void;
   toggleCamera: () => Promise<void>;
   toggleMic: () => void;
@@ -405,16 +405,21 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     api.evaluateAnswer(currentQ, trimmedAnswer, activeSession.config)
       .then((evaluation) => {
         if (evaluation) {
-          const fresh = [...(activeSession?.questions || updatedQuestions)];
-          if (fresh[currentQuestionIndex]) {
-            fresh[currentQuestionIndex] = {
-              ...fresh[currentQuestionIndex],
-              evaluation
-            };
-            const withEval = { ...updatedSession, questions: fresh };
-            storage.saveSession(withEval, user?.id);
-            setActiveSession(withEval);
-          }
+          setActiveSession(prev => {
+            const currentSession = prev || updatedSession;
+            const fresh = [...currentSession.questions];
+            if (fresh[currentQuestionIndex]) {
+              fresh[currentQuestionIndex] = {
+                ...fresh[currentQuestionIndex],
+                candidateAnswer: fresh[currentQuestionIndex].candidateAnswer || trimmedAnswer,
+                evaluation
+              };
+              const withEval = { ...currentSession, questions: fresh };
+              storage.saveSession(withEval, user?.id);
+              return withEval;
+            }
+            return currentSession;
+          });
         }
       })
       .catch((err) => {
@@ -509,23 +514,63 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsPaused(prev => !prev);
   };
 
-  const endInterview = async (): Promise<FeedbackReport | null> => {
-    if (!activeSession) return null;
+  const endInterview = async (pendingAnswer?: string): Promise<FeedbackReport | null> => {
+    let session = activeSession ? (storage.getSessionById(activeSession.id, user?.id) || activeSession) : null;
+    if (!session) return null;
     
     // Stop and release all microphone and camera media tracks
     releaseMedia();
 
+    // 1. If an answer was pending on the active question, commit it
+    const currentQIdx = session.currentQuestionIndex ?? currentQuestionIndex;
+    const questionsToEvaluate = [...session.questions];
+
+    if (pendingAnswer && pendingAnswer.trim()) {
+      if (questionsToEvaluate[currentQIdx] && !questionsToEvaluate[currentQIdx].candidateAnswer) {
+        questionsToEvaluate[currentQIdx] = {
+          ...questionsToEvaluate[currentQIdx],
+          candidateAnswer: pendingAnswer.trim()
+        };
+      }
+    }
+
+    // 2. Fallback draft recovery: scan localStorage for any saved drafts for questions lacking candidateAnswer
+    questionsToEvaluate.forEach((q, idx) => {
+      if (!q.candidateAnswer || !isSubstantiveAnswer(q.candidateAnswer)) {
+        try {
+          const draftKey = `interviewbro_draft_${session!.id}_${q.id}`;
+          const draftStr = localStorage.getItem(draftKey);
+          if (draftStr) {
+            const parsed = JSON.parse(draftStr);
+            if (parsed?.text && isSubstantiveAnswer(parsed.text)) {
+              questionsToEvaluate[idx] = {
+                ...q,
+                candidateAnswer: parsed.text.trim()
+              };
+            }
+          }
+        } catch {}
+      }
+    });
+
+    session = {
+      ...session,
+      questions: questionsToEvaluate
+    };
+    storage.saveSession(session, user?.id);
+    setActiveSession(session);
+
     setIsEvaluating(true);
     try {
       const report = await api.generateFinalReport(
-        activeSession.questions,
-        activeSession.config,
+        session.questions,
+        session.config,
         user?.full_name || 'Candidate'
       );
-      report.sessionId = activeSession.id;
+      report.sessionId = session.id;
 
       const completedSession: InterviewSession = {
-        ...activeSession,
+        ...session,
         status: 'completed',
         completedAt: new Date().toISOString(),
         elapsedSeconds,
@@ -539,8 +584,8 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       // Track interview completion
       analyticsService.trackInterviewCompleted({
-        category: activeSession.config.interviewType,
-        questionCount: activeSession.questions.length,
+        category: session.config.interviewType,
+        questionCount: session.questions.length,
         durationSeconds: elapsedSeconds,
         source: report.source || 'ai'
       });
