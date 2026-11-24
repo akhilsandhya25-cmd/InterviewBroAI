@@ -33,7 +33,18 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   const { user, candidateProfile, updateCandidateProfile } = useAuth();
 
   const [profile, setProfile] = useState<CandidateProfile>(() => {
-    return candidateProfile || storage.getCandidateProfile(user?.id);
+    const p = candidateProfile || storage.getCandidateProfile(user?.id);
+    const isMpcStream = /^mpc(\s*student)?$/i.test(String(p?.degreeStream || '').trim());
+    const isMpcTarget = /mpc\s*student|entrance\s*examination|jee\s*\/\s*neet/i.test(p?.targetRole || '');
+    if (isMpcStream || isMpcTarget) {
+      return {
+        ...p,
+        degreeStream: isMpcStream ? 'B.Tech Computer Science' : p.degreeStream,
+        targetRole: isMpcTarget ? 'Software Engineer' : p.targetRole,
+        educationLevel: p.educationLevel === 'intermediate' as any ? 'UG' : p.educationLevel
+      };
+    }
+    return p;
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -45,7 +56,18 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     if (candidateProfile) {
-      setProfile(candidateProfile);
+      const isMpcStream = /^mpc(\s*student)?$/i.test(String(candidateProfile?.degreeStream || '').trim());
+      const isMpcTarget = /mpc\s*student|entrance\s*examination|jee\s*\/\s*neet/i.test(candidateProfile?.targetRole || '');
+      if (isMpcStream || isMpcTarget) {
+        setProfile({
+          ...candidateProfile,
+          degreeStream: isMpcStream ? 'B.Tech Computer Science' : candidateProfile.degreeStream,
+          targetRole: isMpcTarget ? 'Software Engineer' : candidateProfile.targetRole,
+          educationLevel: candidateProfile.educationLevel === 'intermediate' as any ? 'UG' : candidateProfile.educationLevel
+        });
+      } else {
+        setProfile(candidateProfile);
+      }
     }
   }, [candidateProfile]);
 

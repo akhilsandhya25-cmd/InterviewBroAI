@@ -452,6 +452,29 @@ export const authService = {
             updated_at: new Date().toISOString()
           };
 
+          // Sanitize legacy or default MPC / Entrance Exam values
+          const isMpcTarget = /mpc\s*student|entrance\s*examination|jee\s*\/\s*neet|cuet\s*\/\s*clat/i.test(user.role_target || '') ||
+            /mpc\s*student|entrance\s*examination|jee\s*\/\s*neet|cuet\s*\/\s*clat/i.test((user as any).target_role || '');
+          const isMpcStream = /^mpc(\s*student)?$/i.test(String(user.degree_stream || '').trim()) ||
+            /^mpc(\s*student)?$/i.test(String((user as any).degreeStream || '').trim());
+
+          if (isMpcTarget || isMpcStream || user.education_level === 'intermediate') {
+            if (isMpcTarget) {
+              user.role_target = 'Software Engineer';
+              (user as any).target_role = 'Software Engineer';
+            }
+            if (isMpcStream || !user.degree_stream) {
+              user.degree_stream = 'B.Tech Computer Science';
+              (user as any).degreeStream = 'B.Tech Computer Science';
+              user.degree_course = 'B.Tech Computer Science';
+              (user as any).degreeCourse = 'B.Tech Computer Science';
+            }
+            user.education_level = 'undergraduate';
+            (user as any).educationLevel = 'undergraduate';
+            delete (user as any).intermediate_group;
+            delete (user as any).intermediateGroup;
+          }
+
           storage.setUser(user);
           storage.setToken(data.session.access_token);
           return { user, token: data.session.access_token };
@@ -694,6 +717,40 @@ export const authService = {
               }
             } catch (err) {
               console.warn('[AuthService] Supabase profile upsert deferred:', err);
+            }
+          }
+
+          // Sanitize legacy or default MPC / Entrance Exam values
+          const isMpcTarget = /mpc\s*student|entrance\s*examination|jee\s*\/\s*neet|cuet\s*\/\s*clat/i.test(userToSet.role_target || '') ||
+            /mpc\s*student|entrance\s*examination|jee\s*\/\s*neet|cuet\s*\/\s*clat/i.test((userToSet as any).target_role || '');
+          const isMpcStream = /^mpc(\s*student)?$/i.test(String(userToSet.degree_stream || '').trim()) ||
+            /^mpc(\s*student)?$/i.test(String((userToSet as any).degreeStream || '').trim());
+
+          if (isMpcTarget || isMpcStream || userToSet.education_level === 'intermediate') {
+            if (isMpcTarget) {
+              userToSet.role_target = 'Software Engineer';
+              (userToSet as any).target_role = 'Software Engineer';
+            }
+            if (isMpcStream || !userToSet.degree_stream) {
+              userToSet.degree_stream = 'B.Tech Computer Science';
+              (userToSet as any).degreeStream = 'B.Tech Computer Science';
+              userToSet.degree_course = 'B.Tech Computer Science';
+              (userToSet as any).degreeCourse = 'B.Tech Computer Science';
+            }
+            userToSet.education_level = 'undergraduate';
+            (userToSet as any).educationLevel = 'undergraduate';
+            delete (userToSet as any).intermediate_group;
+            delete (userToSet as any).intermediateGroup;
+
+            if (isSupabaseConfigured && supabase) {
+              supabase.from('profiles').update({
+                role_target: userToSet.role_target,
+                target_role: userToSet.role_target,
+                degree_stream: userToSet.degree_stream,
+                degree_course: userToSet.degree_course,
+                education_level: 'undergraduate',
+                intermediate_group: null
+              }).eq('id', userToSet.id).then(() => {}).catch(() => {});
             }
           }
 

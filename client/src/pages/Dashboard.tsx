@@ -75,8 +75,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onStartPreset 
     ? Math.round(validReports.reduce((acc, r) => acc + (r.structureStarScore || 0), 0) / validReports.length)
     : null;
 
-  const effectiveRole = candidateProfile?.targetRole || user?.role_target;
-  const effectiveStream = candidateProfile?.degreeStream || user?.degree_stream;
+  const rawRole = candidateProfile?.targetRole || user?.role_target;
+  const effectiveRole = (rawRole && !/mpc|entrance\s*examination|jee\s*\/\s*neet/i.test(rawRole)) ? rawRole : 'Software Engineer';
+  const rawStream = candidateProfile?.degreeStream || user?.degree_stream;
+  const effectiveStream = (rawStream && !/^mpc(\s*student)?$/i.test(rawStream.trim()) && !/mpc\s*student/i.test(rawStream)) ? rawStream : 'B.Tech Computer Science';
   const effectiveStatus = candidateProfile?.currentStatus || user?.current_status || 'Fresher';
   const isProfileComplete = Boolean(
     (candidateProfile?.targetRole && candidateProfile?.degreeStream) ||

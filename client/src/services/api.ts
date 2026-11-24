@@ -1486,7 +1486,7 @@ export const api = {
     let evaluationCriteria = ['Technical Skills Relevance', 'System Architecture & Design', 'Hands-on Coding Projects', 'Git Best Practices', 'Database Proficiency'];
 
     if (isIntermediate) {
-      const grp = (academicProfile?.intermediateGroup || 'mpc').toUpperCase();
+      const grp = (academicProfile?.intermediateGroup || 'General').toUpperCase();
       extractedSkills = ['Mathematics', 'Physics', 'Chemistry', 'Problem Solving', 'Scientific Documentation', 'Computer Literacy'];
       missingSkillsForRole = ['Advanced Spreadsheets / Digital Tools', 'Extracurricular Leadership Documentation', 'Community Volunteering'];
       educationFound = [`Intermediate (${grp}) Board Education`, 'Secondary School Certificate (10th Standard)'];

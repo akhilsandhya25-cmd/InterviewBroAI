@@ -1239,8 +1239,8 @@ export function getPreparationModesForProfile(
       },
       {
         id: 'entrance_concept_practice',
-        title: 'Entrance Exam Concept Practice',
-        shortDesc: 'Concept-clarity oral drills for competitive entrance exams (JEE, NEET, CUET, CLAT).',
+        title: 'Competitive Examination Concept Practice',
+        shortDesc: 'Concept-clarity oral drills for national and state technical competitive examinations.',
         interviewType: 'technical',
         categoryPill: 'Competitive Concept',
         isEntranceExam: true,

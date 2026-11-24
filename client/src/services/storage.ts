@@ -24,6 +24,11 @@ function handleCloudStorageError(action: string, error: any) {
 }
 
 
+function isMpcOrEntranceDefault(val?: string | null): boolean {
+  if (!val) return false;
+  return /mpc\s*student|entrance\s*examination|jee\s*\/\s*neet|cuet\s*\/\s*clat/i.test(val);
+}
+
 export const storage = {
   // Session Token
   getToken(): string | null {
@@ -55,7 +60,32 @@ export const storage = {
       const data = localStorage.getItem(CURRENT_USER_KEY);
       if (!data) return null;
 
-      return JSON.parse(data);
+      const parsed: UserProfile = JSON.parse(data);
+      let changed = false;
+      if (isMpcOrEntranceDefault(parsed.role_target) || isMpcOrEntranceDefault((parsed as any).target_role)) {
+        parsed.role_target = 'Software Engineer';
+        (parsed as any).target_role = 'Software Engineer';
+        changed = true;
+      }
+      if (isMpcOrEntranceDefault(parsed.degree_stream) || isMpcOrEntranceDefault((parsed as any).degreeStream) || (parsed.degree_stream && /^mpc(\s*student)?$/i.test(parsed.degree_stream.trim()))) {
+        parsed.degree_stream = 'B.Tech Computer Science';
+        (parsed as any).degreeStream = 'B.Tech Computer Science';
+        changed = true;
+      }
+      if (parsed.education_level === 'intermediate' || (parsed as any).educationLevel === 'intermediate') {
+        parsed.education_level = 'undergraduate';
+        (parsed as any).educationLevel = 'undergraduate';
+        changed = true;
+      }
+      if ((parsed as any).intermediate_group || (parsed as any).intermediateGroup) {
+        delete (parsed as any).intermediate_group;
+        delete (parsed as any).intermediateGroup;
+        changed = true;
+      }
+      if (changed) {
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(parsed));
+      }
+      return parsed;
     } catch {
       return null;
     }
@@ -97,15 +127,42 @@ export const storage = {
     try {
       const stored = localStorage.getItem(`interviewbro_candidate_profile_${uid}`);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed: CandidateProfile = JSON.parse(stored);
+        let changed = false;
+        if (isMpcOrEntranceDefault(parsed.targetRole)) {
+          parsed.targetRole = 'Software Engineer';
+          changed = true;
+        }
+        if (isMpcOrEntranceDefault(parsed.degreeStream) || (parsed.degreeStream && /^mpc(\s*student)?$/i.test(parsed.degreeStream.trim()))) {
+          parsed.degreeStream = 'B.Tech Computer Science';
+          changed = true;
+        }
+        if (parsed.educationLevel === 'intermediate' as any) {
+          parsed.educationLevel = 'UG';
+          changed = true;
+        }
+        if (changed) {
+          localStorage.setItem(`interviewbro_candidate_profile_${uid}`, JSON.stringify(parsed));
+        }
+        return parsed;
       }
     } catch {
       // ignore
     }
 
-    const defaultDegreeStream = cachedUser?.degree_stream || cachedUser?.degreeCourse || cachedUser?.degree_course || 'B.Tech Computer Science';
-    const defaultEduLevel = (cachedUser?.education_level || cachedUser?.educationLevel || 'UG') as any;
-    const defaultTargetRole = cachedUser?.target_role || cachedUser?.role_target || 'Software Engineer';
+    const rawDegreeStream = cachedUser?.degree_stream || cachedUser?.degreeCourse || cachedUser?.degree_course;
+    const defaultDegreeStream = (rawDegreeStream && !isMpcOrEntranceDefault(rawDegreeStream) && !/^mpc(\s*student)?$/i.test(rawDegreeStream.trim()))
+      ? rawDegreeStream
+      : 'B.Tech Computer Science';
+
+    const rawEduLevel = (cachedUser?.education_level || cachedUser?.educationLevel);
+    const defaultEduLevel = (rawEduLevel && rawEduLevel !== 'intermediate') ? rawEduLevel as any : 'UG';
+
+    const rawTargetRole = cachedUser?.target_role || cachedUser?.role_target;
+    const defaultTargetRole = (rawTargetRole && !isMpcOrEntranceDefault(rawTargetRole))
+      ? rawTargetRole
+      : 'Software Engineer';
+
     const defaultStatus = (cachedUser?.current_status || (cachedUser?.experience_level === 'student' ? 'Student' : 'Fresher')) as any;
 
     const initialProfile: CandidateProfile = {

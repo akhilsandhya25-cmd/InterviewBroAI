@@ -350,7 +350,7 @@ export function getDefaultResumeDraft(userProfile?: UserProfile | null): ResumeB
   // Build honest starter education entries
   const education: ResumeBuilderData['education'] = [];
   const eduLevel = userProfile?.educationLevel || '';
-  const interGroup = (userProfile?.intermediateGroup || 'MPC').toUpperCase();
+  const interGroup = (userProfile?.intermediateGroup || 'General').toUpperCase();
   const collegeName = userProfile?.college || 'Junior / Degree College';
   const currentYear = userProfile?.yearOfStudy ? `Year ${userProfile.yearOfStudy}` : '2024';
 

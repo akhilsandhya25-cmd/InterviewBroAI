@@ -100,7 +100,7 @@ export const resumeParser = {
 
     // 1. Intermediate / Junior College (10+2)
     if (eduLevel === 'intermediate' || group || lowerText.includes('intermediate') || lowerText.includes('junior college') || lowerText.includes('mpc') || lowerText.includes('bipc') || lowerText.includes('cec') || lowerText.includes('mec') || lowerText.includes('hec')) {
-      const activeGroup = group || (lowerText.includes('mpc') ? 'mpc' : lowerText.includes('bipc') ? 'bipc' : lowerText.includes('mec') ? 'mec' : lowerText.includes('cec') ? 'cec' : lowerText.includes('hec') ? 'hec' : 'mpc');
+      const activeGroup = group || (lowerText.includes('mpc') ? 'mpc' : lowerText.includes('bipc') ? 'bipc' : lowerText.includes('mec') ? 'mec' : lowerText.includes('cec') ? 'cec' : lowerText.includes('hec') ? 'hec' : 'general');
       
       let groupSkills = ['Mathematics', 'Physics', 'Chemistry', 'Problem Solving', 'Scientific Documentation', 'Computer Literacy', 'Analytical Reasoning'];
       let groupSubjects = 'Mathematics, Physics, and Chemistry';

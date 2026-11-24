@@ -116,7 +116,10 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onNavig
   }, []);
 
   // Target Role & Company
-  const defaultRole = candidateProfile?.targetRole || user?.target_role || user?.role_target || 'Software Engineer';
+  const rawDefaultRole = candidateProfile?.targetRole || user?.target_role || user?.role_target;
+  const defaultRole = (rawDefaultRole && !/mpc|entrance\s*examination|jee\s*\/\s*neet/i.test(rawDefaultRole))
+    ? rawDefaultRole
+    : 'Software Engineer';
   const [role, setRole] = useState<string>(defaultRole);
   const [company, setCompany] = useState<string>('Google');
 
