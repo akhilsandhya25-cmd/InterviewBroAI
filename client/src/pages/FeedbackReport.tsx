@@ -172,7 +172,7 @@ function getReportPillars(report: FeedbackReportType, isFallback: boolean): Rubr
 export const FeedbackReportView: React.FC<FeedbackReportProps> = ({ report: propReport, onStartNew, onNavigate }) => {
   const { activeReport, recordedVideoUrl } = useInterview();
   const report = propReport || activeReport;
-  const isFallback = Boolean(report?.source === 'fallback' || report?.overallScore == null);
+  const isFallback = Boolean(report?.source === 'fallback');
   const pillars = report ? getReportPillars(report, isFallback) : [];
 
   // Track privacy-respecting report view & fallback mode notice

@@ -172,35 +172,41 @@ export async function callGemini(prompt, temperature = 0.4, systemInstruction = 
   const candidateModels = [
     process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
     'gemini-flash-lite-latest',
-    'gemini-flash-latest'
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite'
   ];
   const uniqueModels = Array.from(new Set(candidateModels.filter(Boolean)));
 
   let lastError = null;
-  for (const model of uniqueModels) {
+  for (let i = 0; i < uniqueModels.length; i++) {
+    const model = uniqueModels[i];
+    if (i > 0) {
+      // 600ms backoff before fallback model to allow transient concurrency / 503 spike to clear
+      await new Promise(r => setTimeout(r, 600));
+    }
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 50000); // 50s timeout guard (within Vercel 60s maxDuration)
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s per-model timeout guard
 
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-              const payload = {
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature,
-            responseMimeType: 'application/json'
-          }
-        };
-        if (systemInstruction) {
-          payload.system_instruction = {
-            parts: [{ text: String(systemInstruction).trim() }]
-          };
+      const payload = {
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature,
+          responseMimeType: 'application/json'
         }
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify(payload)
-        });
+      };
+      if (systemInstruction) {
+        payload.system_instruction = {
+          parts: [{ text: String(systemInstruction).trim() }]
+        };
+      }
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify(payload)
+      });
       clearTimeout(timeoutId);
 
       if (res.ok) {
@@ -209,9 +215,11 @@ export async function callGemini(prompt, temperature = 0.4, systemInstruction = 
         if (text) {
           return text;
         }
+        console.warn(`[Gemini Call] Model [${model}] returned empty parts text: finishReason=${data.candidates?.[0]?.finishReason}`);
       } else {
         const errJson = await res.json().catch(() => ({}));
         const errMsg = errJson?.error?.message || `HTTP ${res.status}`;
+        console.warn(`[Gemini Call] Model [${model}] failed (${res.status}): ${errMsg}`);
         lastError = new Error(`Gemini model [${model}] error: ${errMsg}`);
         if (errMsg.includes('API_KEY_INVALID') || errMsg.includes('API key not valid')) {
           throw new Error(`Invalid GEMINI_API_KEY: ${errMsg}`);
@@ -219,10 +227,11 @@ export async function callGemini(prompt, temperature = 0.4, systemInstruction = 
       }
     } catch (err) {
       clearTimeout(timeoutId);
+      console.warn(`[Gemini Call] Model [${model}] exception: ${err.message}`);
       if (err.name === 'AbortError') {
-        const timeoutErr = new Error('AI_TIMEOUT');
-        timeoutErr.code = 'AI_TIMEOUT';
-        throw timeoutErr;
+        lastError = new Error(`AI_TIMEOUT on model [${model}] after 15s`);
+        lastError.code = 'AI_TIMEOUT';
+        continue;
       }
       lastError = err;
       if (err.message && err.message.includes('Invalid GEMINI_API_KEY')) {
@@ -1752,6 +1761,7 @@ ${excludedListFormatted}`;
       isAcademicSession
     } = validateAndSanitizeConfig(config, question);
 
+    const actualQuestionText = typeof question === 'string' ? question : (question?.questionText || question?.text || '');
     const rawAnswer = String(answer || '').trim();
     // Cap candidate answer to 4,000 characters
     const safeAnswer = sanitizeForPrompt(rawAnswer).slice(0, 4000);
@@ -1854,7 +1864,7 @@ ${activeRubric.pillars.map(p => `- "${p.key}": ${p.label}`).join('\n')}
 STAR Methodology Applicable: ${activeRubric.roundType === 'behavioral' || activeRubric.roundType === 'hr'}
 [/INTERVIEW_EVALUATION_CONTEXT]
 
-Question Asked: "${sanitizeForPrompt(question?.questionText || '')}"
+Question Asked: "${sanitizeForPrompt(actualQuestionText)}"
 
 SPEECH FLUENCY & FILLER WORDS ANALYSIS:
 - Total Words: ${fillerAnalysis.totalWords}
@@ -1928,6 +1938,8 @@ You MUST provide a complete JSON response containing valid numeric scores (0 to 
       isAcademicSession
     } = validateAndSanitizeConfig(config, question);
 
+    const actualQuestionText = typeof question === 'string' ? question : (question?.questionText || question?.text || '');
+
     const historyList = (previousQuestions || []).filter(Boolean);
     const excludedListFormatted = historyList.length > 0
       ? `\nPREVIOUSLY COVERED (DO NOT DUPLICATE):\n${historyList.slice(-10).map((q, i) => `${i + 1}. "${q}"`).join('\n')}\n`
@@ -1963,7 +1975,7 @@ Respond ONLY with a JSON object:
 Target Company: "${track ? track.companyName : cleanCompany}"
 ${track ? `Company Track Focus: ${track.interviewStyle}. Typical Topics: ${track.commonTopicAreas.slice(0, 3).join(', ')}.` : ''}
 ${academicFollowUpGuideline}
-Question Asked: "${sanitizeForPrompt(question?.questionText || '')}"
+Question Asked: "${sanitizeForPrompt(actualQuestionText)}"
 
 [UNTRUSTED_CANDIDATE_ANSWER]
 ${sanitizeForPrompt(answer).slice(0, 4000)}

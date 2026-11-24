@@ -781,6 +781,7 @@ Analyze the candidate's answer and produce the adaptive decision, difficulty cal
       : currentDiff;
 
     let cleanQ = cleanSpokenQuestion(parsed.questionText || '');
+    let isQuestionFromAi = true;
 
     // Check for duplicate with previous questions
     const dupCheck = isDuplicateQuestion(cleanQ, previousQuestions, 0.45);
@@ -788,6 +789,7 @@ Analyze the candidate's answer and produce the adaptive decision, difficulty cal
       // Use fallback question if Gemini produced empty, too short, or duplicate text
       const fallback = generateAdaptiveNextQuestionFallback(config, currentQuestion, candidateAnswer, sessionMemory);
       cleanQ = fallback.nextQuestion.questionText;
+      isQuestionFromAi = false;
     }
 
     const topic = parsed.exploredTopic || currentQuestion?.category || 'Domain Competency';
@@ -813,7 +815,7 @@ Analyze the candidate's answer and produce the adaptive decision, difficulty cal
           competencyAssessed: parsed.competencyAssessed || 'Domain Competency',
           calibratedDifficulty: adjustedDiff
         },
-        source: 'ai'
+        source: isQuestionFromAi ? 'ai' : 'fallback'
       },
       exploredTopic: topic,
       updatedMemory: {
