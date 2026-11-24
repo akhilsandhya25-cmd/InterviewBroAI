@@ -169,73 +169,77 @@ export async function callGemini(prompt, temperature = 0.4, systemInstruction = 
     throw err;
   }
 
+  // Fast sub-second models: gemini-flash-lite-latest (~800ms) & gemini-3.5-flash-lite (~600ms)
   const candidateModels = [
     process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
     'gemini-flash-lite-latest',
-    'gemini-3.5-flash-lite',
-    'gemini-3.1-flash-lite'
+    'gemini-3.5-flash-lite'
   ];
   const uniqueModels = Array.from(new Set(candidateModels.filter(Boolean)));
 
+  const MAX_ROUNDS = 2; // Up to 2 rounds across the fast models
   let lastError = null;
-  for (let i = 0; i < uniqueModels.length; i++) {
-    const model = uniqueModels[i];
-    if (i > 0) {
-      // 600ms backoff before fallback model to allow transient concurrency / 503 spike to clear
-      await new Promise(r => setTimeout(r, 600));
-    }
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s per-model timeout guard
 
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const payload = {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature,
-          responseMimeType: 'application/json'
-        }
-      };
-      if (systemInstruction) {
-        payload.system_instruction = {
-          parts: [{ text: String(systemInstruction).trim() }]
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    for (let i = 0; i < uniqueModels.length; i++) {
+      const model = uniqueModels[i];
+      if (round > 0 || i > 0) {
+        // 800ms backoff if previous attempt hit a 503 demand spike or failure
+        await new Promise(r => setTimeout(r, 800));
+      }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s per-model timeout guard
+
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const payload = {
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature,
+            responseMimeType: 'application/json'
+          }
         };
-      }
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify(payload)
-      });
-      clearTimeout(timeoutId);
+        if (systemInstruction) {
+          payload.system_instruction = {
+            parts: [{ text: String(systemInstruction).trim() }]
+          };
+        }
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify(payload)
+        });
+        clearTimeout(timeoutId);
 
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          return text;
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            return text;
+          }
+          console.warn(`[Gemini Call] Model [${model}] returned empty parts text: finishReason=${data.candidates?.[0]?.finishReason}`);
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          const errMsg = errJson?.error?.message || `HTTP ${res.status}`;
+          console.warn(`[Gemini Call] Model [${model}] failed (${res.status}): ${errMsg}`);
+          lastError = new Error(`Gemini model [${model}] error: ${errMsg}`);
+          if (errMsg.includes('API_KEY_INVALID') || errMsg.includes('API key not valid')) {
+            throw new Error(`Invalid GEMINI_API_KEY: ${errMsg}`);
+          }
         }
-        console.warn(`[Gemini Call] Model [${model}] returned empty parts text: finishReason=${data.candidates?.[0]?.finishReason}`);
-      } else {
-        const errJson = await res.json().catch(() => ({}));
-        const errMsg = errJson?.error?.message || `HTTP ${res.status}`;
-        console.warn(`[Gemini Call] Model [${model}] failed (${res.status}): ${errMsg}`);
-        lastError = new Error(`Gemini model [${model}] error: ${errMsg}`);
-        if (errMsg.includes('API_KEY_INVALID') || errMsg.includes('API key not valid')) {
-          throw new Error(`Invalid GEMINI_API_KEY: ${errMsg}`);
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.warn(`[Gemini Call] Model [${model}] exception: ${err.message}`);
+        if (err.name === 'AbortError') {
+          lastError = new Error(`AI_TIMEOUT on model [${model}] after 8s`);
+          lastError.code = 'AI_TIMEOUT';
+          continue;
         }
-      }
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.warn(`[Gemini Call] Model [${model}] exception: ${err.message}`);
-      if (err.name === 'AbortError') {
-        lastError = new Error(`AI_TIMEOUT on model [${model}] after 15s`);
-        lastError.code = 'AI_TIMEOUT';
-        continue;
-      }
-      lastError = err;
-      if (err.message && err.message.includes('Invalid GEMINI_API_KEY')) {
-        throw err;
+        lastError = err;
+        if (err.message && err.message.includes('Invalid GEMINI_API_KEY')) {
+          throw err;
+        }
       }
     }
   }
@@ -1720,7 +1724,7 @@ ${excludedListFormatted}`;
           }
         }
       } catch (err) {
-        if (err.code === 'AI_NOT_CONFIGURED' || err.code === 'AI_TIMEOUT') {
+        if (err.code === 'AI_NOT_CONFIGURED') {
           throw err;
         }
         console.warn('Gemini question batch generation notice:', err.message);
