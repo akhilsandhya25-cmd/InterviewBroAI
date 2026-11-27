@@ -20,6 +20,12 @@ import {
   getIsGeminiConfigured,
   clampScore
 } from './gemini.js';
+import {
+  findVideoQuestionByText,
+  findVideoQuestionById,
+  getVideoFollowUpsForQuestion,
+  VIDEO_PRIMARY_QUESTIONS
+} from './videoQuestionBank.js';
 
 /**
  * Checks if a candidate's academic stream, group, or target role is non-technical.
@@ -33,7 +39,8 @@ export function isNonTechnicalCandidate(stream = '', role = '', group = '') {
     'gst', 'auditing', 'taxation', 'bba', 'mba', 'marketing', 'sales', 'human resources', 'hr',
     'cec', 'hec', 'mec', 'bipc', 'commerce', 'economics', 'civics', 'arts', 'humanities',
     'history', 'political science', 'law', 'legal', 'advocate', 'nursing', 'pharmacy',
-    'healthcare', 'hospital administration', 'biology', 'botany', 'zoology'
+    'healthcare', 'hospital administration', 'biology', 'botany', 'zoology',
+    'customer service', 'call center', 'bpo', 'csr', 'customer support', 'telesales', 'telecalling', 'client support'
   ];
 
   const techKeywords = [
@@ -47,7 +54,16 @@ export function isNonTechnicalCandidate(stream = '', role = '', group = '') {
 
   // If explicit commerce/management stream (e.g. B.Com Fresher targeting Accountant) -> strictly non-technical
   if (hasNonTech && !hasTech) return true;
-  if (text.includes('b.com') || text.includes('bba') || text.includes('cec') || text.includes('accountant')) return true;
+  if (
+    text.includes('b.com') ||
+    text.includes('bba') ||
+    text.includes('cec') ||
+    text.includes('accountant') ||
+    text.includes('customer service') ||
+    text.includes('call center') ||
+    text.includes('bpo') ||
+    text.includes('csr')
+  ) return true;
 
   return false;
 }
@@ -60,7 +76,89 @@ export function getDomainCompetencies(stream = '', role = '', educationLevel = '
   const normRole = (role || '').toLowerCase();
   const normGroup = (intermediateGroup || '').toLowerCase();
 
-  // 1. Commerce, Accounting & Finance (B.Com, M.Com, Accountant, Financial Analyst)
+  // 1. Customer Service Representative / Call Center / BPO (Target role takes precedence over degree stream)
+  // Source: YouTube BYKqJkDxg9U authentic real interview question pipeline
+  if (
+    normRole.includes('customer service') ||
+    normRole.includes('call center') ||
+    normRole.includes('bpo') ||
+    normRole.includes('csr') ||
+    normRole.includes('customer support') ||
+    normRole.includes('telesales') ||
+    normRole.includes('telecalling') ||
+    normRole.includes('client support') ||
+    normStream.includes('customer service') ||
+    normStream.includes('bpo') ||
+    normStream.includes('call center')
+  ) {
+    return [
+      {
+        id: 'comp_csr_intro',
+        name: 'Background, Career Intent & Industry Choice',
+        description: 'Candidate self-introduction, explaining career transition into BPO, and deliberate career exploration.',
+        category: 'hr',
+        difficulty: 'beginner',
+        fallbackQuestions: [
+          'Tell me about yourself.',
+          'Did you discover other fields or industries aside from the BPO industry?',
+          'Why could it take five years before you get a permanent teaching position?',
+          'What exactly are you looking for in a job?'
+        ]
+      },
+      {
+        id: 'comp_csr_role',
+        name: 'Role Knowledge, 24/7 Shift Flexibility & Work Environment',
+        description: 'Understanding of CSR core duties, night and weekend shift adaptability, and thriving in collaborative production floors.',
+        category: 'subject_specific',
+        difficulty: 'beginner',
+        fallbackQuestions: [
+          'Are you aware of the tasks of a Customer Service Representative?',
+          'Are you flexible to work any shift, including weekends and public holidays?',
+          'What kind of work environment do you like best?',
+          'How is a call center more diverse than ESL teaching?'
+        ]
+      },
+      {
+        id: 'comp_csr_situational',
+        name: 'De-escalation, Empathy & Customer Compensation',
+        description: 'Active listening, managing dissatisfied callers, handling incorrect orders, and communicating refund/credit terms.',
+        category: 'situational',
+        difficulty: 'intermediate',
+        fallbackQuestions: [
+          'How would you handle a dissatisfied customer who received the wrong dress?',
+          'How would you communicate the refund and compensation to the customer?'
+        ]
+      },
+      {
+        id: 'comp_csr_behavioral',
+        name: 'Composure Under Pressure & Continuous Improvement',
+        description: 'Performing under pressure, emotional regulation, managing personal weaknesses, and sharing proud accomplishments.',
+        category: 'behavioral',
+        difficulty: 'intermediate',
+        fallbackQuestions: [
+          'Give me an example of how you performed well under pressure and handled it.',
+          "What's the achievement that you're most proud of, and why?",
+          'What is your greatest weakness?',
+          'How is your improvement in managing that weakness working so far?'
+        ]
+      },
+      {
+        id: 'comp_csr_thinking',
+        name: 'Process Instruction, Curveball Logic & Value Affirmation',
+        description: 'Step-by-step phone explanations, poise and critical logic under unexpected questions, and confident closing questions.',
+        category: 'communication',
+        difficulty: 'intermediate',
+        fallbackQuestions: [
+          'Can you walk me through making a homemade pizza from start to finish?',
+          'Why do you think pizzas are round?',
+          'Why should we NOT hire you?',
+          'Do you have any questions for me?'
+        ]
+      }
+    ];
+  }
+
+  // 2. Commerce, Accounting & Finance (B.Com, M.Com, Accountant, Financial Analyst)
   if (
     normStream.includes('b.com') ||
     normStream.includes('commerce') ||
@@ -379,7 +477,7 @@ export function getDomainCompetencies(stream = '', role = '', educationLevel = '
     ];
   }
 
-  // 6. Default: Software Engineering / Computer Science (B.Tech CSE, IT, BCA, MCA, Software Developer)
+  // 7. Default: Software Engineering / Computer Science (B.Tech CSE, IT, BCA, MCA, Software Developer)
   return [
     {
       id: 'comp_tech_intro',
@@ -444,8 +542,8 @@ export function getDomainCompetencies(stream = '', role = '', educationLevel = '
  */
 export function generateInterviewBlueprint(config = {}) {
   const profile = buildGeminiProfileContext(config.candidateProfile || config);
-  const targetRole = profile.targetRole || config.role || 'Software Engineer';
-  const degreeStream = profile.degreeStream || config.academicStream || 'B.Tech Computer Science';
+  const targetRole = config.role || profile.targetRole || 'Software Engineer';
+  const degreeStream = config.academicStream || profile.degreeStream || 'B.Tech Computer Science';
   const educationLevel = profile.educationLevel || config.educationLevel || 'UG';
   const intermediateGroup = config.intermediateGroup || '';
   const companyName = config.companyName || 'Technology Company';
@@ -629,6 +727,20 @@ export function generateAdaptiveNextQuestionFallback(config, currentQuestion, ca
     questionText = valid || pool[0] || `Let's transition to our next focus area: ${targetComp.name}. Can you walk me through your understanding of this topic?`;
     hints = targetComp.description || 'Provide a structured, comprehensive answer.';
     targetComp.explored = true;
+  }
+
+  // Check if current question is an authentic video question with curated conversational follow-ups
+  const curQId = currentQuestion?.id || '';
+  const curQText = currentQuestion?.questionText || '';
+  const matchedVideoQ = (curQId && findVideoQuestionById(curQId)) || findVideoQuestionByText(curQText);
+  if (matchedVideoQ && (decisionObj.decision === 'PROBE' || decisionObj.decision === 'CLARIFY' || decisionObj.decision === 'CHALLENGE')) {
+    const videoFollowUps = getVideoFollowUpsForQuestion(matchedVideoQ.id);
+    const prevNorm = previousQuestions.map(p => (typeof p === 'string' ? p : p?.questionText || '').toLowerCase());
+    const unaskedFollowUp = videoFollowUps.find(fu => !prevNorm.some(prev => prev.includes(fu.questionText.toLowerCase().slice(0, 20))));
+    if (unaskedFollowUp) {
+      questionText = unaskedFollowUp.questionText;
+      hints = unaskedFollowUp.evaluationFocus || hints;
+    }
   }
 
   const cleanQ = cleanSpokenQuestion(questionText);

@@ -23,8 +23,8 @@ Status: Student / Fresher`
 
   const currentStatus = sanitizeForPrompt(String(profile.currentStatus || profile.current_status || profile.experience_level || 'Student')).slice(0, 50);
   const educationLevel = sanitizeForPrompt(String(profile.educationLevel || profile.education_level || 'UG')).slice(0, 50);
-  const degreeStream = sanitizeForPrompt(String(profile.degreeStream || profile.degree_stream || profile.degreeCourse || profile.degree_course || 'B.Tech Computer Science')).slice(0, 100);
-  const targetRole = sanitizeForPrompt(String(profile.targetRole || profile.target_role || profile.role_target || 'Software Engineer')).slice(0, 100);
+  const degreeStream = sanitizeForPrompt(String(profile.academicStream || profile.stream || profile.degreeStream || profile.degree_stream || profile.degreeCourse || profile.degree_course || 'B.Tech Computer Science')).slice(0, 100);
+  const targetRole = sanitizeForPrompt(String(profile.role || profile.targetRole || profile.target_role || profile.role_target || 'Software Engineer')).slice(0, 100);
 
   const skillsArr = Array.isArray(profile.skills) ? profile.skills.map(s => sanitizeForPrompt(String(s)).slice(0, 50)) : [];
   const weakAreas = Array.isArray(profile.weakAreas)

@@ -9,6 +9,12 @@ import { buildGeminiProfileContext } from './geminiProfileContext.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { getCompanyTrack } from './companyTracks.js';
+import {
+  findVideoQuestionByText,
+  findVideoQuestionById,
+  getVideoFollowUpsForQuestion,
+  VIDEO_PRIMARY_QUESTIONS
+} from './videoQuestionBank.js';
 
 export { getCompanyTrack };
 
@@ -251,6 +257,25 @@ export async function callGemini(prompt, temperature = 0.4, systemInstruction = 
 export function generateIntelligentFollowUpFallback(question, answer, config = {}) {
   const normAnswer = (answer || '').trim();
   const lower = normAnswer.toLowerCase();
+
+  const actualQuestionText = typeof question === 'string' ? question : (question?.questionText || question?.text || '');
+  const questionId = typeof question === 'object' ? (question?.id || '') : '';
+
+  // 0. Curated Video Follow-up Integration (Source: YouTube BYKqJkDxg9U - Customer Service / BPO)
+  const matchedVideoQ = (questionId && findVideoQuestionById(questionId)) || findVideoQuestionByText(actualQuestionText);
+  if (matchedVideoQ) {
+    const videoFollowUps = getVideoFollowUpsForQuestion(matchedVideoQ.id);
+    if (videoFollowUps.length > 0) {
+      const prevList = (config?.previousQuestions || []).map(p => (typeof p === 'string' ? p : p?.questionText || '').toLowerCase());
+      const selected = videoFollowUps.find(fu => !prevList.some(prev => prev.includes(fu.questionText.toLowerCase().slice(0, 25)))) || videoFollowUps[0];
+      return {
+        questionText: selected.questionText,
+        category: selected.category || matchedVideoQ.category,
+        hints: selected.evaluationFocus || matchedVideoQ.hints,
+        followUpReason: selected.rationale || 'Probing candidate response on authentic video interview scenario.'
+      };
+    }
+  }
 
   const domainPatterns = [
     // 1. Core Engineering & Technical Stack

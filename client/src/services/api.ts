@@ -194,6 +194,12 @@ import {
   getQuestionsByIntermediateGroup,
   getQuestionsByStream
 } from '../data/universalQuestionBanks';
+import {
+  findVideoQuestionById,
+  findVideoQuestionByText,
+  getVideoFollowUpsForQuestion,
+  VIDEO_PRIMARY_QUESTIONS
+} from '../data/videoQuestionBank';
 import { storage } from './storage';
 import { isSupabaseConfigured, supabase } from './supabase';
 
@@ -463,6 +469,29 @@ export const api = {
       }
     }
 
+    // Customer Service / Call Center / BPO candidate check (Source: YouTube BYKqJkDxg9U video repository)
+    const isCSRRole = /\b(customer service|call center|bpo|csr|customer support|telecalling|telesales)\b/i.test(`${config.role || ''} ${config.academicStream || ''}`);
+    if (isCSRRole) {
+      const videoPool = shuffle([...VIDEO_PRIMARY_QUESTIONS]);
+      for (const vq of videoPool) {
+        if (questions.length >= config.questionCount) break;
+        if (!isClientDuplicate(vq.questionText, trackingList)) {
+          questions.push({
+            id: vq.id,
+            orderIndex: questions.length,
+            questionText: vq.questionText,
+            category: (vq.universalCategory === 'self_introduction' || vq.universalCategory === 'hr_general') ? 'hr' :
+                      vq.universalCategory === 'subject_specific' ? 'subject_specific' :
+                      vq.universalCategory === 'communication' ? 'communication' :
+                      vq.universalCategory === 'aptitude_reasoning' ? 'aptitude_reasoning' : 'behavioral',
+            contextOrHints: vq.hints,
+            source: 'ai'
+          });
+          trackingList.push(vq.questionText);
+        }
+      }
+    }
+
     // Populate remaining questions from randomized curated pools without duplicates
     const prioritizedPool = [...shuffle(primaryPool), ...shuffle(otherPools)];
     for (const item of prioritizedPool) {
@@ -683,9 +712,85 @@ export const api = {
       else difficultyProgression.push(baseDiff);
     }
 
-    const isNonTech = /\b(b\.com|bcom|commerce|accounting|accountant|bba|mba|marketing|cec|hec|mec|bipc|arts|law|nursing)\b/i.test(`${stream} ${role} ${config.intermediateGroup || ''}`);
+    const isCSR = /\b(customer service|call center|bpo|csr|customer support|telecalling|telesales)\b/i.test(`${stream} ${role} ${config.intermediateGroup || ''}`);
+    const isNonTech = isCSR || /\b(b\.com|bcom|commerce|accounting|accountant|bba|mba|marketing|cec|hec|mec|bipc|arts|law|nursing)\b/i.test(`${stream} ${role} ${config.intermediateGroup || ''}`);
 
-    const competencies = isNonTech
+    const csrCompetencies = [
+      {
+        id: 'csr1',
+        name: 'Background, Career Intent & Industry Choice',
+        description: 'Candidate self-introduction, explaining career transition into BPO, and deliberate career exploration.',
+        category: 'hr' as const,
+        difficulty: 'beginner' as DifficultyLevel,
+        targetOrder: 0,
+        explored: false,
+        fallbackQuestions: [
+          'Tell me about yourself.',
+          'Did you discover other fields or industries aside from the BPO industry?',
+          'Why could it take five years before you get a permanent teaching position?'
+        ]
+      },
+      {
+        id: 'csr2',
+        name: 'Role Knowledge, Shift Flexibility & Operations',
+        description: 'Understanding of CSR core duties, night and weekend shift adaptability, and thriving in collaborative production floors.',
+        category: 'subject_specific' as const,
+        difficulty: 'beginner' as DifficultyLevel,
+        targetOrder: 1,
+        explored: false,
+        fallbackQuestions: [
+          'Are you aware of the tasks of a Customer Service Representative?',
+          'Are you flexible to work any shift, including weekends and public holidays?',
+          'What kind of work environment do you like best?'
+        ]
+      },
+      {
+        id: 'csr3',
+        name: 'De-escalation, Empathy & Refund Communication',
+        description: 'Active listening, managing dissatisfied callers, handling incorrect orders, and communicating refund/credit terms.',
+        category: 'situational' as const,
+        difficulty: 'intermediate' as DifficultyLevel,
+        targetOrder: 2,
+        explored: false,
+        fallbackQuestions: [
+          'How would you handle a dissatisfied customer who received the wrong dress?',
+          'How would you communicate the refund and compensation to the customer?'
+        ]
+      },
+      {
+        id: 'csr4',
+        name: 'Composure Under Pressure & Continuous Improvement',
+        description: 'Performing under pressure, emotional regulation, managing personal weaknesses, and sharing proud accomplishments.',
+        category: 'behavioral' as const,
+        difficulty: 'intermediate' as DifficultyLevel,
+        targetOrder: 3,
+        explored: false,
+        fallbackQuestions: [
+          'Give me an example of how you performed well under pressure and handled it.',
+          "What's the achievement that you're most proud of, and why?",
+          'What is your greatest weakness?'
+        ]
+      },
+      {
+        id: 'csr5',
+        name: 'Process Instruction, Curveball Logic & Value Affirmation',
+        description: 'Step-by-step phone explanations, poise and critical logic under unexpected questions, and confident closing questions.',
+        category: 'communication' as const,
+        difficulty: 'intermediate' as DifficultyLevel,
+        targetOrder: 4,
+        explored: false,
+        fallbackQuestions: [
+          'Can you walk me through making a homemade pizza from start to finish?',
+          'Why do you think pizzas are round?',
+          'Why should we NOT hire you?',
+          'Do you have any questions for me?'
+        ]
+      }
+    ];
+
+    const competencies = isCSR
+      ? csrCompetencies
+      : isNonTech
       ? [
           {
             id: 'c1',
@@ -909,6 +1014,18 @@ export const api = {
       targetComp.explored = true;
     }
 
+    // Curated Video Follow-up check (Source: YouTube BYKqJkDxg9U)
+    const curMatchedVideoQ = findVideoQuestionById(currentQuestion.id) || findVideoQuestionByText(currentQuestion.questionText);
+    if (curMatchedVideoQ && (decision === 'PROBE' || decision === 'CLARIFY' || decision === 'CHALLENGE')) {
+      const vFollowUps = getVideoFollowUpsForQuestion(curMatchedVideoQ.id);
+      const prevNormalized = (sessionMemory?.previousQuestions || []).map(p => p.toLowerCase());
+      const unasked = vFollowUps.find(fu => !prevNormalized.some(prev => prev.includes(fu.questionText.toLowerCase().slice(0, 20))));
+      if (unasked) {
+        questionText = unasked.questionText;
+        hints = unasked.evaluationFocus || hints;
+      }
+    }
+
     const nextQ: InterviewQuestion = {
       id: `q-adaptive-${Date.now()}-${orderIdx}`,
       orderIndex: orderIdx,
@@ -1071,7 +1188,21 @@ export const api = {
     let category = question.category || 'technical';
     let followUpReason = '';
 
-    if (/\bredux\b/i.test(lower)) {
+    // 0. Curated Video Follow-up check (Source: YouTube BYKqJkDxg9U - Call Center / Customer Service)
+    const matchedVideoQ = findVideoQuestionById(question.id) || findVideoQuestionByText(question.questionText);
+    if (matchedVideoQ) {
+      const vFollowUps = getVideoFollowUpsForQuestion(matchedVideoQ.id);
+      if (vFollowUps.length > 0) {
+        const prevList = (previousQuestions || []).map(p => p.toLowerCase());
+        const selected = vFollowUps.find(fu => !prevList.some(prev => prev.includes(fu.questionText.toLowerCase().slice(0, 20)))) || vFollowUps[0];
+        followUpText = selected.questionText;
+        hints = selected.evaluationFocus || matchedVideoQ.hints;
+        followUpReason = selected.rationale;
+        category = selected.category as any;
+      }
+    }
+
+    if (!followUpText && /\bredux\b/i.test(lower)) {
       followUpText = 'You mentioned using Redux for state management—how did you handle asynchronous actions like API calls in that setup?';
       hints = 'Discuss redux-thunk, redux-saga, action creators, middleware flow, and state immutability.';
       followUpReason = 'Candidate mentioned Redux; probing async actions and middleware.';

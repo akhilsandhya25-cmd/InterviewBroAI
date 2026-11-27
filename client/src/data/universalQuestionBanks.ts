@@ -14,6 +14,9 @@
  */
 
 import { EducationLevelId, AcademicStreamId, IntermediateGroupId } from './studentStreams';
+import { getVideoQuestionsAsUniversal, VIDEO_PRIMARY_QUESTIONS, VIDEO_FOLLOWUP_QUESTIONS } from './videoQuestionBank';
+
+export { VIDEO_PRIMARY_QUESTIONS, VIDEO_FOLLOWUP_QUESTIONS } from './videoQuestionBank';
 
 export type UniversalQuestionCategory =
   | 'self_introduction'
@@ -860,7 +863,13 @@ export const UNIVERSAL_QUESTION_BANKS: UniversalQuestion[] = [
     hints: 'Safety and compliance take unconditional priority. Immediately address Task B while politely informing the senior with expected completion time for Task A.',
     whatInterviewerLooksFor: 'Ethical judgment, safety-first mindset, professional upward communication.',
     subDomainTag: 'Situational & Ethical Reasoning'
-  }
+  },
+
+  // =========================================================================
+  // 9. VIDEO INTERVIEW QUESTIONS (Extracted Real Video Interviews: YouTube BYKqJkDxg9U)
+  // Call Center / Customer Service Representative / BPO Fresh Graduate
+  // =========================================================================
+  ...getVideoQuestionsAsUniversal()
 ];
 
 // ============================================================================
