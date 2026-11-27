@@ -185,7 +185,7 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       throw err;
     }
 
-    setIsGeneratingQuestions(true);
+    setIsGeneratingQuestions(false);
     setMediaError(null);
     try {
       // Collect previously asked questions to enforce non-repetition across sessions
@@ -201,8 +201,8 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       });
 
-      // Call serverless endpoint to consume quota atomically & generate questions
-      const aiQuestions = await api.generateQuestions(config, previousQuestions);
+      // 1. INSTANT START: Generate tailored initial questions in 0ms so the interview room opens immediately
+      const initialQuestions = api.getInstantInitialQuestions(config, previousQuestions);
 
       const blueprint = api.getInterviewBlueprint(config);
       const sessionMemory: InterviewSessionMemory = {
@@ -216,13 +216,14 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         currentCompetency: blueprint.competencies[0]?.name || 'Introduction'
       };
 
+      const sessionId = `sess-${Date.now()}`;
       const session: InterviewSession = {
-        id: `sess-${Date.now()}`,
+        id: sessionId,
         userId: user?.id || 'usr-guest',
         title: `${config.companyName} ${config.role} Mock Interview`,
         config,
         status: 'in_progress',
-        questions: aiQuestions && aiQuestions.length > 0 ? aiQuestions : api.getInstantInitialQuestions(config, previousQuestions),
+        questions: initialQuestions,
         currentQuestionIndex: 0,
         blueprint,
         sessionMemory,
@@ -303,6 +304,45 @@ export const InterviewProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         })();
       }
+
+      // 2. BACKGROUND ENRICHMENT: Asynchronously call serverless API to consume quota atomically
+      // and enrich upcoming questions with Gemini generation without blocking room entry
+      api.generateQuestions(config, previousQuestions)
+        .then((aiQuestions) => {
+          if (aiQuestions && aiQuestions.length > 0) {
+            setActiveSession(prev => {
+              if (!prev || prev.id !== sessionId || prev.status !== 'in_progress') return prev;
+
+              // Safely merge: keep questions that have already been answered or are currently active,
+              // replace/enrich upcoming unasked questions
+              const currentIdx = prev.currentQuestionIndex || 0;
+              const merged = [...prev.questions];
+
+              aiQuestions.forEach((aiQ, idx) => {
+                if (idx > currentIdx) {
+                  if (idx < merged.length) {
+                    if (!merged[idx].candidateAnswer) {
+                      merged[idx] = {
+                        ...aiQ,
+                        orderIndex: idx,
+                        id: merged[idx].id
+                      };
+                    }
+                  } else {
+                    merged.push({ ...aiQ, orderIndex: idx });
+                  }
+                }
+              });
+
+              const updatedSession = { ...prev, questions: merged };
+              storage.saveSession(updatedSession, user?.id);
+              return updatedSession;
+            });
+          }
+        })
+        .catch((err) => {
+          console.warn('[Background Question Enrichment] Non-blocking notice:', err.message || err);
+        });
 
       return true;
     } catch (err: any) {

@@ -169,12 +169,12 @@ export async function callGemini(prompt, temperature = 0.4, systemInstruction = 
     throw err;
   }
 
-  // Fast models with resilient tiered failover
+  // Fast models with resilient tiered failover - prioritize verified sub-second lightweight models
   const candidateModels = [
-    process.env.GEMINI_MODEL || 'gemini-3.5-flash',
-    'gemini-3.5-flash',
+    process.env.GEMINI_MODEL,
+    'gemini-flash-lite-latest',
     'gemini-3.5-flash-lite',
-    'gemini-flash-lite-latest'
+    'gemini-flash-latest'
   ];
   const uniqueModels = Array.from(new Set(candidateModels.filter(Boolean)));
 
