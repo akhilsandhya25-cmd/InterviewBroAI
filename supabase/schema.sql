@@ -280,9 +280,9 @@ create index if not exists idx_user_feedback_created_at on public.user_feedback(
 
 alter table public.user_feedback enable row level security;
 drop policy if exists "Anyone can submit feedback" on public.user_feedback;
-create policy "Anyone can submit feedback" on public.user_feedback for insert with check (true);
 drop policy if exists "Anyone can read feedback" on public.user_feedback;
-create policy "Anyone can read feedback" on public.user_feedback for select using (true);
+create policy "Anyone can submit feedback" on public.user_feedback for insert with check (message is not null and length(trim(message)) > 0);
+create policy "Users can view own feedback" on public.user_feedback for select using (auth.uid() is not null and auth.uid() = user_id);
 
 -- =========================================================================
 -- 10. PERMISSIONS & ROLE GRANTS
@@ -293,8 +293,10 @@ grant select, insert, update, delete on public.profiles to authenticated, anon;
 grant select, insert, update, delete on public.interview_sessions to authenticated, anon;
 grant select, insert, update, delete on public.feedback_reports to authenticated, anon;
 grant select, insert, update, delete on public.resume_analyses to authenticated, anon;
-grant insert, select on public.waitlist to authenticated, anon;
-grant insert, select on public.user_feedback to authenticated, anon, service_role;
+grant insert on public.waitlist to authenticated, anon;
+grant select on public.waitlist to service_role;
+grant insert on public.user_feedback to authenticated, anon;
+grant select on public.user_feedback to authenticated, service_role;
 
 grant execute on function public.consume_interview_quota(uuid) to authenticated, anon, service_role;
 grant execute on function public.increment_interview_usage(uuid, integer) to authenticated, anon, service_role;

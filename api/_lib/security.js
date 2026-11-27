@@ -24,10 +24,16 @@ const LIMITS = {
   ip_resume: 5,      // max 5 resume parse requests per minute per IP
   ip_coach: 15,      // max 15 practice coach queries per minute per IP
   ip_auth: 10,       // max 10 auth requests per minute per IP (prevents credential stuffing & spam)
+  ip_feedback: 5,    // max 5 feedback submissions per minute per IP
+  ip_waitlist: 5,    // max 5 waitlist submissions per minute per IP
+  ip_blueprint: 30,  // max 30 blueprint requests per minute per IP
   user_ai: 20,       // max 20 AI requests per minute per user
   user_resume: 3,    // max 3 resume parse requests per minute per user
   user_coach: 25,    // max 25 practice coach queries per minute per user
-  user_auth: 10      // max 10 auth requests per minute per user
+  user_auth: 10,     // max 10 auth requests per minute per user
+  user_feedback: 5,  // max 5 feedback submissions per minute per user
+  user_waitlist: 5,  // max 5 waitlist submissions per minute per user
+  user_blueprint: 30 // max 30 blueprint requests per minute per user
 };
 
 // Strict list of explicitly authorized origins
@@ -108,6 +114,7 @@ export function applySecurityHeaders(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
 }
 
 /**
@@ -123,11 +130,17 @@ export function checkRateLimit(req, userId, endpointType = 'ai') {
   const maxIp = endpointType === 'resume' ? LIMITS.ip_resume 
     : endpointType === 'coach' ? LIMITS.ip_coach 
     : endpointType === 'auth' ? LIMITS.ip_auth 
+    : endpointType === 'feedback' ? LIMITS.ip_feedback
+    : endpointType === 'waitlist' ? LIMITS.ip_waitlist
+    : endpointType === 'blueprint' ? LIMITS.ip_blueprint
     : LIMITS.ip_ai;
 
   const maxUser = endpointType === 'resume' ? LIMITS.user_resume 
     : endpointType === 'coach' ? LIMITS.user_coach 
     : endpointType === 'auth' ? LIMITS.user_auth 
+    : endpointType === 'feedback' ? LIMITS.user_feedback
+    : endpointType === 'waitlist' ? LIMITS.user_waitlist
+    : endpointType === 'blueprint' ? LIMITS.user_blueprint
     : LIMITS.user_ai;
 
   // 1. Check IP rate limit
@@ -405,6 +418,31 @@ export async function validateResumeFile(buffer, fileName = '', mimeType = '') {
   }
 
   return { valid: true };
+}
+
+/**
+ * Strips dangerous HTML/script tags and encodes special characters to prevent XSS attacks
+ */
+export function sanitizeHtml(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+    .replace(/javascript:[^"'\s]*/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Validates, trims, and bounds general text input with XSS sanitization
+ */
+export function sanitizeText(str, maxLength = 2000) {
+  if (!str) return '';
+  const text = String(str).trim().slice(0, maxLength);
+  return sanitizeHtml(text);
 }
 
 /**

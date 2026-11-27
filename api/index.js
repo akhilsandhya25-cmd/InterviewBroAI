@@ -10,7 +10,9 @@ import {
   getClientIp,
   consumeQuotaOnSessionStart,
   validateResumeFile,
-  verifyUserQuotaAvailable
+  verifyUserQuotaAvailable,
+  sanitizeHtml,
+  sanitizeText
 } from './_lib/security.js';
 import {
   verifyBackendEligibility,
@@ -207,13 +209,14 @@ export default async function handler(req, res) {
       ? String(plan).toLowerCase()
       : 'pro';
 
-    // Anti-spam rate limiting
-    const clientIp = getClientIp(req);
-    const rateLimitKey = `waitlist:${clientIp}:${cleanEmail}`;
-    if (isRateLimited(rateLimitKey)) {
+    // Anti-spam rate limiting (standard 429 with Retry-After header)
+    const rateCheck = checkRateLimit(req, null, 'waitlist');
+    if (!rateCheck.allowed) {
+      res.setHeader('Retry-After', String(rateCheck.retryAfter || 60));
       return res.status(429).json({
-        error: 'Rate limit exceeded',
-        message: 'Please wait a moment before submitting again.'
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: rateCheck.message,
+        retryAfter: rateCheck.retryAfter
       });
     }
 
@@ -280,8 +283,16 @@ export default async function handler(req, res) {
     const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
     const authKey = serviceRoleKey || supaKey;
 
-    // Handle GET: Fetch submitted feedback for developer / admin review
+    // Handle GET: Fetch submitted feedback for developer / admin review (with PII masking)
     if (req.method === 'GET') {
+      const maskFeedbackPii = (items) => {
+        return (items || []).map(item => ({
+          ...item,
+          email: item.email ? maskEmail(item.email) : null,
+          client_ip: '[PROTECTED]'
+        }));
+      };
+
       try {
         if (supaUrl && authKey) {
           const supaRes = await fetch(`${supaUrl}/rest/v1/user_feedback?select=*&order=created_at.desc&limit=50`, {
@@ -299,7 +310,7 @@ export default async function handler(req, res) {
                 success: true,
                 count: data.length,
                 source: 'database',
-                data
+                data: maskFeedbackPii(data)
               });
             }
           }
@@ -308,12 +319,12 @@ export default async function handler(req, res) {
         console.warn('[Feedback API] Supabase fetch notice:', err.message);
       }
 
-      // Return server in-memory feedback store fallback
+      // Return server in-memory feedback store fallback with PII masking
       return res.status(200).json({
         success: true,
         count: feedbackMemoryStore.length,
         source: 'memory',
-        data: feedbackMemoryStore
+        data: maskFeedbackPii(feedbackMemoryStore)
       });
     }
 
@@ -380,7 +391,7 @@ export default async function handler(req, res) {
       pageUrl = ''
     } = body || {};
 
-    const cleanMessage = String(message || '').trim().slice(0, 3000);
+    const cleanMessage = sanitizeText(message, 3000);
     if (!cleanMessage) {
       return res.status(400).json({
         error: 'Missing Feedback Message',
@@ -389,19 +400,22 @@ export default async function handler(req, res) {
     }
 
     const cleanRating = Math.max(1, Math.min(5, Number(rating) || 5));
-    const cleanCategory = String(category || 'General Feedback').trim().slice(0, 100);
-    const cleanName = String(name || '').trim().slice(0, 120);
-    const cleanEmail = String(email || '').trim().slice(0, 150).toLowerCase();
+    const cleanCategory = sanitizeText(category || 'General Feedback', 100);
+    const cleanName = sanitizeText(name || '', 120);
+    const cleanEmail = sanitizeText(email || '', 150).toLowerCase();
 
-    // Anti-spam rate limiting by client IP
-    const clientIp = getClientIp(req);
-    const rateLimitKey = `feedback:${clientIp}`;
-    if (isRateLimited(rateLimitKey)) {
+    // Anti-spam rate limiting (standard 429 with Retry-After header)
+    const rateCheck = checkRateLimit(req, null, 'feedback');
+    if (!rateCheck.allowed) {
+      res.setHeader('Retry-After', String(rateCheck.retryAfter || 60));
       return res.status(429).json({
-        error: 'Rate limit exceeded',
-        message: 'You have submitted recently. Please wait a moment before sending another feedback.'
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: rateCheck.message,
+        retryAfter: rateCheck.retryAfter
       });
     }
+
+    const clientIp = getClientIp(req);
 
     const feedbackEntry = {
       id: `fb-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
@@ -1100,6 +1114,16 @@ export default async function handler(req, res) {
   if (url.includes('/ai/blueprint') || url.includes('/ai-blueprint') || url.includes('/blueprint') || url === 'blueprint' || url.endsWith('/blueprint')) {
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    const rateCheck = checkRateLimit(req, null, 'blueprint');
+    if (!rateCheck.allowed) {
+      res.setHeader('Retry-After', String(rateCheck.retryAfter || 60));
+      return res.status(429).json({
+        error: 'RATE_LIMIT_EXCEEDED',
+        message: rateCheck.message,
+        retryAfter: rateCheck.retryAfter
+      });
     }
 
     const body = await parseBody(req);
